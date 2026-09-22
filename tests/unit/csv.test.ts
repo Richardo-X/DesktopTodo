@@ -47,7 +47,7 @@ describe('F1/F4/F5 导出', () => {
       archive[key] = [done(`a${d}`, localIso(2026, 9, d, 8), localIso(2026, 9, d, 9, d))]
     }
     archive['2026-08-31'] = [done('out1', localIso(2026, 8, 31, 8), localIso(2026, 8, 31, 9))]
-    archive['2026-09-11'] = [done('out2', localIso(2026, 9, 11, 8), localIso(2026, 9, 11, 9))]
+    archive['2026-10-01'] = [done('out2', localIso(2026, 10, 1, 8), localIso(2026, 10, 1, 9))]
     return data({
       archive,
       completed: [done('today', localIso(2026, 9, 21, 7), localIso(2026, 9, 21, 8, 30))]
@@ -66,7 +66,7 @@ describe('F1/F4/F5 导出', () => {
     }
     // 区间外不出现
     expect(r.rows.some((row) => row.completedAt.startsWith('2026-08-31'))).toBe(false)
-    expect(r.rows.some((row) => row.completedAt.startsWith('2026-09-11'))).toBe(false)
+    expect(r.rows.some((row) => row.completedAt.startsWith('2026-10-01'))).toBe(false)
     // 今天完成包含
     expect(r.rows.some((row) => row.content === '内容today')).toBe(true)
   })
@@ -206,7 +206,7 @@ describe('F8 合并导入：三元组完全相同只保留当前那条', () => {
     const parsed = parseCsv(
       serializeCsv([
         { completedDate: '2026-09-20', completedTime: '09:00:00', content: '历史B', createdAt: fmtTs(localIso(2026, 9, 19, 8)), completedAt: fmtTs(localIso(2026, 9, 20, 9)) },
-        { completedDate: '2026-09-21', completedTime: '10:00:00', content: '今天A重复', createdAt: fmtTs(localIso(2026, 9, 21, 7)), completedAt: fmtTs(localIso(2026, 9, 21, 8)) },
+        { completedDate: '2026-09-21', completedTime: '10:00:00', content: '今天A', createdAt: fmtTs(localIso(2026, 9, 21, 7)), completedAt: fmtTs(localIso(2026, 9, 21, 8)) },
         { completedDate: '2026-09-18', completedTime: '12:00:00', content: '全新C', createdAt: fmtTs(localIso(2026, 9, 18, 8)), completedAt: fmtTs(localIso(2026, 9, 18, 12)) }
       ]),
       TODAY
