@@ -90,6 +90,8 @@ test('验收25：覆盖导入完全替换且不进回收站', async () => {
   await main.click('[data-testid="done-history"]')
   const hist = await histPromise
   await hist.waitForSelector('[data-testid="hist-count"]')
+  // 导入的记录完成日在两天前 → 导航到该日期查看
+  await hist.fill('[data-testid="hist-date-input"]', dateKeyOffset(-2))
   await expect(hist.locator('[data-testid="hist-row"]')).toHaveCount(1)
   await expect(hist.locator('[data-testid="hist-row"]')).toContainText('导入的记录')
 
@@ -147,7 +149,10 @@ test('验收26/27：合并导入三元组去重并按完成日落位', async () 
   await main.click('[data-testid="done-history"]')
   const hist = await histPromise
   await hist.waitForSelector('[data-testid="hist-count"]')
+  // 两条记录完成日都在昨天 → 导航到昨天查看
+  await hist.fill('[data-testid="hist-date-input"]', dateKeyOffset(-1))
   await expect(hist.locator('[data-testid="hist-count"]')).toHaveText('2 条')
-  await expect(hist.locator('[data-testid="hist-row"]')).toContainText('新增记录')
+  await expect(hist.locator('[data-testid="hist-row"]').filter({ hasText: '新增记录' })).toHaveCount(1)
+  await expect(hist.locator('[data-testid="hist-row"]').filter({ hasText: '重复记录' })).toHaveCount(1)
   await h.close()
 })

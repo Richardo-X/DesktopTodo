@@ -46,11 +46,14 @@ export async function launchApp(opts: LaunchOptions = {}): Promise<AppHandle> {
   await main.waitForLoadState('domcontentloaded')
   await main.locator('[data-testid="home-panel"]').waitFor({ state: 'visible', timeout: 15_000 })
 
+  let closed = false
   return {
     app,
     main,
     userData,
     async close() {
+      if (closed) return
+      closed = true
       await app.close()
     }
   }

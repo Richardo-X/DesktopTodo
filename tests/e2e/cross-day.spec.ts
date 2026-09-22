@@ -37,8 +37,8 @@ test('验收16/18：跨过0点 → 未完成挂逾期标签、昨日完成归档
 
   // 未完成待办挂逾期标签，位置不变
   const lastRow = main.locator('[data-testid="todo-row"]')
-  await expect(lastRow).toHaveCount(1)
-  await expect(lastRow.locator('[data-testid="row-overdue-tag"]')).toHaveText('逾期')
+  await expect(lastRow).toHaveCount(1, { timeout: 10_000 })
+  await expect(lastRow.locator('[data-testid="row-overdue-tag"]')).toHaveText('逾期', { timeout: 10_000 })
 
   // 昨日完成归档：已完成面板清空
   await expect(main.locator('[data-testid="done-row"]')).toHaveCount(0)

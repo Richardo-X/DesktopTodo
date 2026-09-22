@@ -45,7 +45,6 @@ test('验收31：模板查重提示"已存在相同内容"', async () => {
   const h: AppHandle = await launchApp()
   const main = h.main
   const wp = h.app.waitForEvent('window')
-  await main.click('[data-testid="op-quick-toggle"]').catch(() => {})
   await main.click('[data-testid="quick-new"]')
   const tpl = await wp
   await tpl.fill('[data-testid="tpl-new-input"]', '喝水')

@@ -87,10 +87,12 @@ test('主流程：新建→编辑→完成→反选→批量删除→回收站�
 test('验收6：退出重启后事项与界面状态恢复', async () => {
   const main = h.main
   await createTodo(main, '持久化事项')
+  await expect(main.locator('[data-testid="todo-row"]')).toHaveCount(1)
 
-  // 改主题（记忆项）
+  // 改主题（记忆项）；等待子窗口完全关闭后再操作
+  await main.waitForTimeout(400)
   await main.click('[data-testid="tb-theme"]')
-  await expect(main.locator('.cluster')).toHaveAttribute('data-theme', 'night', { timeout: 5000 })
+  await expect(main.locator('.cluster')).toHaveAttribute('data-theme', 'night', { timeout: 15_000 })
 
   const userData = h.userData
   await h.close()

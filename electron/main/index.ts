@@ -20,6 +20,11 @@ import { childWindowOptions } from './child-windows'
 
 let win: BrowserWindow | null = null
 let tray: Tray | null = null
+
+/** 窗口已销毁时返回 null，避免 "Object has been destroyed"（所有异步回调必须经此访问） */
+function safeWin(): BrowserWindow | null {
+  return win !== null && !win.isDestroyed() ? win : null
+}
 let visible = true
 let hasUnsavedEdits = false
 let lastSettleCheck = localDateKey(new Date())
@@ -80,7 +85,11 @@ function createWindow(data: ReturnType<AppContext['current']>): void {
   const win_ = new BrowserWindow({
     ...defaultWindowOptions(bounds),
     x: pos.x,
-    y: pos.y
+    y: pos.y,
+    webPreferences: {
+      ...defaultWindowOptions(bounds).webPreferences,
+      preload: join(__dirname, '../preload/index.js')
+    }
   })
   win = win_
   visible = true
@@ -92,9 +101,12 @@ function createWindow(data: ReturnType<AppContext['current']>): void {
     currentPos = { x: b.x, y: b.y }
     detectSnap()
   })
+  win_.on('closed', () => {
+    if (win === win_) win = null
+  })
   win_.on('close', (e) => {
     // 唯一退出途径是托盘菜单；点 × 等同缩小到通知栏（PRD §2.1）
-    if (!(app as unknown as { isQuitting?: boolean }).isQuitting) {
+    if (!isQuitting) {
       e.preventDefault()
       hideToTray()
     }
@@ -132,13 +144,13 @@ function toggleVisibility(): void {
 
 function showWindow(): void {
   visible = true
-  win?.show()
+  safeWin()?.show()
   refreshTrayMenu()
 }
 
 function hideToTray(): void {
   visible = false
-  win?.hide()
+  safeWin()?.hide()
   refreshTrayMenu()
 }
 
@@ -159,8 +171,9 @@ function refreshTrayMenu(): void {
 
 /** 唯一退出途径：托盘菜单 → 确认框 → 退出（PRD §2.2/速查 #3） */
 async function confirmExit(): Promise<void> {
-  if (!win) return quitNow()
-  const r = await dialog.showMessageBox(win, {
+  const w = safeWin()
+  if (!w) return quitNow()
+  const r = await dialog.showMessageBox(w, {
     type: 'question',
     buttons: ['退出', '取消'],
     defaultId: 0,
@@ -171,7 +184,6 @@ async function confirmExit(): Promise<void> {
 }
 
 function quitNow(): void {
-  ;(app as unknown as { isQuitting?: boolean }).isQuitting = true
   app.quit()
 }
 
@@ -179,23 +191,25 @@ const childWindows = new Set<BrowserWindow>()
 
 /** 按 uiState（缩放/面板开关/缩进）同步主窗口尺寸；位置不变（T38/T39/T43） */
 function syncMainBounds(): void {
-  if (!win || !ctx) return
+  const w = safeWin()
+  if (!w || !ctx) return
   const d = ctx.current()
   const b = clusterBounds(d.uiState.clusterScale, panelVisibility())
   const height = tucked ? TUCK_BAR_HEIGHT : b.height
-  const pos = currentPos ?? win.getBounds()
-  win.setBounds({ x: pos.x, y: pos.y, width: b.width, height })
+  const pos = currentPos ?? w.getBounds()
+  w.setBounds({ x: pos.x, y: pos.y, width: b.width, height })
 }
 
 /** 吸附检测：窗口顶边接近工作区顶（阈值见附录 A8）→ 通知渲染层状态机 */
 function detectSnap(): void {
-  if (!win) return
+  const w = safeWin()
+  if (!w) return
   const wa = screen.getPrimaryDisplay().workArea
-  const b = win.getBounds()
+  const b = w.getBounds()
   const now = b.y - wa.y <= SNAP_THRESHOLD
   if (now !== snapped) {
     snapped = now
-    win.webContents.send(IPC.snapChanged, snapped)
+    w.webContents.send(IPC.snapChanged, snapped)
   }
 }
 
@@ -241,10 +255,14 @@ function openChildWindow(kind: ChildKind, id?: string): void {
     const clamped = clampPosToWorkArea({ x: b.x, y: b.y }, { width: b.width, height: b.height }, wa)
     if (clamped.x !== b.x || clamped.y !== b.y) child.setPosition(clamped.x, clamped.y)
   })
+  child.on('close', () => {
+    // 提前解锁：close 与 closed 之间窗口仍 disabled 会吞掉主窗口的输入
+    lockNonChildWindows(false)
+  })
   child.on('closed', () => {
     childWindows.delete(child)
     if (childWindows.size === 0) lockNonChildWindows(false)
-    win?.webContents.send(IPC.childClosed)
+    safeWin()?.webContents.send(IPC.childClosed)
   })
 
   const query: Record<string, string> = { win: kind }
@@ -273,12 +291,18 @@ function registerIpc(): void {
   ipcMain.handle(IPC.commit, async (_e, data: Awaited<ReturnType<AppContext['boot']>>) => {
     await ctx.commit(data, currentPos)
     syncMainBounds()
+    // 广播到所有窗口：多窗口（子窗口编辑后主窗口）状态一致
+    const latest = ctx.current()
+    for (const w of BrowserWindow.getAllWindows()) {
+      if (!w.isDestroyed()) w.webContents.send(IPC.stateUpdated, latest)
+    }
   })
 
   ipcMain.handle(IPC.flush, () => ctx.flush())
 
   ipcMain.handle(IPC.setTopMost, (_e, enabled: boolean) => {
-    if (win) applyTopMost(win, enabled)
+    const w = safeWin()
+    if (w) applyTopMost(w, enabled)
   })
 
   ipcMain.handle(IPC.setVisibility, (_e, v: boolean) => {
@@ -287,7 +311,7 @@ function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.setIgnoreMouseEvents, (_e, opts: { ignore: boolean; forward: boolean }) => {
-    win?.setIgnoreMouseEvents(opts.ignore, { forward: opts.forward })
+    safeWin()?.setIgnoreMouseEvents(opts.ignore, { forward: opts.forward })
   })
 
   ipcMain.handle(IPC.setAutoStart, (_e, enabled: boolean) => {
@@ -304,8 +328,9 @@ function registerIpc(): void {
       await writeFile(target, p.content, 'utf8')
       return target
     }
-    if (!win) return null
-    const r = await dialog.showSaveDialog(win, {
+    const w0 = safeWin()
+    if (!w0) return null
+    const r = await dialog.showSaveDialog(w0, {
       defaultPath: p.fileName,
       filters: [{ name: 'CSV', extensions: ['csv'] }]
     })
@@ -319,7 +344,9 @@ function registerIpc(): void {
     if (process.env.DTODO_TEST_IMPORT_FILE) {
       return readFile(process.env.DTODO_TEST_IMPORT_FILE, 'utf8')
     }
-    const r = await dialog.showOpenDialog(win!, {
+    const w1 = safeWin()
+    if (!w1) return null
+    const r = await dialog.showOpenDialog(w1, {
       properties: ['openFile'],
       filters: [{ name: 'CSV', extensions: ['csv'] }]
     })
@@ -334,9 +361,11 @@ function registerIpc(): void {
 
   // E2E 测试钩子：强制以偏移时钟结算（仅 DTODO_TEST=1 时注册）
   if (process.env.DTODO_TEST === '1') {
-    ipcMain.handle('test:force-settle', (_e, days: number) =>
-      ctx.settleWith(new OffsetClock(Number(days) * 24))
-    )
+    ipcMain.handle('test:force-settle', async (_e, days: number) => {
+      const r = await ctx.settleWith(new OffsetClock(Number(days) * 24))
+      if (r.changed) safeWin()?.webContents.send(IPC.stateUpdated, r.data)
+      return r.changed
+    })
   }
 }
 
@@ -349,7 +378,7 @@ function startSettleTimer(): void {
     void ctx
       .settleIfCrossed()
       .then((r) => {
-        if (r.changed) win?.webContents.send(IPC.stateUpdated, r.data)
+        if (r.changed) safeWin()?.webContents.send(IPC.stateUpdated, r.data)
       })
       .catch(() => {})
   }, 30_000)
@@ -358,24 +387,35 @@ function startSettleTimer(): void {
 /** 分辨率变化/拔显示器 → 组件回到主屏可见范围（PRD §10-40） */
 function watchDisplayChanges(): void {
   const reposition = (): void => {
-    if (!win) return
+    const w = safeWin()
+    if (!w || !ctx) return
     const bounds = clusterBounds(ctx.current().uiState.clusterScale, panelVisibility())
     const displays = screen.getAllDisplays().map((d) => d.workArea)
     const next = ensureOnSomeDisplay(currentPos ?? { x: 0, y: 0 }, bounds, displays)
-    win.setPosition(next.x, next.y)
+    w.setPosition(next.x, next.y)
     currentPos = next
   }
   screen.on('display-removed', reposition)
   screen.on('display-metrics-changed', reposition)
 }
 
-app.on('before-quit', () => {
-  // 退出前强制落盘（含最新窗口位置）
-  if (ctx && currentPos) {
-    const d = ctx.current()
-    void ctx.commit({ ...d, uiState: { ...d.uiState, pos: currentPos } }, currentPos)
+let isQuitting = false
+
+app.on('before-quit', async (e) => {
+  if (isQuitting) return // 第二次进入：放行退出
+  isQuitting = true
+  // 阻止本次退出，等落盘完成后再真正退出（否则异步 flush 会被进程退出截断）
+  e.preventDefault()
+  try {
+    if (ctx && currentPos) {
+      const d = ctx.current()
+      await ctx.commit({ ...d, uiState: { ...d.uiState, pos: currentPos } }, currentPos)
+    }
+    if (ctx) await ctx.flush()
+  } catch {
+    // 落盘失败也要能退出
   }
-  if (ctx) void ctx.flush()
+  app.quit()
 })
 
 app.on('window-all-closed', () => {

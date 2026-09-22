@@ -15,4 +15,10 @@ const RootApp = defineComponent({
   }
 })
 
-createApp(RootApp).use(createPinia()).mount('#app')
+const pinia = createPinia()
+createApp(RootApp).use(pinia).mount('#app')
+
+// E2E 调试探针
+if (import.meta.env.MODE === 'test' || process.env.DTODO_TEST === '1') {
+  ;(window as unknown as Record<string, unknown>).__pinia = pinia
+}
