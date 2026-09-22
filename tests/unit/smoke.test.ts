@@ -8,6 +8,6 @@ describe('smoke/unit', () => {
 
   it('TypeScript strict 模式下模块导入可用', async () => {
     const mod = await import('../../src/core/interfaces/clock')
-    expect(typeof mod.typeLocalISO).toBe('function')
+    expect(new mod.SystemClock().now()).toBeInstanceOf(Date)
   })
 })
