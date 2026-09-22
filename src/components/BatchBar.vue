@@ -2,19 +2,23 @@
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 
-const props = defineProps<{ target?: 'todos' | 'templates' }>()
+const props = defineProps<{ target?: 'todos' | 'templates' | 'history'; historyDateKey?: string }>()
 
 const store = useAppStore()
 const ui = useUiStore()
 
-const allIds = (): string[] =>
-  props.target === 'templates' ? store.templates.map((t) => t.id) : store.todos.map((t) => t.id)
+const allIds = (): string[] => {
+  if (props.target === 'templates') return store.templates.map((t) => t.id)
+  if (props.target === 'history') return (props.historyDateKey ? store.archive[props.historyDateKey] ?? [] : []).map((t) => t.id)
+  return store.todos.map((t) => t.id)
+}
 
 async function onDelete(): Promise<void> {
   const count = ui.selectedIds.length
   const ok = await ui.confirm(`确定删除所选的 ${count} 项吗？删除后将进入回收站。`)
   if (!ok) return
   if (props.target === 'templates') await store.batchDeleteTemplates([...ui.selectedIds])
+  else if (props.target === 'history') await store.batchDeleteHistory(props.historyDateKey ?? '', [...ui.selectedIds])
   else await store.batchDeleteTodos([...ui.selectedIds])
   ui.exitBatch()
 }
