@@ -5,6 +5,11 @@ import { defaultAppData, type AppData, type TodoItem } from '../../src/core/mode
 /** 固定"今天"：本地 2026-09-21 00:00:30（跨过 0 点瞬间） */
 const NOW = new Date(2026, 8, 21, 0, 0, 30)
 
+/** 以本地日期时间分量构造 ISO 串（时区无关的测试夹具） */
+function localIso(y: number, mo: number, d: number, h = 0, mi = 0): string {
+  return new Date(y, mo - 1, d, h, mi).toISOString()
+}
+
 function item(id: string, p: Partial<TodoItem> & { createdAt: string }): TodoItem {
   return {
     id,
@@ -24,9 +29,9 @@ describe('B 跨天结算 settle()', () => {
   it('B1 已完成区隔：昨天的进 archive[昨天]，今天的留在 completed', () => {
     const data = withData({
       completed: [
-        item('a1', { createdAt: '2026-09-20T01:00:00.000Z', completedAt: '2026-09-20T02:00:00.000Z' }),
-        item('a2', { createdAt: '2026-09-21T01:00:00.000Z', completedAt: '2026-09-21T02:00:00.000Z' }),
-        item('a3', { createdAt: '2026-09-19T01:00:00.000Z', completedAt: '2026-09-20T23:00:00.000Z' })
+        item('a1', { createdAt: localIso(2026, 9, 20, 1), completedAt: localIso(2026, 9, 20, 2) }),
+        item('a2', { createdAt: localIso(2026, 9, 21, 1), completedAt: localIso(2026, 9, 21, 2) }),
+        item('a3', { createdAt: localIso(2026, 9, 19, 1), completedAt: localIso(2026, 9, 20, 23) })
       ]
     })
     const r = settle(data, NOW)
@@ -39,9 +44,9 @@ describe('B 跨天结算 settle()', () => {
   it('B2 未完成待办全部标记逾期，顺序不变', () => {
     const data = withData({
       todos: [
-        item('t1', { createdAt: '2026-09-20T01:00:00.000Z', overdue: false }),
-        item('t2', { createdAt: '2026-09-21T01:00:00.000Z', overdue: false }),
-        item('t3', { createdAt: '2026-09-19T01:00:00.000Z', overdue: false })
+        item('t1', { createdAt: localIso(2026, 9, 20, 1), overdue: false }),
+        item('t2', { createdAt: localIso(2026, 9, 21, 1), overdue: false }),
+        item('t3', { createdAt: localIso(2026, 9, 19, 1), overdue: false })
       ]
     })
     const r = settle(data, NOW)
@@ -54,7 +59,7 @@ describe('B 跨天结算 settle()', () => {
 
   it('B3 幂等：同一天连续调用两次，第二次零移动', () => {
     const data = withData({
-      completed: [item('a1', { createdAt: '2026-09-20T01:00:00.000Z', completedAt: '2026-09-20T02:00:00.000Z' })],
+      completed: [item('a1', { createdAt: localIso(2026, 9, 20, 1), completedAt: localIso(2026, 9, 20, 2) })],
       todos: [item('t1', { createdAt: '2026-09-19T00:00:00.000Z' })]
     })
     const r1 = settle(data, NOW)
@@ -68,10 +73,10 @@ describe('B 跨天结算 settle()', () => {
   it('B4 关机跨两天（lastSettleDate=前天）：一次补齐所有非今天记录', () => {
     const data = withData({
       completed: [
-        item('a1', { createdAt: '2026-09-18T01:00:00.000Z', completedAt: '2026-09-18T02:00:00.000Z' }),
-        item('a2', { createdAt: '2026-09-19T01:00:00.000Z', completedAt: '2026-09-19T02:00:00.000Z' })
+        item('a1', { createdAt: localIso(2026, 9, 18, 1), completedAt: localIso(2026, 9, 18, 2) }),
+        item('a2', { createdAt: localIso(2026, 9, 19, 1), completedAt: localIso(2026, 9, 19, 2) })
       ],
-      todos: [item('t1', { createdAt: '2026-09-18T01:00:00.000Z' })],
+      todos: [item('t1', { createdAt: localIso(2026, 9, 18, 1) })],
       uiState: { ...defaultAppData().uiState, lastSettleDate: '2026-09-19' }
     })
     const r = settle(data, NOW)
@@ -85,7 +90,7 @@ describe('B 跨天结算 settle()', () => {
   it('B5 结算同时触发回收站到期清理（注入回调）', () => {
     const purged: string[] = []
     const data = withData({
-      recycleBin: [{ id: 'r1', type: 'todo', payload: item('x', { createdAt: NOW.toISOString() }), deletedAt: '2026-09-01T00:00:00.000Z' }]
+      recycleBin: [{ id: 'r1', type: 'todo', payload: item('x', { createdAt: NOW.toISOString() }), deletedAt: localIso(2026, 9, 1) }]
     })
     const r = settle(data, NOW, {
       purgeRecycle: (d) => {
@@ -98,7 +103,7 @@ describe('B 跨天结算 settle()', () => {
   })
 
   it('B6 静默：返回结构只含数据结果，无任何用户通知通道', () => {
-    const data = withData({ completed: [item('a1', { createdAt: '2026-09-20T01:00:00.000Z', completedAt: '2026-09-20T02:00:00.000Z' })] })
+    const data = withData({ completed: [item('a1', { createdAt: localIso(2026, 9, 20, 1), completedAt: localIso(2026, 9, 20, 2) })] })
     const r = settle(data, NOW)
     expect(Object.keys(r).sort()).toEqual(['archivedCount', 'changed', 'data', 'markedOverdue'])
     expect(typeof r.data).toBe('object')
