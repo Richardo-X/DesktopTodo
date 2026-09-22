@@ -61,9 +61,9 @@ describe('tray 图标生成', () => {
     // IHDR 宽高（大端）
     expect(png.readUInt32BE(16)).toBe(32)
     expect(png.readUInt32BE(20)).toBe(32)
-    // 颜色类型 6（RGBA）、位深 8
-    expect(png[25]).toBe(8)
-    expect(png[26]).toBe(6)
+    // 颜色类型 6（RGBA）、位深 8（IHDR：宽@16 高@20 位深@24 颜色类型@25）
+    expect(png[24]).toBe(8)
+    expect(png[25]).toBe(6)
     const text = png.toString('latin1')
     expect(text).toContain('IDAT')
     expect(text).toContain('IEND')
