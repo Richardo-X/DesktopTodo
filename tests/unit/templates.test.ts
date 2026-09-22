@@ -87,21 +87,21 @@ describe('D 模板服务 TemplateService', () => {
     let d = data({ templates: [t1, t2] })
 
     // 改成与 t1 相同 → 拒绝
-    const dupSelf = updateTemplate(d, 'tpl-b', ' 喝水 ', NOW)
+    const dupSelf = updateTemplate(d, 'tpl-b', ' 喝水 ')
     expect(dupSelf.ok).toBe(false)
     if (!dupSelf.ok) expect(dupSelf.reason).toBe('duplicate')
 
     // 改回自己的内容（未变）→ 允许
-    const same = updateTemplate(d, 'tpl-b', '运动', NOW)
+    const same = updateTemplate(d, 'tpl-b', '运动')
     expect(same.ok).toBe(true)
 
     // 正常改名
-    const ok = updateTemplate(d, 'tpl-b', '散步', NOW)
+    const ok = updateTemplate(d, 'tpl-b', '散步')
     expect(ok.ok).toBe(true)
     if (ok.ok) expect(ok.data.templates[1].content).toBe('散步')
 
     // 空内容 → 拒绝
-    const empty = updateTemplate(d, 'tpl-b', '  ', NOW)
+    const empty = updateTemplate(d, 'tpl-b', '  ')
     expect(empty.ok).toBe(false)
     if (!empty.ok) expect(empty.reason).toBe('empty-content')
   })
