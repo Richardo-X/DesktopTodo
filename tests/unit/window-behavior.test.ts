@@ -19,12 +19,18 @@ describe('clampClusterScale', () => {
     expect(clampClusterScale(1.4, BASE, WA)).toBe(1.0)
   })
 
-  it('H2 宽度超屏宽 → 钳制到屏宽比例', () => {
+  it('H2 宽度先于高度达到上限 → 钳制到屏宽比例', () => {
+    const wa = { x: 0, y: 0, width: 1000, height: 1000 }
+    const base = { width: 872, height: 400 }
+    // 高度比例 500/400=1.25；宽度比例 1000/872≈1.1469 → 宽度是有效上限
+    const r = clampClusterScale(1.2, base, wa)
+    expect(r).toBeCloseTo(1000 / 872, 6)
+  })
+
+  it('极小屏幕：上限低于 MIN_SCALE 时 MIN_SCALE 兜底（风险 4 对策）', () => {
     const narrow = { x: 0, y: 0, width: 400, height: 1000 }
     const base = { width: 872, height: 400 }
-    // 屏宽 400/872 ≈ 0.4587 < 半屏比例(500/400=1.25)
-    const r = clampClusterScale(1.2, base, narrow)
-    expect(r).toBeCloseTo(400 / 872, 6)
+    expect(clampClusterScale(1.2, base, narrow)).toBe(MIN_SCALE)
   })
 
   it('H3 低于内容完整下限 → 钳到 MIN_SCALE', () => {
