@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 import AppShell from '../../src/panels/AppShell.vue'
 import { mountWithStore } from '../helpers/mount'
 
@@ -35,15 +36,18 @@ describe('T21 标题栏工具栏五按钮', () => {
   it('主题切换/设置/缩进锁定/置顶/×', async () => {
     const { wrapper, store, api } = await mountWithStore(AppShell)
     await wrapper.find('[data-testid="tb-theme"]').trigger('click')
+    await flushPromises()
     expect(store.uiState.theme).toBe('night')
 
     await wrapper.find('[data-testid="tb-settings"]').trigger('click')
     expect(api.openChildCalls).toContainEqual({ kind: 'settings' })
 
     await wrapper.find('[data-testid="tb-tucklock"]').trigger('click')
+    await flushPromises()
     expect(store.uiState.tuckLock).toBe(true)
 
     await wrapper.find('[data-testid="tb-topmost"]').trigger('click')
+    await flushPromises()
     expect(store.uiState.topMost).toBe(true)
     expect(api.topMostCalls).toEqual([true])
 

@@ -209,6 +209,7 @@ export const useAppStore = defineStore('app', () => {
 
   async function updateUiState(patch: Partial<UiState>): Promise<void> {
     await apply((d) => ({ ...d, uiState: { ...d.uiState, ...patch } }))
+    if (patch.topMost !== undefined) await getApi().setTopMost(patch.topMost)
   }
 
   // ---------- 导入导出 ----------

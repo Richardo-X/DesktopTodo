@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { AppData } from '../../src/core/models/types'
-import { IPC } from '../../src/ipc/contract'
+import { IPC, type ChildKind } from '../../src/ipc/contract'
 
 const api = {
   getState: () => ipcRenderer.invoke(IPC.getState),
@@ -19,7 +19,8 @@ const api = {
   saveCsv: (params: { fileName: string; content: string }) => ipcRenderer.invoke(IPC.saveCsv, params),
   openCsv: () => ipcRenderer.invoke(IPC.openCsv),
   minimizeToTray: () => ipcRenderer.invoke(IPC.minimizeToTray),
-  setUnsavedEdits: (flag: boolean) => ipcRenderer.send('app:set-unsaved', flag)
+  setUnsavedEdits: (flag: boolean) => ipcRenderer.send('app:set-unsaved', flag),
+  openChild: (params: { kind: ChildKind; id?: string }) => ipcRenderer.invoke(IPC.openChild, params)
 }
 
 contextBridge.exposeInMainWorld('desktopTodo', api)

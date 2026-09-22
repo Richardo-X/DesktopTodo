@@ -16,9 +16,21 @@ export const IPC = {
   setAutoStart: 'settings:set-auto-start',
   saveCsv: 'dialog:save-csv',
   openCsv: 'dialog:open-csv',
+  openChild: 'window:open-child',
   requestExit: 'app:request-exit',
   minimizeToTray: 'window:minimize-to-tray'
 } as const
+
+/** 子窗口种类（PRD §2.1） */
+export type ChildKind =
+  | 'todo-new'
+  | 'todo-edit'
+  | 'template-new'
+  | 'template-edit'
+  | 'detail'
+  | 'history'
+  | 'settings'
+  | 'recycle'
 
 export interface WindowPos {
   x: number
@@ -46,4 +58,6 @@ export interface DesktopTodoApi {
   minimizeToTray(): Promise<void>
   /** 渲染层标记是否存在未保存的编辑输入（托盘退出确认提示用） */
   setUnsavedEdits(flag: boolean): void
+  /** 打开子窗口（模态、位置不记忆）；id 用于编辑/详情定位事项 */
+  openChild(params: { kind: ChildKind; id?: string }): Promise<void>
 }
