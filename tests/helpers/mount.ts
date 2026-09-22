@@ -14,11 +14,12 @@ export interface Mounted<T> {
 /** 组件测试通用挂载：安装内存测试 API + Pinia，等待 store 初始化完成 */
 export async function mountWithStore<T extends Component>(
   component: T,
-  seed?: Partial<AppData>
+  seed?: Partial<AppData>,
+  props?: Record<string, unknown>
 ): Promise<Mounted<T>> {
   const pinia = createPinia()
   const api = installTestApi(seed)
-  const wrapper = mount(component, { global: { plugins: [pinia] } })
+  const wrapper = mount(component, { global: { plugins: [pinia] }, props })
   const store = useAppStore()
   await store.init()
   return { wrapper, store, api } as unknown as Mounted<T>
