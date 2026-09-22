@@ -18,7 +18,7 @@ import {
 
 const NOW = new Date(2026, 8, 21, 12, 0, 0)
 
-function data(p: Partial<AppData>): AppData {
+function data(p: Partial<AppData> = {}): AppData {
   return { ...defaultAppData(), ...p }
 }
 
