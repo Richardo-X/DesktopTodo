@@ -36,9 +36,9 @@ describe('T35 回收站窗口', () => {
     const { wrapper } = await mountWithStore(RecycleWindow, seed())
     const groups = wrapper.findAll('[data-testid="recycle-group"]')
     expect(groups).toHaveLength(3)
-    expect(wrapper.find('[data-testid="recycle-group-todo"]').text()).toContain('待办')
-    expect(wrapper.find('[data-testid="recycle-group-template"]').text()).toContain('模板')
-    expect(wrapper.find('[data-testid="recycle-group-history"]').text()).toContain('历史')
+    expect(wrapper.find('[data-group="todo"]').text()).toContain('待办')
+    expect(wrapper.find('[data-group="template"]').text()).toContain('模板')
+    expect(wrapper.find('[data-group="history"]').text()).toContain('历史')
 
     const first = wrapper.find('[data-testid="recycle-entry-r1"]')
     expect(first.text()).toContain('被删的待办')
