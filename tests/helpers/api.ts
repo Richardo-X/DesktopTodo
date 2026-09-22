@@ -14,6 +14,7 @@ export interface TestApi extends DesktopTodoApi {
   minimizeCalls: number
   closeSelfCalls: number
   unsavedCalls: boolean[]
+  openCsvCalls: number
 }
 
 /**
@@ -31,6 +32,7 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
   const topMostCalls: boolean[] = []
   let minimizeCalls = 0
   let closeSelfCalls = 0
+  let openCsvCalls = 0
   const unsavedCalls: boolean[] = []
 
   const booted: Promise<unknown> = ctx.boot()
@@ -45,6 +47,9 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     },
     get closeSelfCalls() {
       return closeSelfCalls
+    },
+    get openCsvCalls() {
+      return openCsvCalls
     },
     unsavedCalls,
     snapshot: () => ctx.current(),
@@ -77,7 +82,10 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
       savedCsv.push(p)
       return `C:\\fake\\${p.fileName}`
     },
-    openCsv: async () => null,
+    openCsv: async () => {
+      openCsvCalls++
+      return null
+    },
     minimizeToTray: async () => {
       minimizeCalls++
     },
