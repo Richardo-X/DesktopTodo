@@ -17,7 +17,14 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       include: ['src/core/**/*.ts'],
-      reportsDirectory: 'coverage'
+      exclude: ['src/core/models/index.ts', 'src/core/models/types.ts', 'src/core/interfaces/repository.ts'],
+      reportsDirectory: 'coverage',
+      thresholds: {
+        statements: 90,
+        branches: 85,
+        functions: 90,
+        lines: 90
+      }
     }
   }
 })
