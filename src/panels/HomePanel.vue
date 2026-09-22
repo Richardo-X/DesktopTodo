@@ -4,11 +4,29 @@ import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import TodoRow from '../components/TodoRow.vue'
 import BatchBar from '../components/BatchBar.vue'
+import { createDragSort } from '../components/useDragSort'
 import { fmtTime, fmtDateCN } from '../core/utils/date'
 import { getApi } from '../services/api'
 
 const store = useAppStore()
 const ui = useUiStore()
+
+// 长按手柄拖动排序（批量模式下禁用）
+const drag = createDragSort({
+  enabled: () => !ui.batchMode,
+  rowCount: () => store.todos.length,
+  onDrop: (from, to) => {
+    void store.reorderTodos(from, to)
+  }
+})
+
+function isDragging(i: number): boolean {
+  return drag.state.draggingIndex === i
+}
+
+function isOver(i: number): boolean {
+  return drag.state.overIndex === i && drag.state.draggingIndex !== null && drag.state.draggingIndex !== i
+}
 
 // 顶部时钟：每秒刷新（PRD §3）
 const now = ref(new Date())
@@ -25,6 +43,16 @@ onUnmounted(() => {
 const timeText = computed(() => fmtTime(now.value, store.settings.hour12))
 const dateText = computed(() => fmtDateCN(now.value))
 const countText = computed(() => `${store.todos.length}/${store.settings.maxItems}`)
+
+onMounted(() => {
+  window.addEventListener('pointermove', drag.handleMove)
+  window.addEventListener('pointerup', drag.handleUp)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('pointermove', drag.handleMove)
+  window.removeEventListener('pointerup', drag.handleUp)
+})
 
 function toggleTheme(): void {
   void store.updateUiState({ theme: store.uiState.theme === 'day' ? 'night' : 'day' })
@@ -106,15 +134,18 @@ async function onComplete(id: string): Promise<void> {
     </div>
 
     <ul v-if="store.todos.length > 0" class="todo-list">
-      <li v-for="t in store.todos" :key="t.id">
+      <li v-for="(t, i) in store.todos" :key="t.id">
         <TodoRow
           :item="t"
           :batch-mode="ui.batchMode"
           :selected="ui.selectedIds.includes(t.id)"
           :leaving="leavingId === t.id"
+          :dragging="isDragging(i)"
+          :over="isOver(i)"
           @toggle="onComplete(t.id)"
           @edit="ui.openChild('todo-edit', t.id)"
           @select-toggle="ui.toggleSelect(t.id)"
+          @handle-down="drag.handleDown(i, $event)"
         />
       </li>
     </ul>

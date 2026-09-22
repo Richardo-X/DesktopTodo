@@ -7,12 +7,15 @@ const props = defineProps<{
   batchMode?: boolean
   selected?: boolean
   leaving?: boolean
+  dragging?: boolean
+  over?: boolean
 }>()
 
 const emit = defineEmits<{
   toggle: []
   edit: []
   'select-toggle': []
+  'handle-down': [e: PointerEvent]
 }>()
 
 // 悬停 1 秒显示全文气泡（PRD §3）
@@ -46,13 +49,19 @@ function onDblClick(): void {
   <div
     class="todo-row"
     data-testid="todo-row"
-    :class="{ selected: batchMode && selected, leaving }"
+    :class="{ selected: batchMode && selected, leaving, dragging, over }"
     @mouseenter="onEnter"
     @mouseleave="onLeave"
     @click="onRowClick"
     @dblclick="onDblClick"
   >
-    <span class="handle" data-testid="row-handle" title="长按拖动排序" @dblclick.stop />
+    <span
+      class="handle"
+      data-testid="row-handle"
+      title="长按拖动排序"
+      @pointerdown.stop="emit('handle-down', $event)"
+      @dblclick.stop
+    />
     <span class="content ellipsis" data-testid="row-content">{{ item.content }}</span>
     <span v-if="item.overdue" class="overdue-tag red" data-testid="row-overdue-tag">逾期</span>
     <span v-if="bubbleVisible" class="bubble" data-testid="row-bubble">{{ item.content }}</span>
@@ -169,5 +178,14 @@ function onDblClick(): void {
     transform 0.25s ease;
   opacity: 0;
   transform: translateX(24px) scale(0.96);
+}
+
+.todo-row.dragging {
+  opacity: 0.5;
+}
+
+.todo-row.over {
+  outline: 2px dashed rgba(47, 111, 237, 0.7);
+  outline-offset: -2px;
 }
 </style>
