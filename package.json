@@ -1,0 +1,45 @@
+{
+  "name": "desktop-todo",
+  "productName": "桌面待办",
+  "version": "1.0.0",
+  "description": "Windows 桌面待办悬浮小组件",
+  "main": "out/main/index.js",
+  "author": "DesktopTodo",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:cov": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "verify": "npm run typecheck && npm run test && npm run test:e2e",
+    "dist": "electron-vite build && electron-builder"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.6.2",
+    "@vitejs/plugin-vue": "6.0.9",
+    "@vue/test-utils": "2.5.1",
+    "electron": "44.4.3",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "happy-dom": "20.14.5",
+    "playwright": "1.63.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "vitest": "5.0.1",
+    "vue-tsc": "3.3.11"
+  },
+  "dependencies": {
+    "pinia": "4.0.3",
+    "vue": "3.5.43"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "electron-winstaller@5.4.0": true
+  }
+}
