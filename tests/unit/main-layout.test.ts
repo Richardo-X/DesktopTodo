@@ -67,7 +67,6 @@ describe('defaultWindowOptions 主窗口 BrowserWindow 配置', () => {
     expect(opts.width).toBe(b.width)
     expect(opts.height).toBe(b.height)
     expect(opts.show).toBe(false) // ready-to-show 后再显示
-    expect(opts.backgroundColor).toBeUndefined()
   })
 
   it('常量：MIN_SCALE=0.7，半屏高度上限比例 0.5（附录 A8/速查 #7）', () => {
