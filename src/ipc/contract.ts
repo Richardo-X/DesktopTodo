@@ -44,4 +44,6 @@ export interface DesktopTodoApi {
   openCsv(): Promise<string | null>
   /** × 按钮缩小到通知栏（带动画） */
   minimizeToTray(): Promise<void>
+  /** 渲染层标记是否存在未保存的编辑输入（托盘退出确认提示用） */
+  setUnsavedEdits(flag: boolean): void
 }

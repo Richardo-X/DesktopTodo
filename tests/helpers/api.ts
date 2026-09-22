@@ -23,7 +23,7 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
   const autoStartCalls: boolean[] = []
   const savedCsv: Array<{ fileName: string; content: string }> = []
 
-  void ctx.boot()
+  const booted: Promise<unknown> = ctx.boot()
 
   const api: TestApi = {
     autoStartCalls,
@@ -32,7 +32,10 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     emitStateUpdated(data) {
       listeners.forEach((l) => l(data))
     },
-    getState: async () => ctx.current(),
+    getState: async () => {
+      await booted
+      return ctx.current()
+    },
     onStateUpdated(cb) {
       listeners.add(cb)
       return () => listeners.delete(cb)

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useAppStore } from '../../src/stores/app'
 import { installTestApi, type TestApi } from '../helpers/api'
@@ -36,7 +36,7 @@ describe('useAppStore', () => {
 
   it('addTodo：上限拦截返回 limit-reached', async () => {
     const store = useAppStore()
-    installTestApi(seed({ settings: { ...defaultAppData().settings, maxItems: 1 } }))
+    api = installTestApi(seed({ settings: { ...defaultAppData().settings, maxItems: 1 } }))
     await store.init()
     expect((await store.addTodo('a')).ok).toBe(true)
     const r = await store.addTodo('b')
@@ -45,7 +45,7 @@ describe('useAppStore', () => {
 
   it('completeTodo：移入已完成并重算逾期标记', async () => {
     const store = useAppStore()
-    installTestApi(seed({ todos: [createTodoItem({ content: '跨天', now: new Date(2026, 8, 20, 9), id: 't1' })] }))
+    api = installTestApi(seed({ todos: [createTodoItem({ content: '跨天', now: new Date(2026, 8, 20, 9), id: 't1' })] }))
     await store.init()
     await store.completeTodo('t1')
     expect(store.todos).toHaveLength(0)
@@ -55,9 +55,13 @@ describe('useAppStore', () => {
   })
 
   it('returnToActive：退回待办末尾并重算逾期', async () => {
-    const item = createTodoItem({ content: '昨天创建今天完成', now: new Date(2026, 8, 20, 9), id: 'c1' })
-    const done = { ...item, completedAt: new Date(2026, 8, 21, 8).toISOString(), overdue: false }
-    installTestApi(seed({ completed: [done] }))
+    // 相对真实日期构造：昨天创建、今天完成（避免 boot 结算归档）
+    const t = new Date()
+    const yesterday = new Date(t.getFullYear(), t.getMonth(), t.getDate() - 1, 9)
+    const today8 = new Date(t.getFullYear(), t.getMonth(), t.getDate(), 8)
+    const item = createTodoItem({ content: '昨天创建今天完成', now: yesterday, id: 'c1' })
+    const done = { ...item, completedAt: today8.toISOString(), overdue: false }
+    api = installTestApi(seed({ completed: [done] }))
     const store = useAppStore()
     await store.init()
     const r = await store.returnToActive('c1')
