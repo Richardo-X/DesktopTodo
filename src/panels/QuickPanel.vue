@@ -76,7 +76,7 @@ function enterBatch(): void {
 }
 
 .title {
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
   font-weight: 600;
 }
 
@@ -87,7 +87,7 @@ function enterBatch(): void {
 .b {
   border: none;
   background: transparent;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   cursor: pointer;
   border-radius: 6px;
   padding: 3px 6px;
@@ -99,13 +99,13 @@ function enterBatch(): void {
 }
 
 .b.new {
-  font-size: 15px;
+  font-size: calc(var(--fs, 14px) * 15 / 14);
   font-weight: 700;
 }
 
 .error {
   margin: 0 12px 6px;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   color: #e5484d;
 }
 
@@ -147,7 +147,7 @@ function enterBatch(): void {
 .content {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
   text-align: left;
 }
 
@@ -190,13 +190,13 @@ function enterBatch(): void {
   align-items: center;
   justify-content: center;
   opacity: 0.55;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
 }
 
 .note {
   margin: 0;
   padding: 8px 12px 10px;
-  font-size: 11px;
+  font-size: calc(var(--fs, 14px) * 11 / 14);
   opacity: 0.6;
   line-height: 1.6;
 }

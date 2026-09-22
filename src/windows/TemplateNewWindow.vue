@@ -97,13 +97,13 @@ async function onBack(): Promise<void> {
 .back {
   border: none;
   background: transparent;
-  font-size: 16px;
+  font-size: calc(var(--fs, 14px) * 16 / 14);
   cursor: pointer;
   color: inherit;
 }
 
 .title {
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
   font-weight: 600;
 }
 
@@ -121,7 +121,7 @@ async function onBack(): Promise<void> {
 
 .hint {
   margin: 0 0 4px;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   opacity: 0.65;
   line-height: 1.6;
 }
@@ -132,7 +132,7 @@ async function onBack(): Promise<void> {
   border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 10px;
   padding: 10px;
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
   font-family: inherit;
   background: transparent;
   color: inherit;
@@ -145,7 +145,7 @@ async function onBack(): Promise<void> {
 }
 
 .count {
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   opacity: 0.7;
 }
 
@@ -161,13 +161,13 @@ async function onBack(): Promise<void> {
   border-radius: 8px;
   padding: 4px 12px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   color: inherit;
 }
 
 .error {
   margin: 0;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   color: #e5484d;
 }
 
@@ -183,7 +183,7 @@ async function onBack(): Promise<void> {
   padding: 8px 18px;
   background: #2f6fed;
   color: #fff;
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
   cursor: pointer;
 }
 

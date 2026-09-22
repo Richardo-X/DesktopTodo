@@ -161,7 +161,7 @@ async function doExport(): Promise<void> {
 }
 
 .title {
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
   font-weight: 600;
 }
 
@@ -180,7 +180,7 @@ async function doExport(): Promise<void> {
   border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 8px;
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   background: transparent;
   color: inherit;
 }
@@ -188,7 +188,7 @@ async function doExport(): Promise<void> {
 .b {
   border: none;
   background: rgba(0, 0, 0, 0.06);
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   cursor: pointer;
   border-radius: 8px;
   padding: 4px 10px;
@@ -205,7 +205,7 @@ async function doExport(): Promise<void> {
   align-items: center;
   gap: 10px;
   padding: 6px 12px;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   opacity: 0.85;
 }
 
@@ -250,7 +250,7 @@ async function doExport(): Promise<void> {
 .content {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
   text-align: left;
 }
 
@@ -262,7 +262,7 @@ async function doExport(): Promise<void> {
 
 .overdue {
   flex: none;
-  font-size: 11px;
+  font-size: calc(var(--fs, 14px) * 11 / 14);
   padding: 1px 6px;
   border-radius: 6px;
   color: #fff;
@@ -274,7 +274,7 @@ async function doExport(): Promise<void> {
 
 .time {
   flex: none;
-  font-size: 11px;
+  font-size: calc(var(--fs, 14px) * 11 / 14);
   opacity: 0.6;
 }
 
@@ -284,7 +284,7 @@ async function doExport(): Promise<void> {
   align-items: center;
   justify-content: center;
   opacity: 0.55;
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
 }
 
 .export {
@@ -296,13 +296,13 @@ async function doExport(): Promise<void> {
 }
 
 .label {
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   opacity: 0.7;
 }
 
 .error {
   margin: 0 12px 8px;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   color: #e5484d;
 }
 </style>

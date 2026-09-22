@@ -175,7 +175,7 @@ async function onBack(): Promise<void> {
   background: transparent;
   cursor: pointer;
   color: inherit;
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
 }
 
 .save {
@@ -184,7 +184,7 @@ async function onBack(): Promise<void> {
 }
 
 .title {
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
   font-weight: 600;
 }
 
@@ -204,7 +204,7 @@ async function onBack(): Promise<void> {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
 }
 
 .status {
@@ -233,7 +233,7 @@ async function onBack(): Promise<void> {
   border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 10px;
   padding: 10px;
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
   font-family: inherit;
   background: transparent;
   color: inherit;
@@ -246,7 +246,7 @@ async function onBack(): Promise<void> {
 }
 
 .count {
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   opacity: 0.7;
 }
 
@@ -262,7 +262,7 @@ async function onBack(): Promise<void> {
   border-radius: 8px;
   padding: 4px 12px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   color: inherit;
 }
 
@@ -282,7 +282,7 @@ async function onBack(): Promise<void> {
 
 .error {
   margin: 0;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   color: #e5484d;
 }
 

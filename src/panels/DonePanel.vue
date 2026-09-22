@@ -91,7 +91,7 @@ function fmtDone(iso: string | null): string {
 }
 
 .title {
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
   font-weight: 600;
 }
 
@@ -102,7 +102,7 @@ function fmtDone(iso: string | null): string {
 .b {
   border: none;
   background: transparent;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   cursor: pointer;
   border-radius: 6px;
   padding: 3px 6px;
@@ -115,7 +115,7 @@ function fmtDone(iso: string | null): string {
 
 .error {
   margin: 0 12px 6px;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   color: #e5484d;
 }
 
@@ -149,7 +149,7 @@ function fmtDone(iso: string | null): string {
 .content {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
   text-align: left;
 }
 
@@ -161,7 +161,7 @@ function fmtDone(iso: string | null): string {
 
 .overdue {
   flex: none;
-  font-size: 11px;
+  font-size: calc(var(--fs, 14px) * 11 / 14);
   padding: 1px 6px;
   border-radius: 6px;
   color: #fff;
@@ -173,7 +173,7 @@ function fmtDone(iso: string | null): string {
 
 .time {
   flex: none;
-  font-size: 11px;
+  font-size: calc(var(--fs, 14px) * 11 / 14);
   opacity: 0.6;
 }
 
@@ -183,7 +183,7 @@ function fmtDone(iso: string | null): string {
   align-items: center;
   justify-content: center;
   opacity: 0.55;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
 }
 
 .footer {

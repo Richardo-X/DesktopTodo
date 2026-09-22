@@ -31,8 +31,22 @@ onMounted(() => {
   padding: 0;
 }
 
+/* T37：字体三档只改文字不改窗口 */
+.cluster[data-font='small'] {
+  --fs: 12px;
+}
+
+.cluster[data-font='medium'] {
+  --fs: 14px;
+}
+
+.cluster[data-font='large'] {
+  --fs: 16px;
+}
+
 .panel {
-  background: rgba(255, 255, 255, 0.86);
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(22px) saturate(1.4);
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
   color: #2a2f3a;
@@ -46,20 +60,21 @@ onMounted(() => {
 }
 
 :global(.cluster[data-theme='night']) .panel {
-  background: rgba(28, 30, 38, 0.86);
+  background: rgba(28, 30, 38, 0.62);
+  backdrop-filter: blur(22px) saturate(1.4);
   color: #e8eaf0;
 }
 
 :global(.cluster[data-font='small']) {
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
 }
 
 :global(.cluster[data-font='medium']) {
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
 }
 
 :global(.cluster[data-font='large']) {
-  font-size: 16px;
+  font-size: calc(var(--fs, 14px) * 16 / 14);
 }
 
 @media (max-width: 100px) {

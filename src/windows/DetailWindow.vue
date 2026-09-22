@@ -74,7 +74,7 @@ async function close(): Promise<void> {
 }
 
 .title {
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
   font-weight: 600;
 }
 
@@ -92,7 +92,7 @@ async function close(): Promise<void> {
 
 .content {
   margin: 0;
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
   line-height: 1.7;
   white-space: pre-wrap;
 }
@@ -101,7 +101,7 @@ async function close(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   opacity: 0.8;
 }
 
@@ -130,7 +130,7 @@ async function close(): Promise<void> {
   padding: 8px 24px;
   background: #2f6fed;
   color: #fff;
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
   cursor: pointer;
 }
 </style>

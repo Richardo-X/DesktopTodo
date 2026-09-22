@@ -143,7 +143,7 @@ async function setRecycleKeep(days: RecycleKeepDays): Promise<void> {
 }
 
 .title {
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
   font-weight: 600;
 }
 
@@ -169,7 +169,7 @@ async function setRecycleKeep(days: RecycleKeepDays): Promise<void> {
 
 .label {
   width: 110px;
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
   font-weight: 500;
   text-align: left;
 }
@@ -191,7 +191,7 @@ async function setRecycleKeep(days: RecycleKeepDays): Promise<void> {
   border: none;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.07);
-  font-size: 15px;
+  font-size: calc(var(--fs, 14px) * 15 / 14);
   cursor: pointer;
   color: inherit;
 }
@@ -204,19 +204,19 @@ async function setRecycleKeep(days: RecycleKeepDays): Promise<void> {
 .value {
   min-width: 22px;
   text-align: center;
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
   font-weight: 600;
 }
 
 .note {
-  font-size: 11px;
+  font-size: calc(var(--fs, 14px) * 11 / 14);
   color: #e5484d;
 }
 
 .b {
   border: none;
   background: rgba(0, 0, 0, 0.06);
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   cursor: pointer;
   border-radius: 8px;
   padding: 5px 12px;
@@ -236,7 +236,7 @@ async function setRecycleKeep(days: RecycleKeepDays): Promise<void> {
 
 .error {
   margin: 0;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   color: #e5484d;
 }
 </style>

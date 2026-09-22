@@ -12,7 +12,8 @@ import { applyTopMost } from './window-state'
 import { setAutoStart } from './auto-start'
 import { ensureOnSomeDisplay, clampPosToWorkArea } from '../../src/core/utils/screen-clamp'
 import { localDateKey } from '../../src/core/utils/date'
-import { IPC } from '../../src/ipc/contract'
+import { IPC, type ChildKind } from '../../src/ipc/contract'
+import { childWindowOptions } from './child-windows'
 
 let win: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -155,7 +156,71 @@ function quitNow(): void {
   app.quit()
 }
 
+const childWindows = new Set<BrowserWindow>()
+
+function childWebPreferences(): { preload: string; contextIsolation: boolean; nodeIntegration: boolean; sandbox: boolean } {
+  return {
+    preload: join(__dirname, '../preload/index.js'),
+    contextIsolation: true,
+    nodeIntegration: false,
+    sandbox: false
+  }
+}
+
+/** 模态锁定：任一子窗口打开期间禁用其余窗口（PRD §2.1/验收 38） */
+function lockNonChildWindows(lock: boolean): void {
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!childWindows.has(w)) w.setEnabled(!lock)
+  }
+}
+
+/** 打开子窗口：屏内居中级联、位置不记忆、高度≤半屏（速查 #7） */
+function openChildWindow(kind: ChildKind, id?: string): void {
+  const wa = screen.getPrimaryDisplay().workArea
+  const placement = childWindowOptions(kind, wa, childWindows.size)
+  const child = new BrowserWindow({
+    width: placement.width,
+    height: placement.height,
+    x: placement.x,
+    y: placement.y,
+    frame: false,
+    transparent: true,
+    skipTaskbar: true,
+    resizable: false,
+    hasShadow: false,
+    show: false,
+    webPreferences: childWebPreferences()
+  })
+  childWindows.add(child)
+  lockNonChildWindows(true)
+
+  child.on('ready-to-show', () => child.show())
+  child.on('moved', () => {
+    const b = child.getBounds()
+    const clamped = clampPosToWorkArea({ x: b.x, y: b.y }, { width: b.width, height: b.height }, wa)
+    if (clamped.x !== b.x || clamped.y !== b.y) child.setPosition(clamped.x, clamped.y)
+  })
+  child.on('closed', () => {
+    childWindows.delete(child)
+    if (childWindows.size === 0) lockNonChildWindows(false)
+  })
+
+  const query: Record<string, string> = { win: kind }
+  if (id !== undefined) query.id = id
+  if (process.env.ELECTRON_RENDERER_URL) {
+    const u = new URL(process.env.ELECTRON_RENDERER_URL)
+    u.search = new URLSearchParams(query).toString()
+    void child.loadURL(u.toString())
+  } else {
+    void child.loadFile(join(__dirname, '../renderer/index.html'), { query })
+  }
+}
+
 function registerIpc(): void {
+  ipcMain.handle(IPC.openChild, (_e, p: { kind: ChildKind; id?: string }) => openChildWindow(p.kind, p.id))
+  ipcMain.handle(IPC.closeSelf, (e) => {
+    BrowserWindow.fromWebContents(e.sender)?.close()
+  })
   ipcMain.handle(IPC.getState, () => ctx.current())
 
   ipcMain.handle(IPC.commit, (_e, data: Awaited<ReturnType<AppContext['boot']>>) =>

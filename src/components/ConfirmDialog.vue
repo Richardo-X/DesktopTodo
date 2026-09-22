@@ -44,7 +44,7 @@ const ui = useUiStore()
 
 .message {
   margin: 0 0 14px;
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
   line-height: 1.6;
   white-space: pre-line;
 }
@@ -59,7 +59,7 @@ const ui = useUiStore()
   border: none;
   border-radius: 8px;
   padding: 6px 14px;
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
   cursor: pointer;
 }
 

@@ -122,7 +122,7 @@ function onDblClick(): void {
 
 .overdue-tag {
   flex: none;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   padding: 1px 6px;
   border-radius: 6px;
   color: #fff;
@@ -142,7 +142,7 @@ function onDblClick(): void {
   border-radius: 8px;
   background: rgba(30, 32, 38, 0.92);
   color: #fff;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   white-space: normal;
   pointer-events: none;
 }

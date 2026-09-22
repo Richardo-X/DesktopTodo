@@ -173,7 +173,7 @@ async function onComplete(id: string): Promise<void> {
 }
 
 .title {
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
   font-weight: 600;
   opacity: 0.75;
 }
@@ -190,7 +190,7 @@ async function onComplete(id: string): Promise<void> {
   border-radius: 6px;
   background: transparent;
   cursor: pointer;
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
   color: inherit;
 }
 
@@ -205,13 +205,13 @@ async function onComplete(id: string): Promise<void> {
 }
 
 .clock-time {
-  font-size: 34px;
+  font-size: calc(var(--fs, 14px) * 34 / 14);
   font-weight: 300;
   letter-spacing: 1px;
 }
 
 .clock-date {
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
   opacity: 0.7;
   margin-top: 2px;
 }
@@ -226,7 +226,7 @@ async function onComplete(id: string): Promise<void> {
 .op {
   border: none;
   background: transparent;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   color: inherit;
   opacity: 0.8;
   cursor: pointer;
@@ -240,7 +240,7 @@ async function onComplete(id: string): Promise<void> {
 }
 
 .op.new {
-  font-size: 16px;
+  font-size: calc(var(--fs, 14px) * 16 / 14);
   font-weight: 700;
 }
 
@@ -264,6 +264,6 @@ async function onComplete(id: string): Promise<void> {
   justify-content: center;
   gap: 6px;
   opacity: 0.6;
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
 }
 </style>

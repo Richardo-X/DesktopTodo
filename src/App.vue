@@ -43,6 +43,6 @@ body,
 
 .placeholder {
   color: #5b6472;
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
 }
 </style>

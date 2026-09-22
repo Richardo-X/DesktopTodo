@@ -103,7 +103,7 @@ async function clearAll(): Promise<void> {
 }
 
 .title {
-  font-size: 14px;
+  font-size: calc(var(--fs, 14px) * 14 / 14);
   font-weight: 600;
 }
 
@@ -114,7 +114,7 @@ async function clearAll(): Promise<void> {
 .b {
   border: none;
   background: rgba(0, 0, 0, 0.06);
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   cursor: pointer;
   border-radius: 8px;
   padding: 4px 10px;
@@ -131,7 +131,7 @@ async function clearAll(): Promise<void> {
   align-items: center;
   justify-content: center;
   opacity: 0.55;
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
 }
 
 .body {
@@ -145,7 +145,7 @@ async function clearAll(): Promise<void> {
 
 .group-title {
   margin: 0 0 6px;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   font-weight: 600;
   opacity: 0.7;
 }
@@ -171,7 +171,7 @@ async function clearAll(): Promise<void> {
 .content {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: calc(var(--fs, 14px) * 13 / 14);
   text-align: left;
 }
 
@@ -183,7 +183,7 @@ async function clearAll(): Promise<void> {
 
 .time {
   flex: none;
-  font-size: 11px;
+  font-size: calc(var(--fs, 14px) * 11 / 14);
   opacity: 0.6;
 }
 </style>

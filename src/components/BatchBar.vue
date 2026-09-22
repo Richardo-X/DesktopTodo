@@ -43,7 +43,7 @@ async function onDelete(): Promise<void> {
 }
 
 .count {
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   flex: 1;
   text-align: left;
 }
@@ -51,7 +51,7 @@ async function onDelete(): Promise<void> {
 .b {
   border: none;
   background: transparent;
-  font-size: 12px;
+  font-size: calc(var(--fs, 14px) * 12 / 14);
   color: inherit;
   cursor: pointer;
   padding: 4px 8px;
