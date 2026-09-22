@@ -161,6 +161,8 @@ describe('date 工具（本地时区口径）', () => {
 
   it('parseLocalDateTime("YYYY-MM-DD HH:mm:ss") → 本地 Date，与 localDateKey 互逆', () => {
     const d = parseLocalDateTime('2026-09-21 09:05:30')
+    expect(d).not.toBeNull()
+    if (!d) return
     expect(localDateKey(d)).toBe('2026-09-21')
     expect(d.getHours()).toBe(9)
     expect(d.getMinutes()).toBe(5)
