@@ -34,8 +34,9 @@ describe('hitTestPanels 矩形命中检测', () => {
     expect(hitTestPanels([], { x: 100, y: 100 })).toBe('gap')
   })
 
-  it('边界值：右/下边界像素属于面板（width/height 为尺寸而非右下角坐标）', () => {
-    expect(hitTestPanels(RECTS, { x: 260, y: 0 })).toBe('panel') // x+width-1=259 内，260 已出 → 属于缝
+  it('边界值：面板右边界外 1px 属于缝隙，右边界内 1px 属于面板', () => {
+    expect(hitTestPanels(RECTS, { x: 260, y: 0 })).toBe('gap') // 首面板覆盖 [0,259]，260 已出
+    expect(hitTestPanels(RECTS, { x: 259, y: 0 })).toBe('panel')
   })
 })
 
