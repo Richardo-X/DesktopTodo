@@ -15,6 +15,9 @@ export interface TestApi extends DesktopTodoApi {
   closeSelfCalls: number
   unsavedCalls: boolean[]
   openCsvCalls: number
+  tuckedCalls: boolean[]
+  snapListeners: Set<(snapped: boolean) => void>
+  childCloseListeners: Set<() => void>
 }
 
 /**
@@ -34,6 +37,9 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
   let closeSelfCalls = 0
   let openCsvCalls = 0
   const unsavedCalls: boolean[] = []
+  const tuckedCalls: boolean[] = []
+  const snapListeners = new Set<(snapped: boolean) => void>()
+  const childCloseListeners = new Set<() => void>()
 
   const booted: Promise<unknown> = ctx.boot()
 
@@ -42,6 +48,9 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     savedCsv,
     openChildCalls,
     topMostCalls,
+    tuckedCalls,
+    snapListeners,
+    childCloseListeners,
     get minimizeCalls() {
       return minimizeCalls
     },
@@ -91,6 +100,17 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     },
     closeSelf: async () => {
       closeSelfCalls++
+    },
+    setTucked: async (tucked: boolean) => {
+      tuckedCalls.push(tucked)
+    },
+    onSnapChanged: (cb: (snapped: boolean) => void) => {
+      snapListeners.add(cb)
+      return () => snapListeners.delete(cb)
+    },
+    onChildClosed: (cb: () => void) => {
+      childCloseListeners.add(cb)
+      return () => childCloseListeners.delete(cb)
     },
     setUnsavedEdits: (flag: boolean) => {
       unsavedCalls.push(flag)

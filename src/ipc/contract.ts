@@ -18,6 +18,9 @@ export const IPC = {
   openCsv: 'dialog:open-csv',
   openChild: 'window:open-child',
   closeSelf: 'window:close-self',
+  setTucked: 'window:set-tucked',
+  snapChanged: 'app:snap-state',
+  childClosed: 'app:child-closed',
   requestExit: 'app:request-exit',
   minimizeToTray: 'window:minimize-to-tray'
 } as const
@@ -63,4 +66,10 @@ export interface DesktopTodoApi {
   openChild(params: { kind: ChildKind; id?: string }): Promise<void>
   /** 子窗口自我关闭（返回/保存/删除完成后） */
   closeSelf(): Promise<void>
+  /** 贴边缩进状态：主进程按小条/整簇调整窗口高度 */
+  setTucked(tucked: boolean): Promise<void>
+  /** 主进程吸附状态变化（窗口移动到/离开上边缘） */
+  onSnapChanged(cb: (snapped: boolean) => void): () => void
+  /** 任一子窗口关闭（缩进状态机 child-closed） */
+  onChildClosed(cb: () => void): () => void
 }

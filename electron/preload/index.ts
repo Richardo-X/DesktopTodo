@@ -21,7 +21,18 @@ const api = {
   minimizeToTray: () => ipcRenderer.invoke(IPC.minimizeToTray),
   setUnsavedEdits: (flag: boolean) => ipcRenderer.send('app:set-unsaved', flag),
   openChild: (params: { kind: ChildKind; id?: string }) => ipcRenderer.invoke(IPC.openChild, params),
-  closeSelf: () => ipcRenderer.invoke(IPC.closeSelf)
+  closeSelf: () => ipcRenderer.invoke(IPC.closeSelf),
+  setTucked: (tucked: boolean) => ipcRenderer.invoke(IPC.setTucked, tucked),
+  onSnapChanged: (cb: (snapped: boolean) => void) => {
+    const listener = (_e: unknown, snapped: boolean): void => cb(snapped)
+    ipcRenderer.on(IPC.snapChanged, listener)
+    return () => ipcRenderer.removeListener(IPC.snapChanged, listener)
+  },
+  onChildClosed: (cb: () => void) => {
+    const listener = (): void => cb()
+    ipcRenderer.on(IPC.childClosed, listener)
+    return () => ipcRenderer.removeListener(IPC.childClosed, listener)
+  }
 }
 
 contextBridge.exposeInMainWorld('desktopTodo', api)

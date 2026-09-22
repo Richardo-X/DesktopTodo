@@ -13,6 +13,7 @@ import { setAutoStart } from './auto-start'
 import { ensureOnSomeDisplay, clampPosToWorkArea } from '../../src/core/utils/screen-clamp'
 import { localDateKey } from '../../src/core/utils/date'
 import { IPC, type ChildKind } from '../../src/ipc/contract'
+import { SNAP_THRESHOLD, TUCK_BAR_HEIGHT } from '../../src/core/constants'
 import { childWindowOptions } from './child-windows'
 
 let win: BrowserWindow | null = null
@@ -20,6 +21,8 @@ let tray: Tray | null = null
 let visible = true
 let hasUnsavedEdits = false
 let lastSettleCheck = localDateKey(new Date())
+let tucked = false
+let snapped = false
 let currentPos: { x: number; y: number } | null = null
 let ctx: AppContext
 
@@ -72,6 +75,7 @@ function createWindow(data: ReturnType<AppContext['current']>): void {
   win_.on('moved', () => {
     const b = win_!.getBounds()
     currentPos = { x: b.x, y: b.y }
+    detectSnap()
   })
   win_.on('close', (e) => {
     // 唯一退出途径是托盘菜单；点 × 等同缩小到通知栏（PRD §2.1）
@@ -158,6 +162,28 @@ function quitNow(): void {
 
 const childWindows = new Set<BrowserWindow>()
 
+/** 按 uiState（缩放/面板开关/缩进）同步主窗口尺寸；位置不变（T38/T39/T43） */
+function syncMainBounds(): void {
+  if (!win || !ctx) return
+  const d = ctx.current()
+  const b = clusterBounds(d.uiState.clusterScale, panelVisibility())
+  const height = tucked ? TUCK_BAR_HEIGHT : b.height
+  const pos = currentPos ?? win.getBounds()
+  win.setBounds({ x: pos.x, y: pos.y, width: b.width, height })
+}
+
+/** 吸附检测：窗口顶边接近工作区顶（阈值见附录 A8）→ 通知渲染层状态机 */
+function detectSnap(): void {
+  if (!win) return
+  const wa = screen.getPrimaryDisplay().workArea
+  const b = win.getBounds()
+  const now = b.y - wa.y <= SNAP_THRESHOLD
+  if (now !== snapped) {
+    snapped = now
+    win.webContents.send(IPC.snapChanged, snapped)
+  }
+}
+
 function childWebPreferences(): { preload: string; contextIsolation: boolean; nodeIntegration: boolean; sandbox: boolean } {
   return {
     preload: join(__dirname, '../preload/index.js'),
@@ -203,6 +229,7 @@ function openChildWindow(kind: ChildKind, id?: string): void {
   child.on('closed', () => {
     childWindows.delete(child)
     if (childWindows.size === 0) lockNonChildWindows(false)
+    win?.webContents.send(IPC.childClosed)
   })
 
   const query: Record<string, string> = { win: kind }
@@ -221,11 +248,17 @@ function registerIpc(): void {
   ipcMain.handle(IPC.closeSelf, (e) => {
     BrowserWindow.fromWebContents(e.sender)?.close()
   })
+
+  ipcMain.handle(IPC.setTucked, (_e, v: boolean) => {
+    tucked = v
+    syncMainBounds()
+  })
   ipcMain.handle(IPC.getState, () => ctx.current())
 
-  ipcMain.handle(IPC.commit, (_e, data: Awaited<ReturnType<AppContext['boot']>>) =>
-    ctx.commit(data, currentPos)
-  )
+  ipcMain.handle(IPC.commit, async (_e, data: Awaited<ReturnType<AppContext['boot']>>) => {
+    await ctx.commit(data, currentPos)
+    syncMainBounds()
+  })
 
   ipcMain.handle(IPC.flush, () => ctx.flush())
 

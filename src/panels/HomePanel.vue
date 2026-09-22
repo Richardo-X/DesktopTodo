@@ -5,6 +5,7 @@ import { useUiStore } from '../stores/ui'
 import TodoRow from '../components/TodoRow.vue'
 import BatchBar from '../components/BatchBar.vue'
 import { createDragSort } from '../components/useDragSort'
+import { clampClusterScale } from '../core/utils/scale'
 import { fmtTime, fmtDateCN } from '../core/utils/date'
 import { getApi } from '../services/api'
 
@@ -26,6 +27,37 @@ function isDragging(i: number): boolean {
 
 function isOver(i: number): boolean {
   return drag.state.overIndex === i && drag.state.draggingIndex !== null && drag.state.draggingIndex !== i
+}
+
+// —— 等比缩放柄（右下角，T39/T42：缩放开始→结束保持弹出） ——
+let scaleStart: { x: number; scale: number } | null = null
+
+function onGripDown(e: PointerEvent): void {
+  ui.dispatchTuck({ type: 'resize-start' })
+  scaleStart = { x: e.clientX, scale: store.uiState.clusterScale }
+  window.addEventListener('pointermove', onGripMove)
+  window.addEventListener('pointerup', onGripUp)
+}
+
+function onGripMove(e: PointerEvent): void {
+  if (scaleStart === null) return
+  const dx = e.clientX - scaleStart.x
+  const wa = {
+    x: (window.screen as unknown as { availLeft?: number }).availLeft ?? 0,
+    y: (window.screen as unknown as { availTop?: number }).availTop ?? 0,
+    width: window.screen.availWidth ?? 1920,
+    height: window.screen.availHeight ?? 1080
+  }
+  const base = { width: 872, height: 520 }
+  const next = clampClusterScale(scaleStart.scale + dx / 500, base, wa)
+  void store.updateUiState({ clusterScale: next })
+}
+
+function onGripUp(): void {
+  scaleStart = null
+  window.removeEventListener('pointermove', onGripMove)
+  window.removeEventListener('pointerup', onGripUp)
+  ui.dispatchTuck({ type: 'resize-end' })
 }
 
 // 顶部时钟：每秒刷新（PRD §3）
@@ -154,15 +186,30 @@ async function onComplete(id: string): Promise<void> {
       <p>点击右上角 ＋ 新建一条待办</p>
     </div>
 
+    <span class="scale-grip" title="拖动缩放" @pointerdown.stop.prevent="onGripDown" />
+
     <BatchBar v-if="ui.batchTarget === 'todos'" target="todos" />
   </section>
 </template>
 
 <style scoped>
 .home-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.scale-grip {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  border-right: 3px solid rgba(47, 111, 237, 0.55);
+  border-bottom: 3px solid rgba(47, 111, 237, 0.55);
+  border-bottom-right-radius: 8px;
 }
 
 .titlebar {

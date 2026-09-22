@@ -225,6 +225,14 @@ export const useAppStore = defineStore('app', () => {
     if (patch.topMost !== undefined) await getApi().setTopMost(patch.topMost)
   }
 
+  /** 子窗口分组等比缩放（T40） */
+  async function setChildScale(group: string, scale: number): Promise<void> {
+    await apply((d) => ({
+      ...d,
+      uiState: { ...d.uiState, childScales: { ...d.uiState.childScales, [group]: scale } }
+    }))
+  }
+
   // ---------- 导入导出 ----------
 
   async function exportCsv(from: string, to: string): Promise<{ ok: true; path: string } | { ok: false; reason: string }> {
@@ -287,6 +295,7 @@ export const useAppStore = defineStore('app', () => {
     clearBin,
     updateSettings,
     updateUiState,
+    setChildScale,
     exportCsv,
     importCsv,
     setUnsavedEdits
