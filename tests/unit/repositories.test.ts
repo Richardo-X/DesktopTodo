@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { join } from 'node:path'
-import { mkdtempSync, existsSync, readFileSync, rmSync, readdirSync } from 'node:fs'
+import { mkdtempSync, existsSync, rmSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { MemoryRepository } from '../../src/core/repositories/memory'
 import { FileRepository, type FileIo } from '../../src/core/repositories/file'
-import { defaultAppData } from '../../src/core/models'
+import { defaultAppData, type AppData } from '../../src/core/models'
 
 /** T05 仓储层（开发计划 §4-T05，附录 G 用例） */
 describe('MemoryRepository', () => {
   it('save→load 往返一致（深拷贝隔离）', async () => {
-    const repo = new MemoryRepository()
+    const repo = new MemoryRepository<AppData>()
     const data = defaultAppData()
     data.todos.push({ id: 'a', content: 'x', createdAt: '2026-09-21T00:00:00.000Z', completedAt: null, overdue: false })
     await repo.save(data)
