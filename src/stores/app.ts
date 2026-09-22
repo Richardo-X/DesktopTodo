@@ -124,6 +124,19 @@ export const useAppStore = defineStore('app', () => {
     await apply((d) => ({ ...d, todos: moveItem(d.todos, from, to) }))
   }
 
+  /** 模板拖拽排序 */
+  async function reorderTemplates(from: number, to: number): Promise<void> {
+    await apply((d) => ({ ...d, templates: moveItem(d.templates, from, to) }))
+  }
+
+  async function batchDeleteTemplates(ids: string[]): Promise<number> {
+    let n = 0
+    for (const id of ids) {
+      if ((await deleteTemplate(id)).ok) n++
+    }
+    return n
+  }
+
   // ---------- 模板 ----------
 
   async function createTemplate(content: string): Promise<OpResult> {
@@ -259,6 +272,8 @@ export const useAppStore = defineStore('app', () => {
     completeTodo,
     returnToActive,
     reorderTodos,
+    reorderTemplates,
+    batchDeleteTemplates,
     createTemplate,
     updateTemplate,
     quickAdd,

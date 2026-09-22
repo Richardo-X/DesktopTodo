@@ -1,13 +1,18 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { ChildKind } from '../ipc/contract'
 import { getApi } from '../services/api'
 
-/** 界面状态：批量删除模式、确认框与子窗口打开 */
+/** 界面状态：批量删除模式（按目标列表隔离）、确认框与子窗口打开 */
+export type BatchTarget = 'todos' | 'templates' | 'history'
+
 export const useUiStore = defineStore('ui', () => {
-  const batchMode = ref(false)
+  const batchTarget = ref<BatchTarget | null>(null)
   const selectedIds = ref<string[]>([])
   const confirmState = ref<{ message: string; resolve: (v: boolean) => void } | null>(null)
+
+  /** 是否处于批量模式（任意列表） */
+  const batchMode = computed(() => batchTarget.value !== null)
 
   /** 应用内确认框（替代原生 confirm）；resolve(true)=确定 */
   function confirm(message: string): Promise<boolean> {
@@ -22,13 +27,13 @@ export const useUiStore = defineStore('ui', () => {
     c?.resolve(v)
   }
 
-  function enterBatch(): void {
-    batchMode.value = true
+  function enterBatch(target: BatchTarget): void {
+    batchTarget.value = target
     selectedIds.value = []
   }
 
   function exitBatch(): void {
-    batchMode.value = false
+    batchTarget.value = null
     selectedIds.value = []
   }
 
@@ -47,6 +52,7 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   return {
+    batchTarget,
     batchMode,
     selectedIds,
     confirmState,

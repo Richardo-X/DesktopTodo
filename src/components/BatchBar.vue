@@ -2,14 +2,20 @@
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 
+const props = defineProps<{ target?: 'todos' | 'templates' }>()
+
 const store = useAppStore()
 const ui = useUiStore()
+
+const allIds = (): string[] =>
+  props.target === 'templates' ? store.templates.map((t) => t.id) : store.todos.map((t) => t.id)
 
 async function onDelete(): Promise<void> {
   const count = ui.selectedIds.length
   const ok = await ui.confirm(`确定删除所选的 ${count} 项吗？删除后将进入回收站。`)
   if (!ok) return
-  await store.batchDeleteTodos([...ui.selectedIds])
+  if (props.target === 'templates') await store.batchDeleteTemplates([...ui.selectedIds])
+  else await store.batchDeleteTodos([...ui.selectedIds])
   ui.exitBatch()
 }
 </script>
@@ -17,7 +23,7 @@ async function onDelete(): Promise<void> {
 <template>
   <div class="batch-bar" data-testid="batch-bar">
     <span class="count" data-testid="batch-count">已选 {{ ui.selectedIds.length }} 项</span>
-    <button class="b" data-testid="batch-select-all" @click="ui.selectAll(store.todos.map((t) => t.id))">全选</button>
+    <button class="b" data-testid="batch-select-all" @click="ui.selectAll(allIds())">全选</button>
     <button class="b" data-testid="batch-cancel" @click="ui.exitBatch()">取消</button>
     <button class="b danger" data-testid="batch-delete" @click="onDelete">删除所选</button>
   </div>

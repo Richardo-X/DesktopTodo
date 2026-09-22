@@ -127,7 +127,7 @@ async function onComplete(id: string): Promise<void> {
     <div class="ops">
       <button class="op" data-testid="op-quick-toggle" @click="toggleQuick">快捷添加</button>
       <span class="op" data-testid="op-count">{{ countText }}</span>
-      <button class="op" data-testid="op-batch" @click="ui.enterBatch()">批量删除</button>
+      <button class="op" data-testid="op-batch" @click="ui.enterBatch('todos')">批量删除</button>
       <span class="spacer" />
       <button class="op" data-testid="op-done-toggle" @click="toggleDone">已完成</button>
       <button class="op new" data-testid="op-new" @click="ui.openChild('todo-new')">＋</button>
@@ -154,7 +154,7 @@ async function onComplete(id: string): Promise<void> {
       <p>点击右上角 ＋ 新建一条待办</p>
     </div>
 
-    <BatchBar v-if="ui.batchMode" />
+    <BatchBar v-if="ui.batchTarget === 'todos'" target="todos" />
   </section>
 </template>
 
