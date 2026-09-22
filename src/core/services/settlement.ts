@@ -36,7 +36,11 @@ export function settle(data: AppData, now: Date, opts: SettleOptions = {}): Sett
   const archive = { ...data.archive }
   const remainingCompleted = []
   for (const entry of data.completed) {
-    if (entry.completedAt === null) continue
+    if (entry.completedAt === null) {
+      // 脏数据（无完成时间）不移动、不丢弃
+      remainingCompleted.push(entry)
+      continue
+    }
     const key = localDateKey(new Date(entry.completedAt))
     if (key === todayKey) {
       remainingCompleted.push(entry)
