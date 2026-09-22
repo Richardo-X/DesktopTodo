@@ -1,9 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
-import { AppContext } from '../../electron/main/context'
+import { AppContext, hasCrossedMidnight } from '../../electron/main/context'
 import { MemoryRepository } from '../../src/core/repositories/memory'
-import { defaultAppData, createTodoItem, createTemplateItem, createRecycleEntry, type AppData } from '../../src/core/models'
+import { defaultAppData, createTodoItem, createRecycleEntry, type AppData } from '../../src/core/models'
 import { SystemClock, type IClock } from '../../src/core/interfaces/clock'
-import { hasCrossedMidnight } from '../../electron/main/context'
 
 function fixedClock(y: number, mo: number, d: number, h = 12): IClock {
   let t = new Date(y, mo - 1, d, h, 0, 0)

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { acquireSingleInstanceLock } from '../../electron/main/single-instance'
 import { setAutoStart, getAutoStart, loginItemSettingsFor } from '../../electron/main/auto-start'
-import { applyTopMost, applyTuckLock, applyTheme } from '../../electron/main/window-state'
+import { applyTopMost, withTopMost, withTuckLock, withTheme } from '../../electron/main/window-state'
 
 /** T16 单实例锁 */
 vi.mock('electron', () => {
@@ -60,7 +60,7 @@ describe('T18 开机自启', () => {
   })
 
   it('getAutoStart 读取当前状态', () => {
-    vi.mocked(app.getLoginItemSettings).mockReturnValue({ openAtLogin: true })
+    vi.mocked(app.getLoginItemSettings).mockReturnValue({ openAtLogin: true } as never)
     expect(getAutoStart()).toBe(true)
   })
 })
@@ -77,9 +77,9 @@ describe('T17 window-state 应用', () => {
 
   it('uiState 反映置顶/缩进锁/主题变更', () => {
     const s = { topMost: false, tuckLock: false, theme: 'day' as const }
-    expect(applyTopMost(s, true)).toMatchObject({ topMost: true })
-    expect(applyTuckLock(s, true)).toMatchObject({ tuckLock: true })
-    expect(applyTheme(s, 'night')).toMatchObject({ theme: 'night' })
+    expect(withTopMost(s, true)).toMatchObject({ topMost: true })
+    expect(withTuckLock(s, true)).toMatchObject({ tuckLock: true })
+    expect(withTheme(s, 'night')).toMatchObject({ theme: 'night' })
     // 原对象不变
     expect(s.topMost).toBe(false)
   })
