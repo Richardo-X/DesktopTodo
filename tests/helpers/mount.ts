@@ -15,11 +15,13 @@ export interface Mounted<T> {
 export async function mountWithStore<T extends Component>(
   component: T,
   seed?: Partial<AppData>,
-  props?: Record<string, unknown>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  props?: Record<string, any>
 ): Promise<Mounted<T>> {
   const pinia = createPinia()
   const api = installTestApi(seed)
-  const wrapper = mount(component, { global: { plugins: [pinia] }, props })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wrapper = mount(component as any, { global: { plugins: [pinia] }, props })
   const store = useAppStore()
   await store.init()
   return { wrapper, store, api } as unknown as Mounted<T>

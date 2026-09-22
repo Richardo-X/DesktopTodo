@@ -12,6 +12,8 @@ export interface TestApi extends DesktopTodoApi {
   openChildCalls: Array<{ kind: ChildKind; id?: string }>
   topMostCalls: boolean[]
   minimizeCalls: number
+  closeSelfCalls: number
+  unsavedCalls: boolean[]
 }
 
 /**
@@ -28,6 +30,8 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
   const openChildCalls: Array<{ kind: ChildKind; id?: string }> = []
   const topMostCalls: boolean[] = []
   let minimizeCalls = 0
+  let closeSelfCalls = 0
+  const unsavedCalls: boolean[] = []
 
   const booted: Promise<unknown> = ctx.boot()
 
@@ -39,6 +43,10 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     get minimizeCalls() {
       return minimizeCalls
     },
+    get closeSelfCalls() {
+      return closeSelfCalls
+    },
+    unsavedCalls,
     snapshot: () => ctx.current(),
     emitStateUpdated(data) {
       listeners.forEach((l) => l(data))
@@ -73,7 +81,12 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     minimizeToTray: async () => {
       minimizeCalls++
     },
-    setUnsavedEdits: () => undefined,
+    closeSelf: async () => {
+      closeSelfCalls++
+    },
+    setUnsavedEdits: (flag: boolean) => {
+      unsavedCalls.push(flag)
+    },
     openChild: async (p) => {
       openChildCalls.push(p)
     }

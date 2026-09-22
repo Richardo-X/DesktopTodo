@@ -17,6 +17,7 @@ export const IPC = {
   saveCsv: 'dialog:save-csv',
   openCsv: 'dialog:open-csv',
   openChild: 'window:open-child',
+  closeSelf: 'window:close-self',
   requestExit: 'app:request-exit',
   minimizeToTray: 'window:minimize-to-tray'
 } as const
@@ -60,4 +61,6 @@ export interface DesktopTodoApi {
   setUnsavedEdits(flag: boolean): void
   /** 打开子窗口（模态、位置不记忆）；id 用于编辑/详情定位事项 */
   openChild(params: { kind: ChildKind; id?: string }): Promise<void>
+  /** 子窗口自我关闭（返回/保存/删除完成后） */
+  closeSelf(): Promise<void>
 }

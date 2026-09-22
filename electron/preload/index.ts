@@ -20,7 +20,8 @@ const api = {
   openCsv: () => ipcRenderer.invoke(IPC.openCsv),
   minimizeToTray: () => ipcRenderer.invoke(IPC.minimizeToTray),
   setUnsavedEdits: (flag: boolean) => ipcRenderer.send('app:set-unsaved', flag),
-  openChild: (params: { kind: ChildKind; id?: string }) => ipcRenderer.invoke(IPC.openChild, params)
+  openChild: (params: { kind: ChildKind; id?: string }) => ipcRenderer.invoke(IPC.openChild, params),
+  closeSelf: () => ipcRenderer.invoke(IPC.closeSelf)
 }
 
 contextBridge.exposeInMainWorld('desktopTodo', api)
