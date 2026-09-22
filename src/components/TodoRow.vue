@@ -6,6 +6,7 @@ const props = defineProps<{
   item: TodoItem
   batchMode?: boolean
   selected?: boolean
+  leaving?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -45,7 +46,7 @@ function onDblClick(): void {
   <div
     class="todo-row"
     data-testid="todo-row"
-    :class="{ selected: batchMode && selected }"
+    :class="{ selected: batchMode && selected, leaving }"
     @mouseenter="onEnter"
     @mouseleave="onLeave"
     @click="onRowClick"
@@ -160,5 +161,13 @@ function onDblClick(): void {
 
 .todo-row.selected {
   background: rgba(47, 111, 237, 0.12);
+}
+
+.todo-row.leaving {
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+  opacity: 0;
+  transform: translateX(24px) scale(0.96);
 }
 </style>

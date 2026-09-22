@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import TodoRow from '../components/TodoRow.vue'
+import BatchBar from '../components/BatchBar.vue'
 import { fmtTime, fmtDateCN } from '../core/utils/date'
 import { getApi } from '../services/api'
 
@@ -45,8 +46,17 @@ function toggleDone(): void {
   void store.updateUiState({ doneVisible: !store.uiState.doneVisible })
 }
 
+// 勾选完成：先播放离场动画（250ms）再移入已完成（PRD §5.2 动画反馈）
+const leavingId = ref<string | null>(null)
+
 async function onComplete(id: string): Promise<void> {
-  await store.completeTodo(id)
+  if (ui.batchMode) return
+  leavingId.value = id
+  setTimeout(() => {
+    void store.completeTodo(id).then(() => {
+      if (leavingId.value === id) leavingId.value = null
+    })
+  }, 250)
 }
 </script>
 
@@ -101,6 +111,7 @@ async function onComplete(id: string): Promise<void> {
           :item="t"
           :batch-mode="ui.batchMode"
           :selected="ui.selectedIds.includes(t.id)"
+          :leaving="leavingId === t.id"
           @toggle="onComplete(t.id)"
           @edit="ui.openChild('todo-edit', t.id)"
           @select-toggle="ui.toggleSelect(t.id)"
@@ -111,6 +122,8 @@ async function onComplete(id: string): Promise<void> {
       <p>今日做点什么好呢</p>
       <p>点击右上角 ＋ 新建一条待办</p>
     </div>
+
+    <BatchBar v-if="ui.batchMode" />
   </section>
 </template>
 

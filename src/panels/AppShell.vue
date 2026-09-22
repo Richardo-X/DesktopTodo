@@ -4,6 +4,7 @@ import { useAppStore } from '../stores/app'
 import HomePanel from './HomePanel.vue'
 import QuickPanel from './QuickPanel.vue'
 import DonePanel from './DonePanel.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const store = useAppStore()
 onMounted(() => {
@@ -16,6 +17,7 @@ onMounted(() => {
     <QuickPanel v-if="store.uiState.quickVisible" data-testid="quick-panel" />
     <HomePanel />
     <DonePanel v-if="store.uiState.doneVisible" data-testid="done-panel" />
+    <ConfirmDialog />
   </div>
 </template>
 
