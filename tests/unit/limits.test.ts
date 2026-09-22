@@ -36,18 +36,22 @@ describe('C 数量上限 LimitsService', () => {
   })
 
   it('C6 待办数=10：bounds.min=10（UI 据此禁用减号）', () => {
-    const b = maxItemsBounds(10)
+    const b = maxItemsBounds(10, 10)
     expect(b.min).toBe(10)
     expect(b.max).toBe(10)
     expect(b.canDecrease).toBe(false)
     expect(b.canIncrease).toBe(false)
   })
 
-  it('边界组合：待办数=6 时 bounds 与步进可用性', () => {
-    const b = maxItemsBounds(6)
-    expect(b.min).toBe(6)
-    expect(b.max).toBe(10)
-    expect(b.canDecrease).toBe(false) // 当前若为 6 已到底（上限不可低于当前数量）
-    expect(b.canIncrease).toBe(true)
+  it('边界组合：上限=6、待办数=6 → 已到底不能再减；上限=8、待办数=6 → 仍可减', () => {
+    const atFloor = maxItemsBounds(6, 6)
+    expect(atFloor.min).toBe(6)
+    expect(atFloor.max).toBe(10)
+    expect(atFloor.canDecrease).toBe(false)
+    expect(atFloor.canIncrease).toBe(true)
+
+    const mid = maxItemsBounds(8, 6)
+    expect(mid.canDecrease).toBe(true)
+    expect(mid.canIncrease).toBe(true)
   })
 })
