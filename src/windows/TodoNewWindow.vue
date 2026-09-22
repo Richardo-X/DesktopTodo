@@ -10,6 +10,7 @@ const store = useAppStore()
 const ui = useUiStore()
 
 const text = ref('')
+const error = ref('')
 const count = computed(() => text.value.length)
 const danger = computed(() => count.value >= MAX_CONTENT_LENGTH)
 const canSubmit = computed(() => text.value.trim().length > 0)
@@ -30,7 +31,9 @@ async function submit(): Promise<void> {
   if (r.ok) {
     store.setUnsavedEdits(false)
     await getApi().closeSelf()
+    return
   }
+  error.value = r.reason === 'limit-reached' ? '待办数量已达上限' : '创建失败'
 }
 
 async function onBack(): Promise<void> {
@@ -68,6 +71,7 @@ async function onBack(): Promise<void> {
         <span class="count" data-testid="new-count" :class="{ danger }">{{ count }}/{{ MAX_CONTENT_LENGTH }}</span>
         <button class="b" data-testid="new-clear" @click="clearInput">清空</button>
       </div>
+      <p v-if="error" class="error" data-testid="new-error">{{ error }}</p>
     </div>
 
     <footer class="footer">
@@ -160,6 +164,12 @@ async function onBack(): Promise<void> {
   cursor: pointer;
   font-size: calc(var(--fs, 14px) * 12 / 14);
   color: inherit;
+}
+
+.error {
+  margin: 0;
+  font-size: 12px;
+  color: #e5484d;
 }
 
 .footer {

@@ -41,13 +41,25 @@ export class AppContext {
 
   /** 运行中跨天结算（主进程定时器触发） */
   async settleIfCrossed(): Promise<{ data: AppData; changed: boolean }> {
+    return this.settleWith(this.clock)
+  }
+
+  /** 指定时钟的结算（E2E 测试钩子注入偏移时钟，模拟跨天） */
+  async settleWith(clock: IClock): Promise<{ data: AppData; changed: boolean }> {
     if (this.#data === null) throw new Error('boot() must be called first')
+    const prev = this.clock
+    this.#swapClock(clock)
     const r = this.settleIfNeeded(this.#data)
+    this.#swapClock(prev)
     if (r.changed) {
       this.#data = r.data
       await this.repo.save(r.data)
     }
     return r
+  }
+
+  #swapClock(clock: IClock): void {
+    (this as unknown as { clock: IClock }).clock = clock
   }
 
   current(): AppData {

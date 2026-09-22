@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { writeFile, readFile } from 'node:fs/promises'
 import { FileRepository } from '../../src/core/repositories/file'
 import { SystemClock } from '../../src/core/interfaces/clock'
+import { OffsetClock } from './clock'
+import type { IClock } from '../../src/core/interfaces/clock'
 import { AppContext } from './context'
 import { clusterBounds, defaultWindowOptions, initialPos, type PanelVisibility } from './layout'
 import { acquireSingleInstanceLock } from './single-instance'
@@ -26,6 +28,11 @@ let snapped = false
 let currentPos: { x: number; y: number } | null = null
 let ctx: AppContext
 
+// E2E 夹具：临时 userData 目录（T44）；必须在单实例锁之前设置（锁文件位于 userData）
+if (process.env.DTODO_USER_DATA) {
+  app.setPath('userData', process.env.DTODO_USER_DATA)
+}
+
 const gotLock = acquireSingleInstanceLock(() => {
   showWindow()
 })
@@ -36,9 +43,17 @@ if (!gotLock) {
   app.whenReady().then(bootstrap)
 }
 
+let appClock: IClock = new SystemClock()
+
+function makeClock(): IClock {
+  const offsetH = Number(process.env.DTODO_CLOCK_OFFSET_H ?? 0)
+  appClock = Number.isFinite(offsetH) && offsetH !== 0 ? new OffsetClock(offsetH) : new SystemClock()
+  return appClock
+}
+
 async function bootstrap(): Promise<void> {
   const repo = new FileRepository(join(app.getPath('userData'), 'data.json'))
-  ctx = new AppContext(repo, new SystemClock())
+  ctx = new AppContext(repo, makeClock())
   const data = await ctx.boot()
   currentPos = data.uiState.pos
 
@@ -283,6 +298,12 @@ function registerIpc(): void {
   ipcMain.handle(IPC.minimizeToTray, () => hideToTray())
 
   ipcMain.handle(IPC.saveCsv, async (_e, p: { fileName: string; content: string }) => {
+    // E2E：跳过系统对话框，直接写入指定目录（T47）
+    if (process.env.DTODO_TEST_EXPORT_DIR) {
+      const target = join(process.env.DTODO_TEST_EXPORT_DIR, p.fileName)
+      await writeFile(target, p.content, 'utf8')
+      return target
+    }
     if (!win) return null
     const r = await dialog.showSaveDialog(win, {
       defaultPath: p.fileName,
@@ -294,6 +315,10 @@ function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.openCsv, async () => {
+    // E2E：跳过系统对话框，读取指定文件（T47）
+    if (process.env.DTODO_TEST_IMPORT_FILE) {
+      return readFile(process.env.DTODO_TEST_IMPORT_FILE, 'utf8')
+    }
     const r = await dialog.showOpenDialog(win!, {
       properties: ['openFile'],
       filters: [{ name: 'CSV', extensions: ['csv'] }]
@@ -306,12 +331,19 @@ function registerIpc(): void {
   ipcMain.on('app:set-unsaved', (_e, flag: boolean) => {
     hasUnsavedEdits = flag
   })
+
+  // E2E 测试钩子：强制以偏移时钟结算（仅 DTODO_TEST=1 时注册）
+  if (process.env.DTODO_TEST === '1') {
+    ipcMain.handle('test:force-settle', (_e, days: number) =>
+      ctx.settleWith(new OffsetClock(Number(days) * 24))
+    )
+  }
 }
 
 /** 运行中跨 0 点：静默结算并推送新状态（PRD §7.4） */
 function startSettleTimer(): void {
   setInterval(() => {
-    const nowKey = localDateKey(new Date())
+    const nowKey = localDateKey(appClock.now())
     if (nowKey === lastSettleCheck) return
     lastSettleCheck = nowKey
     void ctx
