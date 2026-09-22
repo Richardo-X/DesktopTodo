@@ -101,7 +101,7 @@ describe('FileRepository', () => {
 
   it('G2 rename 前异常：原文件不受损，重试可恢复', async () => {
     const io = makeMemoryIo()
-    const repo = new FileRepository('mem://data.json', { io, debounceMs: 0 })
+    const repo = new FileRepository('mem://data.json', { io })
     const v1 = defaultAppData()
     v1.settings.maxItems = 5
     await repo.save(v1)
@@ -116,9 +116,9 @@ describe('FileRepository', () => {
     // 原文件仍是 v1
     expect(io.files.get('mem://data.json')).toBe(firstWrite)
 
-    // 重试成功
+    // 重试成功（pending 保留，数据不丢）
     await repo.flush()
-    const reloaded = await new FileRepository('mem://data.json', { io, debounceMs: 0 }).load()
+    const reloaded = await new FileRepository('mem://data.json', { io }).load()
     expect(reloaded!.settings.maxItems).toBe(9)
   })
 

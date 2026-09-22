@@ -101,12 +101,13 @@ export class FileRepository implements IRepository<AppData> {
   async #doWrite(): Promise<void> {
     if (this.#pending === null) return
     const data = this.#pending
-    this.#pending = null
-    this.#timer = null
+    // 写盘失败时保留 #pending，下一次 save/flush 自动重试（G2：中断不丢数据）
     await this.#io.mkdir(dirname(this.filePath), { recursive: true })
     const tmp = `${this.filePath}.tmp`
     await this.#io.writeFile(tmp, JSON.stringify(data, null, 2))
     await this.#io.rename(tmp, this.filePath)
+    this.#pending = null
+    this.#timer = null
   }
 
   async #archiveCorrupt(): Promise<void> {
