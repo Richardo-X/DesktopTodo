@@ -18,6 +18,21 @@ function baseSeed(): Partial<AppData> {
   return { archive: { [yesterday]: [hist] }, completed: [] }
 }
 
+/** 轮询等待文件存在且非空（异步导出落盘的稳定等待） */
+async function waitForFileContent(file: string, timeoutMs = 8000): Promise<string> {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    try {
+      const text = readFileSync(file, 'utf8')
+      if (text.length > 0) return text
+    } catch {
+      /* 尚未创建 */
+    }
+    if (Date.now() > deadline) throw new Error(`导出文件未就绪: ${file}`)
+    await new Promise((r) => setTimeout(r, 150))
+  }
+}
+
 test('验收24（生成部分）：导出 CSV 文件名与内容正确', async () => {
   const exportDir = mkdtempSync(join(tmpdir(), 'dtodo-exp-'))
   const h: AppHandle = await launchApp({ seed: baseSeed(), exportDir })
@@ -36,7 +51,8 @@ test('验收24（生成部分）：导出 CSV 文件名与内容正确', async (
   await expect(hist.locator('[data-testid="hist-export-error"]')).toHaveCount(0, { timeout: 5000 })
 
   const file = join(exportDir, `待办完成记录_${from}_${to}.csv`)
-  const content = readFileSync(file, 'utf8')
+  // 导出写盘是主进程异步操作：轮询等待文件就绪（避免读到半写状态）
+  const content = await waitForFileContent(file)
   expect(content.charCodeAt(0)).toBe(0xfeff)
   expect(content).toContain('完成日期,完成时间,事项内容,创建时间,完成时间')
   expect(content).toContain('历史一')
