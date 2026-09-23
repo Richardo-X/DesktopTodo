@@ -16,7 +16,9 @@
     "test:cov": "vitest run --coverage",
     "test:e2e": "playwright test",
     "verify": "npm run typecheck && npm run test && npm run test:e2e",
-    "dist": "electron-vite build && electron-builder"
+    "dist": "electron-vite build && electron-builder",
+    "dist:dir": "electron-vite build && electron-builder --dir",
+    "gen-icon": "node scripts/gen-icon.cjs"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
@@ -42,5 +44,45 @@
     "esbuild@0.25.12": true,
     "esbuild@0.28.2": true,
     "electron-winstaller@5.4.0": true
+  },
+  "build": {
+    "appId": "com.desktoptodo.app",
+    "productName": "桌面待办",
+    "copyright": "Copyright © 2026 DesktopTodo",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "uninstallDisplayName": "桌面待办",
+      "createDesktopShortcut": true,
+      "artifactName": "桌面待办-安装包-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "桌面待办-便携版-${version}.${ext}"
+    }
   }
 }
