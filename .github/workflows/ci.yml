@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # E2E 用 _electron 直驱本机 electron 二进制，无需 Playwright 浏览器
+      - name: 安装依赖
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+        run: npm ci
+
+      - name: 类型检查 + 单元/组件测试（含覆盖率门槛）
+        run: npm run typecheck && npm run test
+
+      - name: 构建（E2E 依赖 out/ 产物）
+        run: npm run build
+
+      - name: E2E（Playwright _electron）
+        run: npm run test:e2e
