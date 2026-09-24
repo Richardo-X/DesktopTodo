@@ -9,3 +9,6 @@ blob-report/
 *.local
 *.log
 .DS_Store
+
+# ZCode 工作区配置
+.zcode/
