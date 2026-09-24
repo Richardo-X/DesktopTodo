@@ -26,10 +26,7 @@ const earliest = computed(() => {
 })
 
 const items = computed(() => {
-  // 今天的视图包含已完成区（与导出口径 F1 一致）；其余日期读归档
-  if (currentDate.value === todayKey) {
-    return [...(store.archive[currentDate.value] ?? []), ...store.completed]
-  }
+  // 决策#15：历史记录只显示已结算归档的记录（当天完成在"已完成"窗口，不在此合并）
   return store.archive[currentDate.value] ?? []
 })
 const dateLabel = computed(() => currentDate.value)
