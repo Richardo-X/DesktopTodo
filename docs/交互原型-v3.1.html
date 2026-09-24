@@ -89,8 +89,14 @@ body{
 .win.blocked::before{content:'';position:absolute;inset:0;background:rgba(20,20,25,.20);z-index:998;border-radius:inherit}
 
 /* 窗口缩放角 */
-.resize-grip{position:absolute;right:1px;bottom:1px;width:17px;height:17px;cursor:nwse-resize;z-index:60;
-  background:linear-gradient(135deg,transparent 0 46%,var(--faint) 46% 54%,transparent 54% 62%,var(--faint) 62% 70%,transparent 70%);}
+.resize-grip{position:absolute;right:2px;bottom:2px;width:18px;height:18px;cursor:nwse-resize;z-index:60;
+  opacity:.55;transition:opacity .15s}
+.resize-grip::before{content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(circle at 24% 76%, var(--muted) 1.8px, transparent 2.0px),
+    radial-gradient(circle at 50% 50%, var(--muted) 1.8px, transparent 2.0px),
+    radial-gradient(circle at 76% 24%, var(--muted) 1.8px, transparent 2.0px);}
+.resize-grip:hover{opacity:1}
 
 .titlebar{height:36px;display:flex;align-items:center;padding-left:12px;flex:none;user-select:none;cursor:move;position:relative}
 .titlebar::after{content:'';position:absolute;inset:0;cursor:move}
@@ -1118,7 +1124,7 @@ function addBack(){
 function openEdit(id){
   const t=state.todos.find(x=>x.id===id);
   if(!t) return;
-  openChild('edit-'+id,{title:'编辑待办事项',group:'item',w:360,h:430,back:true,onBack:()=>tryCloseEdit('edit-'+id,t),
+  openChild('edit-'+id,{title:'编辑待办事项',group:'item',w:400,h:430,back:true,onBack:()=>tryCloseEdit('edit-'+id,t),
     saveBtn:{label:'保存',title:'保存并返回',onClick:()=>saveEdit('edit-'+id,t)},render:(b)=>{
     const original=t.content;
     b.innerHTML=`

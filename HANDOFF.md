@@ -38,7 +38,8 @@
 | 11 | 快捷添加窗口批量按钮文案＝「批量删除」；模板新建/编辑窗口布局对齐新建待办（清空在操作行左侧，不悬浮输入框）；提交按钮名「新建事项」「新建模板」 | 原型评审 |
 | 12 | 无外框滚动条：body 不滚动，仅窗口内部/列表区滚动（细滚动条样式） | 验收反馈#2 |
 | 13 | **拖拽换位＝相邻增量交换**：指针进入相邻条目区域 4px 即换位（触碰即换，无需越过中线）；长按 230ms 启动、移动不取消；带 FLIP 动画 | 原型 v3.1.1 评审（灵敏度反馈） |
-| 14 | **编辑待办/详情窗口尺寸 360×430**（PRD v1.1 #5 的 360×400 校准——原尺寸底部按钮被缩放角遮挡）；`.win-body` 底部内边距 24px 预留缩放角 | 原型 v3.1.1 评审（图1/图2 遮挡） |
+| 14 | **详情窗口 360×430；编辑待办窗口 400×430**（PRD v1.1 #5 的 360×400 两轮校准——先修底部遮挡，再加宽解决"还原/添加到模板/删除"横向截断）；`.win-body` 底部内边距 24px 预留缩放角 | 原型 v3.1.1 评审（图1/图2 遮挡 + 二次反馈） |
+| 16 | **缩放角视觉改三点式**：对角三个圆点（muted 色、55% 透明度、悬停加亮），替换原斜纹渐变 | 原型 v3.1.1 评审（缩放角视觉反馈） |
 | 15 | **历史记录只显示已结算归档的记录**（不合并当天已完成；当天项在"已完成"窗口，跨天结算后进历史）；历史行正常模式**不渲染勾选框**（仅批量模式出现）；导出 CSV 口径不变（仍含今天已完成，PRD F1） | 原型 v3.1.1 评审（历史口径反馈，对齐 PRD §六） |
 
 ## 4. v1.0.1 待实施工作分解（按序执行）
@@ -65,7 +66,7 @@
 - 提交 `feat(v1.0.1-B2)`
 
 ### B3 二级窗口（决策#5/#6/#7，工作量最大）
-- `electron/main/child-windows.ts`：CHILD_SIZES 改上表 8 项，其中**编辑待办与详情为 360×430**（决策#14 校准）；`childWindowOptions(kind, wa, openIndex, groupScale)` 增组缩放参数；`GROUP_OF` 组映射导出（todo-new/todo-edit/detail→todo；template-*→template；history/recycle→history；settings→settings）；各窗口 win-body 底部内边距 24px
+- `electron/main/child-windows.ts`：CHILD_SIZES 改上表 8 项，其中**编辑待办 400×430、详情 360×430**（决策#14 校准）；`childWindowOptions(kind, wa, openIndex, groupScale)` 增组缩放参数；`GROUP_OF` 组映射导出（todo-new/todo-edit/detail→todo；template-*→template；history/recycle→history；settings→settings）；各窗口 win-body 底部内边距 24px；缩放角组件为三点式圆点（决策#16）
 - main `openChildWindow`：从 `ctx.current().uiState.childScales[group]` 取缩放
 - 新增 IPC `resizeSelf({width,height})`：主进程对 `BrowserWindow.fromWebContents(e.sender).setSize`（钳制屏宽/半屏高）
 - `ChildHost.vue`：移除 CSS zoom；保留组映射与 grip（grip→`setChildScale`+`api.resizeSelf`）；`--fs` 机制删除（决策#3）
