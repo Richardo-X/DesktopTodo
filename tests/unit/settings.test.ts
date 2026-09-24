@@ -4,30 +4,27 @@ import { normalizeSettings } from '../../src/core/models'
 
 /** T12 设置服务（开发计划 §4-T12：默认值、旧档补齐迁移、枚举校验） */
 describe('T12 SettingsService', () => {
-  it('默认值符合 PRD §5.7（设置 4 项：无字体/无回收站字段——B1.5 起 recycleKeep 移除）', () => {
+  it('默认值符合 PRD §5.6（设置 4 项：无字体/回收站字段——决策#3/#21）', () => {
     expect(defaultSettings()).toEqual({
       maxItems: 10,
       hour12: false,
-      fontScale: 'medium',
       autoStart: false,
       doneSort: 'asc'
     })
     expect('recycleKeep' in defaultSettings()).toBe(false)
+    expect('fontScale' in defaultSettings()).toBe(false)
   })
 
   it('部分补丁即时生效，未提及字段保留', () => {
-    const s = applySettings(defaultSettings(), { hour12: true, fontScale: 'large' })
+    const s = applySettings(defaultSettings(), { hour12: true })
     expect(s.hour12).toBe(true)
-    expect(s.fontScale).toBe('large')
     expect(s.maxItems).toBe(10)
   })
 
-  it('非法枚举被拒：保留当前值（fontScale/doneSort）', () => {
+  it('非法枚举被拒：保留当前值（doneSort）', () => {
     const s = applySettings(defaultSettings(), {
-      fontScale: 'huge' as never,
       doneSort: 'random' as never
     })
-    expect(s.fontScale).toBe('medium')
     expect(s.doneSort).toBe('asc')
   })
 
@@ -50,15 +47,15 @@ describe('T12 SettingsService', () => {
       expect(r.settings.hour12).toBe(true)
       expect(r.settings.maxItems).toBe(3)
     }
-    const bad = validateSettingsPatch({ fontScale: 'x' as never })
+    const bad = validateSettingsPatch({ hour12: 'x' as never })
     expect(bad.ok).toBe(false)
-    if (!bad.ok) expect(bad.field).toBe('fontScale')
+    if (!bad.ok) expect(bad.field).toBe('hour12')
   })
 
-  it('旧档迁移：normalizeSettings 补齐缺省（含非法枚举回退）', () => {
+  it('旧档迁移：normalizeSettings 补齐缺省（含非法枚举回退；B3 起丢弃 fontScale）', () => {
     expect(normalizeSettings(undefined)).toEqual(defaultSettings())
     expect(normalizeSettings({ maxItems: 4 } as never)).toEqual({ ...defaultSettings(), maxItems: 4 })
-    expect(normalizeSettings({ fontScale: 'nope' } as never).fontScale).toBe('medium')
     expect(normalizeSettings({ maxItems: 99 } as never).maxItems).toBe(10)
+    expect('fontScale' in normalizeSettings({ fontScale: 'nope' } as never)).toBe(false)
   })
 })

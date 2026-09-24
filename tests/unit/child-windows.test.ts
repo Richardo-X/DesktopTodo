@@ -1,13 +1,37 @@
 import { describe, it, expect } from 'vitest'
-import { CHILD_SIZES, childWindowOptions, type ChildKind } from '../../electron/main/child-windows'
+import { CHILD_SIZES, GROUP_MAX, GROUP_OF, childWindowOptions, type ChildKind } from '../../electron/main/child-windows'
 
 const WA = { x: 0, y: 40, width: 1920, height: 1040 }
 
-/** B1.5（决策#21）：回收站子窗口移除——CHILD_SIZES 恰为 7 类 */
-describe('CHILD_SIZES 类别集合', () => {
-  it('不含 recycle，恰为 7 类', () => {
-    expect(Object.keys(CHILD_SIZES)).not.toContain('recycle')
+/** B3（决策#5/#14/#21）：二级窗口原型基准尺寸、组映射、组缩放 */
+describe('CHILD_SIZES 基准尺寸与分组', () => {
+  it('7 类原型基准尺寸（回收站已移除；编辑待办/详情经 #14 校准）', () => {
+    expect(CHILD_SIZES['todo-new']).toEqual({ w: 360, h: 360 })
+    expect(CHILD_SIZES['todo-edit']).toEqual({ w: 400, h: 430 })
+    expect(CHILD_SIZES['template-new']).toEqual({ w: 360, h: 360 })
+    expect(CHILD_SIZES['template-edit']).toEqual({ w: 360, h: 380 })
+    expect(CHILD_SIZES.detail).toEqual({ w: 360, h: 430 })
+    expect(CHILD_SIZES.history).toEqual({ w: 560, h: 540 })
+    expect(CHILD_SIZES.settings).toEqual({ w: 400, h: 470 })
     expect(Object.keys(CHILD_SIZES)).toHaveLength(7)
+    expect('recycle' in CHILD_SIZES).toBe(false)
+  })
+
+  it('GROUP_OF 组映射：事项/模板/历史/设置（detail 归事项组）', () => {
+    expect(GROUP_OF['todo-new']).toBe('todo')
+    expect(GROUP_OF['todo-edit']).toBe('todo')
+    expect(GROUP_OF.detail).toBe('todo')
+    expect(GROUP_OF['template-new']).toBe('template')
+    expect(GROUP_OF['template-edit']).toBe('template')
+    expect(GROUP_OF.history).toBe('history')
+    expect(GROUP_OF.settings).toBe('settings')
+  })
+
+  it('GROUP_MAX：组内最大基准（组缩放钳制基准）', () => {
+    expect(GROUP_MAX.todo).toEqual({ w: 400, h: 430 })
+    expect(GROUP_MAX.template).toEqual({ w: 360, h: 380 })
+    expect(GROUP_MAX.history).toEqual({ w: 560, h: 540 })
+    expect(GROUP_MAX.settings).toEqual({ w: 400, h: 470 })
   })
 })
 
@@ -40,5 +64,22 @@ describe('childWindowOptions', () => {
   it('正常屏幕下高度不放大', () => {
     const o = childWindowOptions('history', WA, 0)
     expect(o.height).toBe(CHILD_SIZES['history'].h)
+  })
+
+  it('B3 组缩放：尺寸 = round(基准 × 组缩放)，仍钳制屏宽/半屏高', () => {
+    const o = childWindowOptions('todo-new', WA, 0, 1.2)
+    expect(o.width).toBe(Math.round(360 * 1.2))
+    expect(o.height).toBe(Math.round(360 * 1.2))
+
+    const small = { x: 0, y: 0, width: 700, height: 600 }
+    const o2 = childWindowOptions('todo-new', small, 0, 2)
+    expect(o2.width).toBe(680) // min(720, 700-20)
+    expect(o2.height).toBe(300) // min(720, 600/2)
+  })
+
+  it('B3 组缩放缺省为 1（既有调用兼容）', () => {
+    const o = childWindowOptions('history', WA, 0)
+    expect(o.width).toBe(560)
+    expect(o.height).toBe(540)
   })
 })

@@ -37,11 +37,17 @@ describe('ChildHost', () => {
     expect(wrapper.find('[data-testid="detail-content"]').text()).toBe('详情内容')
   })
 
-  it('主题与字体属性注入（T37）', async () => {
+  it('主题注入；B3 起 data-font/--fs 机制已移除（决策#3）', async () => {
     const { wrapper, store } = await mountWithStore(ChildHost, seedWithTodo(), { kind: 'settings' })
     await store.updateUiState({ theme: 'night' })
-    await store.updateSettings({ fontScale: 'large' })
     expect(wrapper.find('[data-testid="child-root"]').attributes('data-theme')).toBe('night')
-    expect(wrapper.find('[data-testid="child-root"]').attributes('data-font')).toBe('large')
+    expect(wrapper.find('[data-testid="child-root"]').attributes('data-font')).toBeUndefined()
+  })
+
+  it('B3：组缩放渲染为 zoom 且随 childScales 变化（决策#24）', async () => {
+    const { wrapper, store } = await mountWithStore(ChildHost, seedWithTodo(), { kind: 'settings' })
+    await store.setChildScale('settings', 1.2)
+    const root = wrapper.find('[data-testid="child-root"]')
+    expect(String(root.attributes('style'))).toContain('zoom')
   })
 })

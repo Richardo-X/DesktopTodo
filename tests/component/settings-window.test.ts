@@ -15,12 +15,19 @@ function seedTodos(n: number): Partial<AppData> {
 
 /** T34 设置窗口（PRD §5.6 设置项；速查 #14 减号置灰） */
 describe('T34 设置窗口', () => {
-  it('渲染设置区块（B1.5：回收站区块移除，余 5 区块）', async () => {
+  it('渲染设置区块（B3：字体项随决策#3 移除、回收站随 #21 移除，余 4 区块）', async () => {
     const { wrapper } = await mountWithStore(SettingsWindow)
-    for (const id of ['set-max', 'set-hour12', 'set-font', 'set-import', 'set-autostart']) {
+    for (const id of ['set-max', 'set-hour12', 'set-import', 'set-autostart']) {
       expect(wrapper.find(`[data-testid="${id}"]`).exists()).toBe(true)
     }
     expect(wrapper.find('[data-testid="set-recycle"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="set-font"]').exists()).toBe(false)
+  })
+
+  it('set-back：标题栏左「←」直接关闭窗口（决策#6）', async () => {
+    const { wrapper, api } = await mountWithStore(SettingsWindow)
+    await wrapper.find('[data-testid="set-back"]').trigger('click')
+    expect(api.closeSelfCalls).toBe(1)
   })
 
   it('上限步进：显示当前值；加号到 10 禁用；减号调节并持久化', async () => {
@@ -51,14 +58,6 @@ describe('T34 设置窗口', () => {
     await wrapper.find('[data-testid="set-hour12-btn"]').trigger('click')
     await flushPromises()
     expect(store.settings.hour12).toBe(true)
-  })
-
-  it('字体三档', async () => {
-    const { wrapper, store } = await mountWithStore(SettingsWindow)
-    await wrapper.find('[data-testid="set-font-small"]').trigger('click')
-    await wrapper.find('[data-testid="set-font-large"]').trigger('click')
-    await flushPromises()
-    expect(store.settings.fontScale).toBe('large')
   })
 
   it('开机自启开关联动系统设置', async () => {

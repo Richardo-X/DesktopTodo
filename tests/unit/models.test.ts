@@ -75,15 +75,15 @@ describe('createTemplateItem', () => {
 })
 
 describe('默认值与归一化（首次空列表 / 旧档补齐）', () => {
-  it('defaultSettings：上限 10、24 小时制、中号字体、不自启、完成排序正序；无回收站字段（B1.5）', () => {
+  it('defaultSettings：上限 10、24 小时制、不自启、完成排序正序；无字体/回收站字段（决策#3/#21）', () => {
     expect(defaultSettings()).toEqual({
       maxItems: 10,
       hour12: false,
-      fontScale: 'medium',
       autoStart: false,
       doneSort: 'asc'
     })
     expect('recycleKeep' in defaultSettings()).toBe(false)
+    expect('fontScale' in defaultSettings()).toBe(false)
   })
 
   it('defaultUiState：面板全开、白天主题、不置顶、不锁缩进、未结算过、缩放 1', () => {
@@ -129,13 +129,14 @@ describe('默认值与归一化（首次空列表 / 旧档补齐）', () => {
     expect(d.uiState.theme).toBe('day')
   })
 
-  it('normalizeAppData：旧档遗留 recycleBin/recycleKeep → 直接丢弃（B1.5）', () => {
+  it('normalizeAppData：旧档遗留 recycleBin/recycleKeep/fontScale → 直接丢弃（B1.5/B3）', () => {
     const d = normalizeAppData({
       recycleBin: [{ id: 'r1', type: 'todo', payload: {}, deletedAt: '2026-01-01T00:00:00Z' }],
-      settings: { recycleKeep: 7 }
+      settings: { recycleKeep: 7, fontScale: 'large' }
     })
     expect('recycleBin' in d).toBe(false)
     expect('recycleKeep' in d.settings).toBe(false)
+    expect('fontScale' in d.settings).toBe(false)
   })
 
   it('normalizeAppData：null/undefined → 全默认（首次启动态）', () => {

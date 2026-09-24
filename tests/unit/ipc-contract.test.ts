@@ -7,4 +7,8 @@ describe('IPC 契约：点击穿透移除', () => {
     expect(Object.values(IPC)).not.toContain('window:set-ignore-mouse-events')
     expect(Object.keys(IPC)).not.toContain('setIgnoreMouseEvents')
   })
+
+  it('B3：新增 resizeSelf 通道（子窗口缩放=真窗口尺寸变化，决策#7/#24）', () => {
+    expect(IPC.resizeSelf).toBe('window:resize-self')
+  })
 })

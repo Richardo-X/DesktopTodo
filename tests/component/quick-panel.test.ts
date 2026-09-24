@@ -37,7 +37,7 @@ describe('T29 快捷添加面板', () => {
   it('待办满上限时一键添加被拦截并提示', async () => {
     const { wrapper } = await mountWithStore(QuickPanel, {
       templates: [tpl('a', '喝水')],
-      settings: { maxItems: 1, hour12: false, fontScale: 'medium', autoStart: false, doneSort: 'asc' },
+      settings: { maxItems: 1, hour12: false, autoStart: false, doneSort: 'asc' },
       todos: [createTodoItem({ content: '占满', now: new Date(), id: 't0' })]
     })
     await wrapper.find('[data-testid="tpl-add"]').trigger('click')

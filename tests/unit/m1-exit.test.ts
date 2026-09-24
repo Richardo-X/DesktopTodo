@@ -168,13 +168,12 @@ describe('服务边界补充', () => {
     expect(validateSettingsPatch({ autoStart: 'x' as never })).toEqual({ ok: false, field: 'autoStart' })
     expect(validateSettingsPatch({ doneSort: 'x' as never })).toEqual({ ok: false, field: 'doneSort' })
 
-    const ok = validateSettingsPatch({ hour12: true, maxItems: 3, fontScale: 'small', doneSort: 'desc', autoStart: true })
+    const ok = validateSettingsPatch({ hour12: true, maxItems: 3, doneSort: 'desc', autoStart: true })
     expect(ok.ok).toBe(true)
     if (ok.ok) {
       expect(ok.settings).toEqual({
         maxItems: 3,
         hour12: true,
-        fontScale: 'small',
         autoStart: true,
         doneSort: 'desc'
       })
