@@ -21,11 +21,6 @@ describe('ChildHost', () => {
     expect(wrapper.find('[data-testid="set-max"]').exists()).toBe(true)
   })
 
-  it('kind=recycle → 渲染回收站窗口', async () => {
-    const { wrapper } = await mountWithStore(ChildHost, seedWithTodo(), { kind: 'recycle' })
-    expect(wrapper.find('[data-testid="recycle-empty"]').exists()).toBe(true)
-  })
-
   it('kind=todo-edit + id → 渲染编辑窗口并载入内容', async () => {
     const { wrapper } = await mountWithStore(ChildHost, seedWithTodo(), { kind: 'todo-edit', id: 't1' })
     expect((wrapper.find('[data-testid="edit-input"]').element as HTMLTextAreaElement).value).toBe('一条待办')

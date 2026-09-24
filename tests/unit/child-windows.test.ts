@@ -3,6 +3,14 @@ import { CHILD_SIZES, childWindowOptions, type ChildKind } from '../../electron/
 
 const WA = { x: 0, y: 40, width: 1920, height: 1040 }
 
+/** B1.5（决策#21）：回收站子窗口移除——CHILD_SIZES 恰为 7 类 */
+describe('CHILD_SIZES 类别集合', () => {
+  it('不含 recycle，恰为 7 类', () => {
+    expect(Object.keys(CHILD_SIZES)).not.toContain('recycle')
+    expect(Object.keys(CHILD_SIZES)).toHaveLength(7)
+  })
+})
+
 /** T36 子窗口管理：默认尺寸/半屏高度上限/居中级联位置/位置不记忆 */
 describe('childWindowOptions', () => {
   it('各子窗口有默认尺寸，创建于工作区居中', () => {

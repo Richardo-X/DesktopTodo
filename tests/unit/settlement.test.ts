@@ -87,21 +87,6 @@ describe('B 跨天结算 settle()', () => {
     expect(r.data.uiState.lastSettleDate).toBe('2026-09-21')
   })
 
-  it('B5 结算同时触发回收站到期清理（注入回调）', () => {
-    const purged: string[] = []
-    const data = withData({
-      recycleBin: [{ id: 'r1', type: 'todo', payload: item('x', { createdAt: NOW.toISOString() }), deletedAt: localIso(2026, 9, 1) }]
-    })
-    const r = settle(data, NOW, {
-      purgeRecycle: (d) => {
-        purged.push(d.recycleBin.map((e) => e.id).join(','))
-        return { ...d, recycleBin: [] }
-      }
-    })
-    expect(purged).toEqual(['r1'])
-    expect(r.data.recycleBin).toEqual([])
-  })
-
   it('B6 静默：返回结构只含数据结果，无任何用户通知通道', () => {
     const data = withData({ completed: [item('a1', { createdAt: localIso(2026, 9, 20, 1), completedAt: localIso(2026, 9, 20, 2) })] })
     const r = settle(data, NOW)

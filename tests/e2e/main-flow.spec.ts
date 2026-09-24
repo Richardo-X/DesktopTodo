@@ -26,7 +26,7 @@ test('验收7：首次启动空列表并显示引导文案', async () => {
   await expect(h.main.locator('[data-testid="empty-state"]')).toContainText('今日做点什么好呢')
 })
 
-test('主流程：新建→编辑→完成→反选→批量删除→回收站恢复', async ({ }) => {
+test('主流程：新建→编辑→完成→反选→批量删除（B1.5：直接删除，无回收站）', async ({ }) => {
   const main = h.main
 
   // 新建（末尾插入）
@@ -58,30 +58,16 @@ test('主流程：新建→编辑→完成→反选→批量删除→回收站�
   await expect(main.locator('[data-testid="todo-row"]')).toHaveCount(3)
   await expect(main.locator('[data-testid="done-row"]')).toHaveCount(0)
 
-  // 批量删除两条 → 确认 → 回收站
+  // 批量删除两条 → 确认（提示不可恢复）→ 直接消失，无回收站恢复入口
   await main.click('[data-testid="op-batch"]')
   const rows = main.locator('[data-testid="todo-row"]')
   await rows.nth(0).click()
   await rows.nth(1).click()
   await expect(main.locator('[data-testid="batch-count"]')).toHaveText('已选 2 项')
   await main.click('[data-testid="batch-delete"]')
+  await expect(main.locator('[data-testid="confirm-message"]')).toContainText('无法恢复')
   await main.click('[data-testid="confirm-ok"]')
   await expect(rows).toHaveCount(1)
-
-  // 设置 → 回收站 → 恢复一条
-  const setPromise = h.app.waitForEvent('window')
-  await main.click('[data-testid="tb-settings"]')
-  const settings = await setPromise
-  await settings.waitForSelector('[data-testid="set-recycle-open"]')
-  const recyclePromise = h.app.waitForEvent('window')
-  await settings.click('[data-testid="set-recycle-open"]')
-  const recycle = await recyclePromise
-  await recycle.locator('[data-testid^="recycle-entry-"]').first().waitFor({ timeout: 5000 })
-  expect(await recycle.locator('[data-testid^="recycle-entry-"]').count()).toBe(2)
-
-  const restorePromise = recycle.locator('[data-testid^="recycle-restore-"]').first()
-  await restorePromise.click()
-  await expect(main.locator('[data-testid="todo-row"]')).toHaveCount(2)
 })
 
 test('验收6：退出重启后事项与界面状态恢复', async () => {

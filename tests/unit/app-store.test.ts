@@ -73,10 +73,9 @@ describe('useAppStore', () => {
   it('updateSettings：即时生效并联动系统自启', async () => {
     const store = useAppStore()
     await store.init()
-    await store.updateSettings({ hour12: true, autoStart: true, recycleKeep: 7 })
+    await store.updateSettings({ hour12: true, autoStart: true })
     expect(store.settings.hour12).toBe(true)
     expect(store.settings.autoStart).toBe(true)
-    expect(store.settings.recycleKeep).toBe(7)
     expect(api.autoStartCalls).toEqual([true])
   })
 
@@ -97,7 +96,7 @@ describe('useAppStore', () => {
     expect(store.todos.map((t) => t.content)).toEqual(['推送'])
   })
 
-  it('模板动作：创建查重/一键添加/删除进回收站', async () => {
+  it('模板动作：创建查重/一键添加/删除（B1.5：删除即永久删除）', async () => {
     installTestApi(
       seed({ templates: [createTemplateItem({ content: '喝水', now: new Date(), id: 'tpl1' })] })
     )
@@ -112,6 +111,6 @@ describe('useAppStore', () => {
 
     await store.deleteTemplate('tpl1')
     expect(store.templates).toHaveLength(1)
-    expect(store.recycleBin[0].type).toBe('template')
+    expect(store.recycleBin).toBeUndefined() // 回收站整体退场
   })
 })

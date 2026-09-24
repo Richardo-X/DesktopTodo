@@ -80,13 +80,14 @@ describe('T30 编辑模板窗口', () => {
     expect(api.closeSelfCalls).toBe(0)
   })
 
-  it('删除 → 确认 → 进回收站并关闭', async () => {
+  it('删除 → 确认（提示不可恢复）→ 直接删除并关闭（B1.5）', async () => {
     const { wrapper, store, api } = await mountWithStore(TemplateEditWindow, seed(), { itemId: 'a' })
     await wrapper.find('[data-testid="tpl-edit-delete"]').trigger('click')
+    expect(wrapper.find('[data-testid="confirm-message"]').text()).toContain('无法恢复')
     await wrapper.find('[data-testid="confirm-ok"]').trigger('click')
     await flushPromises()
     expect(store.templates).toHaveLength(0)
-    expect(store.recycleBin[0].type).toBe('template')
+    expect(store.recycleBin).toBeUndefined() // 回收站整体退场
     expect(api.closeSelfCalls).toBe(1)
   })
 

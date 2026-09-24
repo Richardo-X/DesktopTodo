@@ -10,7 +10,6 @@ import {
 } from '../../src/core/services/csv'
 import {
   defaultAppData,
-  createTodoItem,
   type AppData,
   type TodoItem
 } from '../../src/core/models'
@@ -228,20 +227,13 @@ describe('F8 合并导入：三元组完全相同只保留当前那条', () => {
   })
 })
 
-describe('F9 覆盖导入：清空 completed+archive 后落位；旧数据不进回收站', () => {
-  it('A1 覆盖范围含当天已完成；回收站原样', () => {
+describe('F9 覆盖导入：清空 completed+archive 后落位，旧数据直接消失（B1.5：无回收站）', () => {
+  it('A1 覆盖范围含当天已完成；旧档遗留 recycleBin 被丢弃', () => {
     const existingA = done('A', localIso(2026, 9, 21, 7), localIso(2026, 9, 21, 8), '今天A')
     const existingB = done('B', localIso(2026, 9, 19, 8), localIso(2026, 9, 20, 9), '历史B')
-    const binEntry = {
-      id: 'r1',
-      type: 'todo' as const,
-      payload: createTodoItem({ content: '回收站原有', now: NOW }),
-      deletedAt: NOW.toISOString()
-    }
     const d0 = data({
       completed: [existingA],
-      archive: { '2026-09-20': [existingB] },
-      recycleBin: [binEntry]
+      archive: { '2026-09-20': [existingB] }
     })
 
     const parsed = parseCsv(
@@ -259,8 +251,8 @@ describe('F9 覆盖导入：清空 completed+archive 后落位；旧数据不进
     expect(r.data.completed.map((t) => t.content)).toEqual(['导入今天D']) // F10 落位今天
     expect(r.data.archive['2026-09-20']).toBeUndefined()
     expect(r.data.archive['2026-09-15'].map((t) => t.content)).toEqual(['导入历史C'])
-    // 不进回收站（E6/F9）
-    expect(r.data.recycleBin).toEqual([binEntry])
+    // B1.5：结果中不存在 recycleBin 字段
+    expect('recycleBin' in r.data).toBe(false)
   })
 
   it('F10 落位：完成日=今天 → completed；更早 → archive[该日]；逾期标记按口径推算', () => {

@@ -37,7 +37,7 @@ describe('T29 快捷添加面板', () => {
   it('待办满上限时一键添加被拦截并提示', async () => {
     const { wrapper } = await mountWithStore(QuickPanel, {
       templates: [tpl('a', '喝水')],
-      settings: { maxItems: 1, hour12: false, fontScale: 'medium', autoStart: false, recycleKeep: 'never', doneSort: 'asc' },
+      settings: { maxItems: 1, hour12: false, fontScale: 'medium', autoStart: false, doneSort: 'asc' },
       todos: [createTodoItem({ content: '占满', now: new Date(), id: 't0' })]
     })
     await wrapper.find('[data-testid="tpl-add"]').trigger('click')
@@ -54,7 +54,7 @@ describe('T29 快捷添加面板', () => {
     expect(api.openChildCalls).toContainEqual({ kind: 'template-new' })
   })
 
-  it('批量删除：进多选、选择、删除所选进回收站', async () => {
+  it('批量删除：进多选、选择、删除所选直接删除（B1.5）', async () => {
     const { wrapper, store } = await mountWithStore(AppShell, { templates: [tpl('a', '一'), tpl('b', '二')] })
     await wrapper.find('[data-testid="quick-batch"]').trigger('click')
     expect(wrapper.find('[data-testid="batch-bar"]').exists()).toBe(true)
@@ -68,8 +68,7 @@ describe('T29 快捷添加面板', () => {
     await wrapper.find('[data-testid="confirm-ok"]').trigger('click')
     await flushPromises()
     expect(store.templates).toHaveLength(0)
-    expect(store.recycleBin).toHaveLength(2)
-    expect(store.recycleBin.every((e) => e.type === 'template')).toBe(true)
+    expect(store.recycleBin).toBeUndefined() // 回收站整体退场
   })
 
   it('模板拖拽排序后持久化', async () => {

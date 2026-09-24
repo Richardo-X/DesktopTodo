@@ -158,7 +158,7 @@ describe('FileRepository', () => {
     expect(loaded!.v).toBe(1)
     expect(loaded!.archive).toEqual({})
     expect(loaded!.settings.maxItems).toBe(2)
-    expect(loaded!.settings.recycleKeep).toBe('never')
+    expect('recycleKeep' in loaded!.settings).toBe(false) // B1.5：回收站设置字段退场
     expect(loaded!.uiState.theme).toBe('day')
   })
 

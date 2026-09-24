@@ -43,7 +43,7 @@ describe('T25 批量删除模式', () => {
     expect(wrapper.findAll('[data-testid="row-checkbox"]')).toHaveLength(3) // 勾选框恢复
   })
 
-  it('删除所选 → 确认框 → 确认后进回收站并退出批量模式', async () => {
+  it('删除所选 → 确认框（提示不可恢复）→ 确认后直接删除并退出批量模式（B1.5）', async () => {
     const { wrapper, store } = await mountWithStore(AppShell, seedTodos())
     await wrapper.find('[data-testid="op-batch"]').trigger('click')
     const rows = wrapper.findAll('[data-testid="todo-row"]')
@@ -54,6 +54,7 @@ describe('T25 批量删除模式', () => {
     // 确认框出现
     expect(wrapper.find('[data-testid="confirm-dialog"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="confirm-message"]').text()).toContain('2')
+    expect(wrapper.find('[data-testid="confirm-message"]').text()).toContain('无法恢复')
     expect(wrapper.find('[data-testid="confirm-ok"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="confirm-cancel"]').exists()).toBe(true)
 
@@ -61,7 +62,7 @@ describe('T25 批量删除模式', () => {
     await flushPromises()
     expect(store.todos).toHaveLength(1)
     expect(store.todos[0].id).toBe('t2')
-    expect(store.recycleBin).toHaveLength(2)
+    expect(store.recycleBin).toBeUndefined() // 回收站整体退场
     expect(wrapper.find('[data-testid="batch-bar"]').exists()).toBe(false)
   })
 
@@ -74,7 +75,6 @@ describe('T25 批量删除模式', () => {
     await wrapper.find('[data-testid="confirm-cancel"]').trigger('click')
     await flushPromises()
     expect(store.todos).toHaveLength(3)
-    expect(store.recycleBin).toHaveLength(0)
     expect(wrapper.find('[data-testid="batch-bar"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="batch-count"]').text()).toBe('已选 1 项')
   })

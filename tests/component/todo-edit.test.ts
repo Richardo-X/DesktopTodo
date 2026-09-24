@@ -60,15 +60,15 @@ describe('T27 编辑事项窗口', () => {
     expect(api.closeSelfCalls).toBe(1)
   })
 
-  it('删除 → 确认框 → 进回收站并关闭', async () => {
+  it('删除 → 确认框（提示不可恢复）→ 直接删除并关闭（B1.5）', async () => {
     const { wrapper, api, store } = await mountWithStore(TodoEditWindow, seedTodo(false), { itemId: 't1' })
     await wrapper.find('[data-testid="edit-delete"]').trigger('click')
     expect(wrapper.find('[data-testid="confirm-dialog"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="confirm-message"]').text()).toContain('无法恢复')
     await wrapper.find('[data-testid="confirm-ok"]').trigger('click')
     await flushPromises()
     expect(store.todos).toHaveLength(0)
-    expect(store.recycleBin).toHaveLength(1)
-    expect(store.recycleBin[0].type).toBe('todo')
+    expect(store.recycleBin).toBeUndefined() // 回收站整体退场
     expect(api.closeSelfCalls).toBe(1)
   })
 

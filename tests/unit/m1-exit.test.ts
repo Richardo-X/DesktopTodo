@@ -11,12 +11,11 @@ import {
 } from '../../src/core/utils/date'
 import { MemoryRepository } from '../../src/core/repositories/memory'
 import { FileRepository, type FileIo } from '../../src/core/repositories/file'
-import { defaultAppData, normalizeUiState, createTodoItem, createTemplateItem, createRecycleEntry } from '../../src/core/models'
+import { defaultAppData, normalizeUiState, createTodoItem, createTemplateItem } from '../../src/core/models'
 import { isActiveOverdue, returnToActive } from '../../src/core/services/overdue'
 import { settle } from '../../src/core/services/settlement'
 import { canAddTodo, maxItemsBounds } from '../../src/core/services/limits'
 import { createTemplate, addToTodoFromTemplate } from '../../src/core/services/templates'
-import { permanentDelete, restoreEntry } from '../../src/core/services/recycle'
 import { applySettings, validateSettingsPatch } from '../../src/core/services/settings'
 import { defaultSettings } from '../../src/core/models/defaults'
 import { parseCsv } from '../../src/core/services/csv'
@@ -163,28 +162,13 @@ describe('服务边界补充', () => {
     expect(addToTodoFromTemplate(d, 'nope', NOW)).toEqual({ ok: false, reason: 'not-found' })
   })
 
-  it('recycle：彻底删除 not-found；history 类型 payload 无完成时间 → invalid-date', () => {
-    const d = defaultAppData()
-    expect(permanentDelete(d, 'nope')).toEqual({ ok: false, reason: 'not-found' })
-
-    const badHistory = createRecycleEntry({
-      type: 'history',
-      payload: createTemplateItem({ content: '伪历史', now: NOW }),
-      deletedAt: NOW,
-      id: 'rb'
-    })
-    const r = restoreEntry({ ...d, recycleBin: [badHistory] }, 'rb')
-    expect(r).toEqual({ ok: false, reason: 'invalid-date' })
-  })
-
   it('settings：validateSettingsPatch 各字段非法均报告对应字段', () => {
     expect(validateSettingsPatch({ maxItems: 0 })).toEqual({ ok: false, field: 'maxItems' })
     expect(validateSettingsPatch({ hour12: 'x' as never })).toEqual({ ok: false, field: 'hour12' })
     expect(validateSettingsPatch({ autoStart: 'x' as never })).toEqual({ ok: false, field: 'autoStart' })
-    expect(validateSettingsPatch({ recycleKeep: 3 as never })).toEqual({ ok: false, field: 'recycleKeep' })
     expect(validateSettingsPatch({ doneSort: 'x' as never })).toEqual({ ok: false, field: 'doneSort' })
 
-    const ok = validateSettingsPatch({ hour12: true, maxItems: 3, fontScale: 'small', recycleKeep: 7, doneSort: 'desc', autoStart: true })
+    const ok = validateSettingsPatch({ hour12: true, maxItems: 3, fontScale: 'small', doneSort: 'desc', autoStart: true })
     expect(ok.ok).toBe(true)
     if (ok.ok) {
       expect(ok.settings).toEqual({
@@ -192,7 +176,6 @@ describe('服务边界补充', () => {
         hour12: true,
         fontScale: 'small',
         autoStart: true,
-        recycleKeep: 7,
         doneSort: 'desc'
       })
     }

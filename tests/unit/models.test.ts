@@ -3,7 +3,6 @@ import {
   validateContent,
   createTodoItem,
   createTemplateItem,
-  createRecycleEntry,
   defaultAppData,
   normalizeAppData,
   defaultSettings,
@@ -75,25 +74,16 @@ describe('createTemplateItem', () => {
   })
 })
 
-describe('createRecycleEntry', () => {
-  it('记录 type + 原始 payload + deletedAt', () => {
-    const now = new Date(2026, 8, 21, 12, 0, 0)
-    const todo = createTodoItem({ content: '待删', now, id: 't9' })
-    const entry = createRecycleEntry({ type: 'todo', payload: todo, deletedAt: now })
-    expect(entry).toEqual({ id: expect.any(String), type: 'todo', payload: todo, deletedAt: now.toISOString() })
-  })
-})
-
 describe('默认值与归一化（首次空列表 / 旧档补齐）', () => {
-  it('defaultSettings：上限 10、24 小时制、中号字体、不自启、回收站永不清理、完成排序正序', () => {
+  it('defaultSettings：上限 10、24 小时制、中号字体、不自启、完成排序正序；无回收站字段（B1.5）', () => {
     expect(defaultSettings()).toEqual({
       maxItems: 10,
       hour12: false,
       fontScale: 'medium',
       autoStart: false,
-      recycleKeep: 'never',
       doneSort: 'asc'
     })
+    expect('recycleKeep' in defaultSettings()).toBe(false)
   })
 
   it('defaultUiState：面板全开、白天主题、不置顶、不锁缩进、未结算过、缩放 1', () => {
@@ -110,14 +100,14 @@ describe('默认值与归一化（首次空列表 / 旧档补齐）', () => {
     })
   })
 
-  it('defaultAppData：v1、五类数据全空', () => {
+  it('defaultAppData：v1、五类数据全空；无 recycleBin 字段（B1.5）', () => {
     const d = defaultAppData()
     expect(d.v).toBe(1)
     expect(d.todos).toEqual([])
     expect(d.completed).toEqual([])
     expect(d.archive).toEqual({})
     expect(d.templates).toEqual([])
-    expect(d.recycleBin).toEqual([])
+    expect('recycleBin' in d).toBe(false)
   })
 
   it('normalizeAppData：旧档缺字段补齐默认值，已有字段保留', () => {
@@ -126,7 +116,7 @@ describe('默认值与归一化（首次空列表 / 旧档补齐）', () => {
     const raw = {
       todos: [todo],
       settings: { maxItems: 5, hour12: true }
-      // 缺 completed/archive/templates/recycleBin/settings 一半字段/uiState
+      // 缺 completed/archive/templates/settings 一半字段/uiState
     }
     const d = normalizeAppData(raw)
     expect(d.v).toBe(1)
@@ -135,9 +125,17 @@ describe('默认值与归一化（首次空列表 / 旧档补齐）', () => {
     expect(d.templates).toEqual([])
     expect(d.settings.maxItems).toBe(5)
     expect(d.settings.hour12).toBe(true)
-    expect(d.settings.recycleKeep).toBe('never')
     expect(d.settings.doneSort).toBe('asc')
     expect(d.uiState.theme).toBe('day')
+  })
+
+  it('normalizeAppData：旧档遗留 recycleBin/recycleKeep → 直接丢弃（B1.5）', () => {
+    const d = normalizeAppData({
+      recycleBin: [{ id: 'r1', type: 'todo', payload: {}, deletedAt: '2026-01-01T00:00:00Z' }],
+      settings: { recycleKeep: 7 }
+    })
+    expect('recycleBin' in d).toBe(false)
+    expect('recycleKeep' in d.settings).toBe(false)
   })
 
   it('normalizeAppData：null/undefined → 全默认（首次启动态）', () => {

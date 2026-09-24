@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { AppContext, hasCrossedMidnight } from '../../electron/main/context'
 import { MemoryRepository } from '../../src/core/repositories/memory'
-import { defaultAppData, createTodoItem, createRecycleEntry, type AppData } from '../../src/core/models'
+import { defaultAppData, createTodoItem, type AppData } from '../../src/core/models'
 import { SystemClock, type IClock } from '../../src/core/interfaces/clock'
 
 function fixedClock(y: number, mo: number, d: number, h = 12): IClock {
@@ -29,21 +29,13 @@ describe('AppContext 启动流程', () => {
     expect(await repo.load()).toEqual(d) // 已持久化
   })
 
-  it('关机跨天补结算：昨日 completed 归档、待办标逾期、超时回收站清理，变更落盘', async () => {
+  it('关机跨天补结算：昨日 completed 归档、待办标逾期，变更落盘（B1.5：不再有回收站清理步骤）', async () => {
     const now = fixedClock(2026, 9, 21, 8)
     const todo = createTodoItem({ content: '未完成', now: new Date(2026, 8, 19, 9), id: 't1' })
     const doneItem = { ...createTodoItem({ content: '昨天完成', now: new Date(2026, 8, 19, 9), id: 'a1' }), completedAt: new Date(2026, 8, 20, 18).toISOString() }
-    const staleBin = createRecycleEntry({
-      type: 'todo',
-      payload: createTodoItem({ content: '过期', now: new Date(2026, 8, 1, 9), id: 'x' }),
-      deletedAt: new Date(2026, 8, 1, 9),
-      id: 'r1'
-    })
     const saved = data({
       todos: [todo],
       completed: [doneItem],
-      recycleBin: [staleBin],
-      settings: { ...defaultAppData().settings, recycleKeep: 7 },
       uiState: { ...defaultAppData().uiState, lastSettleDate: '2026-09-20' }
     })
     const repo = new MemoryRepository<AppData>(saved)
@@ -53,7 +45,7 @@ describe('AppContext 启动流程', () => {
     expect(d.completed).toEqual([]) // 归档
     expect(d.archive['2026-09-20'].map((t) => t.id)).toEqual(['a1'])
     expect(d.todos[0].overdue).toBe(true)
-    expect(d.recycleBin).toEqual([]) // 8 天前 > 7 天时限 → 清理
+    expect('recycleBin' in d).toBe(false) // B1.5：回收站字段整体退场
     expect(d.uiState.lastSettleDate).toBe('2026-09-21')
     expect(await repo.load()).toEqual(d) // 变更已落盘
   })

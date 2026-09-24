@@ -13,13 +13,14 @@ function seedTodos(n: number): Partial<AppData> {
   }
 }
 
-/** T34 设置窗口（PRD §5.7 六项；速查 #14 减号置灰） */
+/** T34 设置窗口（PRD §5.6 设置项；速查 #14 减号置灰） */
 describe('T34 设置窗口', () => {
-  it('渲染六个设置区块', async () => {
+  it('渲染设置区块（B1.5：回收站区块移除，余 5 区块）', async () => {
     const { wrapper } = await mountWithStore(SettingsWindow)
-    for (const id of ['set-max', 'set-hour12', 'set-font', 'set-import', 'set-autostart', 'set-recycle']) {
+    for (const id of ['set-max', 'set-hour12', 'set-font', 'set-import', 'set-autostart']) {
       expect(wrapper.find(`[data-testid="${id}"]`).exists()).toBe(true)
     }
+    expect(wrapper.find('[data-testid="set-recycle"]').exists()).toBe(false)
   })
 
   it('上限步进：显示当前值；加号到 10 禁用；减号调节并持久化', async () => {
@@ -66,16 +67,6 @@ describe('T34 设置窗口', () => {
     await flushPromises()
     expect(store.settings.autoStart).toBe(true)
     expect(api.autoStartCalls).toEqual([true])
-  })
-
-  it('回收站时限设置与入口', async () => {
-    const { wrapper, store, api } = await mountWithStore(SettingsWindow)
-    await wrapper.find('[data-testid="set-recycle-keep7"]').trigger('click')
-    await flushPromises()
-    expect(store.settings.recycleKeep).toBe(7)
-
-    await wrapper.find('[data-testid="set-recycle-open"]').trigger('click')
-    expect(api.openChildCalls).toContainEqual({ kind: 'recycle' })
   })
 
   it('覆盖导入：先弹确认框，确认后调用导入', async () => {

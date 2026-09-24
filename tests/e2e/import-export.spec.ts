@@ -59,7 +59,7 @@ test('验收24（生成部分）：导出 CSV 文件名与内容正确', async (
   await h.close()
 })
 
-test('验收25：覆盖导入完全替换且不进回收站', async () => {
+test('验收25：覆盖导入完全替换（B1.5：被清掉的旧数据直接消失）', async () => {
   // 构造导入 CSV：一条"两天前完成"的记录
   const csv = serializeCsv([
     {
@@ -75,18 +75,8 @@ test('验收25：覆盖导入完全替换且不进回收站', async () => {
   const importFile = join(importDir, 'import.csv')
 
   const userData = mkdtempSync(join(tmpdir(), 'dtodo-e2e-'))
-  // 预置现有历史 + 回收站一条（验证回收站不受影响）
-  const seed: Partial<AppData> = {
-    ...baseSeed(),
-    recycleBin: [
-      {
-        id: 'r1',
-        type: 'todo',
-        payload: createTodoItem({ content: '回收站原有', now: new Date(), id: 'x1' }),
-        deletedAt: new Date().toISOString()
-      }
-    ]
-  }
+  // 预置现有历史（导入后被完全替换）
+  const seed: Partial<AppData> = baseSeed()
   const { writeFileSync } = await import('node:fs')
   writeFileSync(importFile, csv, 'utf8')
 
@@ -110,12 +100,6 @@ test('验收25：覆盖导入完全替换且不进回收站', async () => {
   await hist.fill('[data-testid="hist-date-input"]', dateKeyOffset(-2))
   await expect(hist.locator('[data-testid="hist-row"]')).toHaveCount(1)
   await expect(hist.locator('[data-testid="hist-row"]')).toContainText('导入的记录')
-
-  // 回收站仍只有原有那条（覆盖导入清掉的不进回收站）
-  const recyclePromise = h.app.waitForEvent('window')
-  await settings.click('[data-testid="set-recycle-open"]')
-  const recycle = await recyclePromise
-  await expect(recycle.locator('[data-testid^="recycle-entry-"]')).toHaveCount(1)
   await h.close()
   void defaultAppData
 })

@@ -4,15 +4,15 @@ import { normalizeSettings } from '../../src/core/models'
 
 /** T12 设置服务（开发计划 §4-T12：默认值、旧档补齐迁移、枚举校验） */
 describe('T12 SettingsService', () => {
-  it('默认值符合 PRD §5.7', () => {
+  it('默认值符合 PRD §5.7（设置 4 项：无字体/无回收站字段——B1.5 起 recycleKeep 移除）', () => {
     expect(defaultSettings()).toEqual({
       maxItems: 10,
       hour12: false,
       fontScale: 'medium',
       autoStart: false,
-      recycleKeep: 'never',
       doneSort: 'asc'
     })
+    expect('recycleKeep' in defaultSettings()).toBe(false)
   })
 
   it('部分补丁即时生效，未提及字段保留', () => {
@@ -20,17 +20,14 @@ describe('T12 SettingsService', () => {
     expect(s.hour12).toBe(true)
     expect(s.fontScale).toBe('large')
     expect(s.maxItems).toBe(10)
-    expect(s.recycleKeep).toBe('never')
   })
 
-  it('非法枚举被拒：保留当前值（fontScale/recycleKeep/doneSort）', () => {
+  it('非法枚举被拒：保留当前值（fontScale/doneSort）', () => {
     const s = applySettings(defaultSettings(), {
       fontScale: 'huge' as never,
-      recycleKeep: 15 as never,
       doneSort: 'random' as never
     })
     expect(s.fontScale).toBe('medium')
-    expect(s.recycleKeep).toBe('never')
     expect(s.doneSort).toBe('asc')
   })
 

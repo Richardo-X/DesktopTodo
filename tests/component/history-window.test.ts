@@ -76,7 +76,7 @@ describe('T33 历史记录窗口', () => {
     expect(wrapper.find('[data-testid="hist-date-label"]').text()).toContain(TODAY_KEY)
   })
 
-  it('批量删除：勾一条即删，确认后进回收站', async () => {
+  it('批量删除：勾一条即删，确认后直接删除（B1.5）', async () => {
     const { wrapper, store } = await mountWithStore(HistoryWindow, seed())
     await wrapper.find('[data-testid="hist-date-input"]').setValue(D10)
     await wrapper.find('[data-testid="hist-batch"]').trigger('click')
@@ -87,8 +87,7 @@ describe('T33 历史记录窗口', () => {
     await wrapper.find('[data-testid="confirm-ok"]').trigger('click')
     await flushPromises()
     expect(store.archive[D10]).toHaveLength(1)
-    expect(store.recycleBin).toHaveLength(1)
-    expect(store.recycleBin[0].type).toBe('history')
+    expect(store.recycleBin).toBeUndefined() // 回收站整体退场
   })
 
   it('导出：选起止日期 → 系统另存为（文件名与内容表头正确）', async () => {
