@@ -1257,14 +1257,12 @@ function openInfo(item,fromHistory){
     b.innerHTML=`
       <div class="meta-line">事项内容</div>
       <div class="meta-line" style="background:var(--field);font-size:13px;color:var(--text);line-height:1.7">${esc(item.content)}</div>
-      <div class="meta-line">完成情况：${normal?'<span style="color:var(--accent)">正常完成</span>':'<span style="color:var(--overdue)">逾期完成</span>'}　（当天创建当天完成为正常）<br>
-        创建时间：${fmtDateTime(item.createdAt)}<br>完成时间：${fmtDateTime(item.completedAt)}${fromHistory?'<br><span style="color:var(--faint)">（已结算进历史，时间锁定）</span>':''}</div>
+      <div class="meta-line">完成情况：${normal?'<span style="color:var(--accent)">正常完成</span>':'<span style="color:var(--overdue)">逾期完成</span>'}<br>
+        创建时间：${fmtDateTime(item.createdAt)}<br>完成时间：${fmtDateTime(item.completedAt)}</div>
       <div class="form-actions">
-        <button class="btn" id="iToTpl">${I.bolt}<span>添加到模板</span></button>
         <span class="spacer"></span>
         <button class="btn" id="iClose">关闭</button>
       </div>`;
-    b.querySelector('#iToTpl').onclick=()=>addToTemplate(item.content);
     b.querySelector('#iClose').onclick=()=>closeWin(b.closest('.win').id);
   }});
 }
