@@ -89,13 +89,11 @@ body{
 .win.blocked::before{content:'';position:absolute;inset:0;background:rgba(20,20,25,.20);z-index:998;border-radius:inherit}
 
 /* 窗口缩放角 */
-.resize-grip{position:absolute;right:2px;bottom:2px;width:18px;height:18px;cursor:nwse-resize;z-index:60;
-  opacity:.55;transition:opacity .15s}
+.resize-grip{position:absolute;right:1px;bottom:1px;width:16px;height:16px;cursor:nwse-resize;z-index:60;
+  opacity:.6;transition:opacity .15s}
 .resize-grip::before{content:'';position:absolute;inset:0;
-  background:
-    radial-gradient(circle at 24% 76%, var(--muted) 1.8px, transparent 2.0px),
-    radial-gradient(circle at 50% 50%, var(--muted) 1.8px, transparent 2.0px),
-    radial-gradient(circle at 76% 24%, var(--muted) 1.8px, transparent 2.0px);}
+  border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);
+  border-bottom-right-radius:10px}   /* 弧度=窗口圆角 10px */
 .resize-grip:hover{opacity:1}
 
 .titlebar{height:36px;display:flex;align-items:center;padding-left:12px;flex:none;user-select:none;cursor:move;position:relative}
