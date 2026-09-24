@@ -8,28 +8,29 @@ import {
   type TuckState
 } from '../../src/core/utils/tuck'
 
-/** 1920x1080 屏工作区（可用高 1040，半屏 520） */
+/** 1920x1080 屏工作区（可用高 1040，半屏 520）；B2 起簇基准 1102×640 */
 const WA = { x: 0, y: 40, width: 1920, height: 1040 }
-const BASE = { width: 872, height: 520 }
+const BASE = { width: 1102, height: 640 }
 
 /** T39/§5-H 缩放钳制（H1-H4） */
 describe('clampClusterScale', () => {
-  it('H1 高度超半屏 → 钳制到恰好半屏比例', () => {
-    // 半屏 520 / 基准高 520 = 1.0；目标 1.4 → 1.0
-    expect(clampClusterScale(1.4, BASE, WA)).toBe(1.0)
+  it('H1 高度超半屏 → 钳制到恰好半屏比例（决策#23：初始缩放同样按此钳制）', () => {
+    // 半屏 520 / 基准高 640 ≈ 0.8125；目标 1.4 → 0.8125
+    expect(clampClusterScale(1.4, BASE, WA)).toBeCloseTo(520 / 640, 6)
+    expect(clampClusterScale(1, BASE, WA)).toBeCloseTo(520 / 640, 6)
   })
 
   it('H2 宽度先于高度达到上限 → 钳制到屏宽比例', () => {
     const wa = { x: 0, y: 0, width: 1000, height: 1000 }
-    const base = { width: 872, height: 400 }
-    // 高度比例 500/400=1.25；宽度比例 1000/872≈1.1469 → 宽度是有效上限
+    const base = { width: 1102, height: 400 }
+    // 高度比例 500/400=1.25；宽度比例 1000/1102≈0.9074 → 宽度是有效上限
     const r = clampClusterScale(1.2, base, wa)
-    expect(r).toBeCloseTo(1000 / 872, 6)
+    expect(r).toBeCloseTo(1000 / 1102, 6)
   })
 
   it('极小屏幕：上限低于 MIN_SCALE 时 MIN_SCALE 兜底（风险 4 对策）', () => {
     const narrow = { x: 0, y: 0, width: 400, height: 1000 }
-    const base = { width: 872, height: 400 }
+    const base = { width: 1102, height: 400 }
     expect(clampClusterScale(1.2, base, narrow)).toBe(MIN_SCALE)
   })
 
@@ -39,7 +40,7 @@ describe('clampClusterScale', () => {
   })
 
   it('H4 正常范围原值返回', () => {
-    expect(clampClusterScale(0.9, BASE, WA)).toBe(0.9)
+    expect(clampClusterScale(0.8, BASE, WA)).toBe(0.8)
   })
 
   it('常数：吸附阈值 26px、小条 12px、回缩延时 400ms（附录 A8）', () => {

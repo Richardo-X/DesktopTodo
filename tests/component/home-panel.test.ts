@@ -5,11 +5,11 @@ import { createTodoItem } from '../../src/core/models'
 
 /** T22 待办主页：时钟（12/24）、操作区、列表、空状态（PRD §3） */
 describe('T22 HomePanel', () => {
-  it('时钟显示时间与中文日期；每秒刷新', async () => {
+  it('时钟显示时间与中文日期（分钟制，决策#2）；每秒刷新', async () => {
     const { wrapper } = await mountWithStore(HomePanel)
     const time = wrapper.find('[data-testid="clock-time"]').text()
     const date = wrapper.find('[data-testid="clock-date"]').text()
-    expect(time).toMatch(/^\d{2}:\d{2}:\d{2}$/)
+    expect(time).toMatch(/^\d{2}:\d{2}$/)
     expect(date).toMatch(/^\d{4}年\d{1,2}月\d{1,2}日 星期[日一二三四五六]$/)
   })
 

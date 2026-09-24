@@ -16,6 +16,15 @@ describe('T21 AppShell 三面板簇', () => {
     expect(wrapper.find('[data-testid="done-panel"]').exists()).toBe(true)
   })
 
+  it('B2 结构：面板位于 .cluster 容器内（簇缩放/令牌挂载点）', async () => {
+    const { wrapper } = await mountWithStore(AppShell)
+    const cluster = wrapper.find('.cluster')
+    expect(cluster.exists()).toBe(true)
+    expect(cluster.find('[data-testid="home-panel"]').exists()).toBe(true)
+    expect(cluster.find('[data-testid="quick-panel"]').exists()).toBe(true)
+    expect(cluster.find('[data-testid="done-panel"]').exists()).toBe(true)
+  })
+
   it('面板开关：关闭快捷面板后不渲染，且状态持久化', async () => {
     const { wrapper, store, api } = await mountWithStore(AppShell)
     await store.updateUiState({ quickVisible: false })

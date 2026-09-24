@@ -23,11 +23,11 @@ import type { AppData } from '../../src/core/models'
 
 /** M1 出口补强：覆盖率补齐的边界用例（不改变已验证行为） */
 describe('date 工具补充', () => {
-  it('fmtTime：24 小时制与 12 小时制', () => {
+  it('fmtTime：24 小时制与 12 小时制（决策#2：精确到分钟）', () => {
     const d = new Date(2026, 8, 21, 13, 5, 9)
-    expect(fmtTime(d, false)).toBe('13:05:09')
-    expect(fmtTime(d, true)).toBe('1:05:09 PM')
-    expect(fmtTime(new Date(2026, 8, 21, 0, 5, 9), true)).toBe('12:05:09 AM')
+    expect(fmtTime(d, false)).toBe('13:05')
+    expect(fmtTime(d, true)).toBe('1:05 PM')
+    expect(fmtTime(new Date(2026, 8, 21, 0, 5, 9), true)).toBe('12:05 AM')
   })
 
   it('shiftDateKey：跨月/跨年', () => {

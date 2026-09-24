@@ -16,7 +16,7 @@ function seedTodos() {
 
 /** T25 批量删除：多选状态机 + 确认后直接删除（PRD §5.2/验收 14；B1.5 起无回收站） */
 describe('T25 批量删除模式', () => {
-  it('进入批量模式：批量条出现，行显示选择圈，点击行=选中/取消', async () => {
+  it('进入批量模式：批量条出现，点击行=选中/取消', async () => {
     const { wrapper } = await mountWithStore(AppShell, seedTodos())
     await wrapper.find('[data-testid="op-batch"]').trigger('click')
 
@@ -36,11 +36,11 @@ describe('T25 批量删除模式', () => {
 
     await wrapper.find('[data-testid="batch-select-all"]').trigger('click')
     expect(wrapper.find('[data-testid="batch-count"]').text()).toBe('已选 3 项')
-    expect(wrapper.findAll('[data-testid="row-select-circle"].checked')).toHaveLength(3)
+    expect(wrapper.findAll('[data-testid="row-checkbox"].checked')).toHaveLength(3) // 决策#25：勾选框选中示意
 
     await wrapper.find('[data-testid="batch-cancel"]').trigger('click')
     expect(wrapper.find('[data-testid="batch-bar"]').exists()).toBe(false)
-    expect(wrapper.findAll('[data-testid="row-checkbox"]')).toHaveLength(3) // 勾选框恢复
+    expect(wrapper.findAll('[data-testid="row-checkbox"].checked')).toHaveLength(0) // 取消后选中态清空
   })
 
   it('删除所选 → 确认框（提示不可恢复）→ 确认后直接删除并退出批量模式（B1.5）', async () => {
@@ -79,9 +79,17 @@ describe('T25 批量删除模式', () => {
     expect(wrapper.find('[data-testid="batch-count"]').text()).toBe('已选 1 项')
   })
 
-  it('批量模式下勾选框被选择圈替代，无法触发完成', async () => {
-    const { wrapper } = await mountWithStore(AppShell, seedTodos())
+  it('批量模式下勾选框为选中示意（决策#25）：点击切换选中，不触发完成', async () => {
+    const { wrapper, store } = await mountWithStore(AppShell, seedTodos())
     await wrapper.find('[data-testid="op-batch"]').trigger('click')
-    expect(wrapper.find('[data-testid="row-checkbox"]').exists()).toBe(false)
+    const cb = wrapper.findAll('[data-testid="row-checkbox"]')[0]
+    expect(cb.exists()).toBe(true)
+
+    const count = store.todos.length
+    await cb.trigger('click')
+    await flushPromises()
+    expect(cb.classes()).toContain('checked') // 选中示意
+    expect(store.todos).toHaveLength(count) // 未触发完成移入已完成
+    expect(store.completed).toHaveLength(0)
   })
 })

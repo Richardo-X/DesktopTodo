@@ -3,6 +3,7 @@ import {
   BASE_PANEL,
   BASE_GAP,
   clusterBounds,
+  clusterBaseWidth,
   defaultWindowOptions,
   initialPos,
   MIN_SCALE,
@@ -11,35 +12,33 @@ import {
 
 /** 1920x1080 主屏工作区 */
 const WA = { x: 0, y: 40, width: 1920, height: 1040 }
+const ALL = { quickVisible: true, doneVisible: true }
 
-/** T13 主窗口配置（开发计划 §4-T13：无边框/透明/skipTaskbar/初始位置右侧偏上不贴边） */
-describe('clusterBounds 三面板簇尺寸', () => {
-  it('全开：快(260)+缝+主(320)+缝+已完成(260)', () => {
-    const b = clusterBounds(1, { quickVisible: true, doneVisible: true })
-    expect(b.width).toBe(BASE_PANEL.side * 2 + BASE_PANEL.main + BASE_GAP * 2)
-    expect(b.height).toBe(BASE_PANEL.mainHeight)
+/** T13 主窗口配置（B2 起 layout.ts re-export src/core/utils/cluster-layout 单一来源） */
+describe('layout re-export：与 cluster-layout 单一来源一致', () => {
+  it('基准常量与簇尺寸同源（全开 1102×640）', () => {
+    expect(BASE_PANEL).toEqual({ quick: 310, done: 310, main: 470, height: 640 })
+    expect(BASE_GAP).toBe(6)
+    expect(clusterBaseWidth(ALL)).toBe(1102)
+    expect(clusterBounds(1, ALL)).toEqual({ width: 1102, height: 640 })
   })
 
-  it('左面板关：不含快捷面板宽度；右面板关：不含已完成宽度', () => {
-    expect(clusterBounds(1, { quickVisible: false, doneVisible: true }).width).toBe(
-      BASE_PANEL.main + BASE_GAP + BASE_PANEL.side
-    )
-    expect(clusterBounds(1, { quickVisible: true, doneVisible: false }).width).toBe(
-      BASE_PANEL.side + BASE_GAP + BASE_PANEL.main
-    )
+  it('组合宽度：单侧开 786、全关 470', () => {
+    expect(clusterBounds(1, { quickVisible: true, doneVisible: false }).width).toBe(786)
+    expect(clusterBounds(1, { quickVisible: false, doneVisible: true }).width).toBe(786)
     expect(clusterBounds(1, { quickVisible: false, doneVisible: false }).width).toBe(BASE_PANEL.main)
   })
 
-  it('等比缩放', () => {
-    const b = clusterBounds(0.8, { quickVisible: true, doneVisible: true })
-    expect(b.width).toBe(Math.round((BASE_PANEL.side * 2 + BASE_PANEL.main + BASE_GAP * 2) * 0.8))
-    expect(b.height).toBe(Math.round(BASE_PANEL.mainHeight * 0.8))
+  it('等比缩放（四舍五入）', () => {
+    const b = clusterBounds(0.8, ALL)
+    expect(b.width).toBe(Math.round(1102 * 0.8))
+    expect(b.height).toBe(Math.round(640 * 0.8))
   })
 })
 
 describe('initialPos 首次启动默认位置', () => {
   it('屏幕右侧偏上，且不贴边（预留上边缘距离，避免触发贴边缩进）', () => {
-    const b = clusterBounds(1, { quickVisible: true, doneVisible: true })
+    const b = clusterBounds(1, ALL)
     const pos = initialPos(WA, b)
     expect(pos.x).toBe(WA.x + WA.width - b.width - 24) // 右侧留 24px
     expect(pos.y).toBe(WA.y + 48) // 偏上且与上边缘保持 48px（不贴边）
@@ -48,7 +47,7 @@ describe('initialPos 首次启动默认位置', () => {
 
   it('极小屏幕不越界', () => {
     const small = { x: 0, y: 0, width: 800, height: 500 }
-    const b = clusterBounds(1, { quickVisible: true, doneVisible: true })
+    const b = clusterBounds(1, ALL)
     const pos = initialPos(small, b)
     expect(pos.x).toBeGreaterThanOrEqual(small.x)
     expect(pos.y).toBeGreaterThanOrEqual(small.y)
@@ -57,7 +56,7 @@ describe('initialPos 首次启动默认位置', () => {
 
 describe('defaultWindowOptions 主窗口 BrowserWindow 配置', () => {
   it('无边框、透明、不占任务栏、禁止系统调整大小、不显示标题栏原生按钮', () => {
-    const b = clusterBounds(1, { quickVisible: true, doneVisible: true })
+    const b = clusterBounds(1, ALL)
     const opts = defaultWindowOptions(b)
     expect(opts.frame).toBe(false)
     expect(opts.transparent).toBe(true)

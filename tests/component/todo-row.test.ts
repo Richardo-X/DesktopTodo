@@ -83,13 +83,26 @@ describe('T23 TodoRow', () => {
     expect(w.emitted('edit')).toBeUndefined()
   })
 
-  it('批量模式：行点击=选中切换，显示选择圈而非勾选框', async () => {
+  it('批量模式（决策#25）：勾选框原位变为选中示意——点勾选框/点行均切换选中，不触发完成', async () => {
     const w = mount(TodoRow, { props: { item: makeRow(), batchMode: true, selected: false } })
-    expect(w.find('[data-testid="row-select-circle"]').exists()).toBe(true)
-    await w.find('[data-testid="todo-row"]').trigger('click')
+    expect(w.find('[data-testid="row-select-circle"]').exists()).toBe(false) // 选择圈方案已否决
+    const cb = w.find('[data-testid="row-checkbox"]')
+    expect(cb.exists()).toBe(true)
+    await cb.trigger('click')
     expect(w.emitted('select-toggle')).toHaveLength(1)
+    expect(w.emitted('toggle')).toBeUndefined()
+    await w.find('[data-testid="todo-row"]').trigger('click')
+    expect(w.emitted('select-toggle')).toHaveLength(2)
     // 批量模式下双击不进编辑
     await w.find('[data-testid="row-content"]').trigger('dblclick')
     expect(w.emitted('edit')).toBeUndefined()
+  })
+
+  it('批量模式下拖拽柄置灰禁用（决策#25）；常规模式可拖', async () => {
+    const batch = mount(TodoRow, { props: { item: makeRow(), batchMode: true } })
+    expect(batch.find('[data-testid="row-handle"]').classes()).toContain('disabled')
+
+    const normal = mount(TodoRow, { props: { item: makeRow() } })
+    expect(normal.find('[data-testid="row-handle"]').classes()).not.toContain('disabled')
   })
 })
