@@ -81,7 +81,7 @@ body{
 }
 .win.child{border-color:rgba(255,255,255,.22)}
 #mainWin{left:0;top:0;width:470px;height:640px}
-#doneWin{width:272px;height:640px}
+#doneWin{width:310px;height:640px}
 #quickWin{width:310px;height:640px}
 
 /* 被模态窗口锁定 */
@@ -165,7 +165,8 @@ body{
 .panel-title{font-size:13px;font-weight:600}
 .panel-head .icon-btn{width:26px;height:26px;margin-left:auto}
 .panel-head .icon-btn svg{width:13px;height:13px}
-.panel-empty{color:var(--faint);font-size:12px;text-align:center;padding:26px 0}
+.panel-empty{color:var(--faint);font-size:12px;text-align:center;flex:1;display:flex;align-items:center;justify-content:center}
+.panel-empty.empty-big{font-size:24px;color:var(--muted);letter-spacing:3px;font-weight:300}
 .empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px}
 .empty-main{font-size:16px;color:var(--muted);letter-spacing:2px}
 .empty-sub{font-size:11.5px;color:var(--faint)}
@@ -978,7 +979,7 @@ function renderDone(){
       <button class="icon-btn" id="sortBtn" title="${asc?'当前正序，点击切换为倒序':'当前倒序，点击切换为正序'}">${asc?I.sortAsc:I.sortDesc}</button>
     </div>
     <div class="scroll" id="doneList">
-      ${list.length?list.map(it=>doneRowHTML(it,true)).join(''):'<div class="panel-empty">今天还没有完成的事项</div>'}
+      ${list.length?list.map(it=>doneRowHTML(it,true)).join(''):'<div class="panel-empty empty-big">今天也要继续加油</div>'}
     </div>
     <button class="btn block foot-btn" id="historyBtn">${I.clock}<span>历史记录</span></button>
     `;
