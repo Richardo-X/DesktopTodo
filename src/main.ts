@@ -1,5 +1,6 @@
 import { createApp, defineComponent, h } from 'vue'
 import { createPinia } from 'pinia'
+import './styles/global.css'
 import AppShell from './panels/AppShell.vue'
 import ChildHost from './windows/ChildHost.vue'
 import type { ChildKind } from './ipc/contract'

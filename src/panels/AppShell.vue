@@ -35,6 +35,12 @@ const clusterScale = computed(() =>
   effectiveClusterScale(store.uiState.clusterScale, store.uiState, rendererWorkArea())
 )
 
+/** zoom 容器尺寸=视口÷缩放：zoom 会把布局尺寸再乘一次，否则 scale≠1 时内容溢出视口产生页面滚动条 */
+const clusterStyle = computed(() => {
+  const s = clusterScale.value
+  return { zoom: String(s), width: `calc(100vw / ${s})`, height: `calc(100vh / ${s})` }
+})
+
 onMounted(() => {
   void store.init()
   ui.initSystemEvents()
@@ -55,7 +61,7 @@ onUnmounted(() => {
     :class="{ tucked }"
     @mouseenter="ui.mouseEnter"
   >
-    <div v-if="!tucked" class="cluster" :style="{ zoom: clusterScale }">
+    <div v-if="!tucked" class="cluster" :style="clusterStyle">
       <QuickPanel v-if="store.uiState.quickVisible" data-testid="quick-panel" />
       <HomePanel />
       <DonePanel v-if="store.uiState.doneVisible" data-testid="done-panel" />
@@ -119,13 +125,12 @@ onUnmounted(() => {
   --cb-border: #9a9a9a;
 }
 
-/* ===== 簇：基准尺寸 + zoom（主窗口 bounds 由主进程按同源 clusterBounds 设置） ===== */
+/* ===== 簇：基准尺寸 + zoom（容器尺寸=视口÷zoom，由 clusterStyle 内联绑定；
+ * 主窗口 bounds 由主进程按同源 clusterBounds 设置） ===== */
 .cluster {
   display: flex;
   align-items: flex-start; /* 顶边对齐 */
   gap: 6px; /* 决策#20 */
-  width: 100vw;
-  height: 100vh;
 }
 
 /* ===== 面板外观（原型 .win） ===== */

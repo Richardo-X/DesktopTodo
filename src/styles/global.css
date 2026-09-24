@@ -1,0 +1,13 @@
+/* 全局复位（决策#12：body 不滚动）：主簇与子窗口共用同一页面骨架，
+ * 浏览器默认 body 外边距会使 100vw/100vh 内容溢出视口产生页面级滚动条。 */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+#app {
+  height: 100%;
+}

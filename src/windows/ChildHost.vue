@@ -25,6 +25,12 @@ onMounted(() => {
 const group = computed(() => GROUP_OF[props.kind] ?? 'todo')
 const scale = computed(() => store.uiState.childScales[group.value] ?? 1)
 
+/** zoom 容器尺寸=视口÷缩放：zoom 会把布局尺寸再乘一次，否则 scale≠1 时内容溢出视口（页面滚动条/角标脱离窗口） */
+const rootStyle = computed(() => {
+  const s = scale.value
+  return { zoom: String(s), width: `calc(100vw / ${s})`, height: `calc(100vh / ${s})` }
+})
+
 function rendererWorkArea(): { x: number; y: number; width: number; height: number } {
   const s = window.screen as unknown as {
     availLeft?: number
@@ -95,7 +101,7 @@ const page = computed(() => {
     class="child-root"
     data-testid="child-root"
     :data-theme="store.uiState.theme"
-    :style="{ zoom: scale }"
+    :style="rootStyle"
   >
     <component :is="page" :item-id="id" />
     <span class="child-grip" title="拖动缩放（同组窗口共享大小设置）" @pointerdown.stop.prevent="onGripDown" />
@@ -103,7 +109,7 @@ const page = computed(() => {
 </template>
 
 <style scoped>
-/* 缩放角（决策#16：与窗口圆角同弧度的弧线） */
+/* 缩放角（决策#16：与窗口圆角同弧度的弧线）；容器尺寸由 rootStyle 内联绑定 */
 .child-grip {
   position: fixed;
   right: 1px;
