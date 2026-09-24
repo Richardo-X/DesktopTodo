@@ -310,10 +310,6 @@ function registerIpc(): void {
     else hideToTray()
   })
 
-  ipcMain.handle(IPC.setIgnoreMouseEvents, (_e, opts: { ignore: boolean; forward: boolean }) => {
-    safeWin()?.setIgnoreMouseEvents(opts.ignore, { forward: opts.forward })
-  })
-
   ipcMain.handle(IPC.setAutoStart, (_e, enabled: boolean) => {
     setAutoStart(enabled)
     return true

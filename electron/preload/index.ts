@@ -13,8 +13,6 @@ const api = {
   flush: () => ipcRenderer.invoke(IPC.flush),
   setTopMost: (enabled: boolean) => ipcRenderer.invoke(IPC.setTopMost, enabled),
   setVisibility: (visible: boolean) => ipcRenderer.invoke(IPC.setVisibility, visible),
-  setIgnoreMouseEvents: (opts: { ignore: boolean; forward: boolean }) =>
-    ipcRenderer.invoke(IPC.setIgnoreMouseEvents, opts),
   setAutoStart: (enabled: boolean) => ipcRenderer.invoke(IPC.setAutoStart, enabled),
   saveCsv: (params: { fileName: string; content: string }) => ipcRenderer.invoke(IPC.saveCsv, params),
   openCsv: () => ipcRenderer.invoke(IPC.openCsv),

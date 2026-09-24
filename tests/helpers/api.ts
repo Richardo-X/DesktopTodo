@@ -82,7 +82,6 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
       topMostCalls.push(enabled)
     },
     setVisibility: async () => undefined,
-    setIgnoreMouseEvents: async () => undefined,
     setAutoStart: async (enabled) => {
       autoStartCalls.push(enabled)
       return true

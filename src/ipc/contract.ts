@@ -12,7 +12,6 @@ export const IPC = {
   flush: 'data:flush',
   setTopMost: 'window:set-top-most',
   setVisibility: 'window:set-visibility',
-  setIgnoreMouseEvents: 'window:set-ignore-mouse-events',
   setAutoStart: 'settings:set-auto-start',
   saveCsv: 'dialog:save-csv',
   openCsv: 'dialog:open-csv',
@@ -51,8 +50,6 @@ export interface DesktopTodoApi {
   flush(): Promise<void>
   setTopMost(enabled: boolean): Promise<void>
   setVisibility(visible: boolean): Promise<void>
-  /** 命中检测结果：panel → 接收鼠标；gap → 穿透并转发移动 */
-  setIgnoreMouseEvents(opts: { ignore: boolean; forward: boolean }): Promise<void>
   setAutoStart(enabled: boolean): Promise<boolean>
   /** 系统"另存为"对话框；取消返回 null */
   saveCsv(params: { fileName: string; content: string }): Promise<string | null>
