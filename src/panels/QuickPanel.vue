@@ -1,14 +1,66 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import BatchBar from '../components/BatchBar.vue'
+import { createDragSort } from '../components/useDragSort'
 import { TEMPLATE_LIMIT } from '../core/services/templates'
 
 const store = useAppStore()
 const ui = useUiStore()
 
 const title = computed(() => `模板 · ${store.templates.length}/${TEMPLATE_LIMIT}`)
+
+const listEl = ref<HTMLElement | null>(null)
+
+// 长按手柄拖动排序（相邻增量交换，决策#13；批量模式下禁用）
+const drag = createDragSort({
+  enabled: () => !ui.batchMode,
+  rowCount: () => store.templates.length,
+  rowRect: (i) => {
+    const el = listEl.value?.children[i] as HTMLElement | undefined
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    return { top: r.top, bottom: r.bottom }
+  },
+  onSwap: (from, to) => {
+    void swapWithFlip(from, to)
+  }
+})
+
+async function swapWithFlip(from: number, to: number): Promise<void> {
+  const el = listEl.value
+  const before = measureTops(el)
+  await store.reorderTemplates(from, to)
+  await nextTick()
+  applyFlip(el, before)
+}
+
+function measureTops(el: HTMLElement | null): Map<Element, number> {
+  const m = new Map<Element, number>()
+  if (!el) return m
+  for (const child of Array.from(el.children)) {
+    m.set(child, child.getBoundingClientRect().top)
+  }
+  return m
+}
+
+function applyFlip(el: HTMLElement | null, before: Map<Element, number>): void {
+  if (!el) return
+  for (const child of Array.from(el.children)) {
+    const prev = before.get(child)
+    if (prev === undefined) continue
+    const dy = prev - child.getBoundingClientRect().top
+    if (Math.abs(dy) < 2) continue
+    const h = child as HTMLElement
+    h.style.transition = 'none'
+    h.style.transform = `translateY(${dy}px)`
+    requestAnimationFrame(() => {
+      h.style.transition = 'transform 130ms ease'
+      h.style.transform = ''
+    })
+  }
+}
 
 const error = ref('')
 
@@ -20,134 +72,253 @@ async function quickAdd(id: string): Promise<void> {
 function enterBatch(): void {
   ui.enterBatch('templates')
 }
+
+onMounted(() => {
+  window.addEventListener('pointermove', drag.handleMove)
+  window.addEventListener('pointerup', drag.handleUp)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('pointermove', drag.handleMove)
+  window.removeEventListener('pointerup', drag.handleUp)
+})
 </script>
 
 <template>
   <section class="panel side-panel" data-testid="quick-panel">
+    <!-- 决策#8：标题栏拖动；× 关闭面板 -->
     <header class="titlebar">
-      <span class="title" data-testid="quick-title">{{ title }}</span>
-      <span class="spacer" />
-      <button class="b" data-testid="quick-batch" @click="enterBatch">批量删除</button>
-      <button class="b new" data-testid="quick-new" @click="ui.openChild('template-new')">＋</button>
+      <span class="tb-title">快捷添加</span>
+      <div class="win-actions right">
+        <button class="wbtn" data-testid="quick-close" title="关闭面板" @click="store.updateUiState({ quickVisible: false })">×</button>
+      </div>
     </header>
 
-    <p v-if="error" class="error" data-testid="quick-error">{{ error }}</p>
+    <div class="win-body">
+      <div class="panel-head">
+        <span class="panel-title" data-testid="quick-title">{{ title }}</span>
+        <button class="btn sm" data-testid="quick-batch" @click="enterBatch">批量删除</button>
+        <button class="icon-btn accent" data-testid="quick-new" title="新建模板" @click="ui.openChild('template-new')">＋</button>
+      </div>
 
-    <ul v-if="store.templates.length > 0" class="list">
-      <li v-for="t in store.templates" :key="t.id">
+      <p v-if="error" class="error" data-testid="quick-error">{{ error }}</p>
+
+      <div v-if="store.templates.length > 0" ref="listEl" class="scroll">
         <div
+          v-for="(t, i) in store.templates"
+          :key="t.id"
           class="tpl-row"
           data-testid="tpl-row"
-          :class="{ selected: ui.batchMode && ui.selectedIds.includes(t.id) }"
+          :class="{ selrow: ui.batchMode && ui.selectedIds.includes(t.id), dragging: drag.state.draggingIndex === i }"
           @click="ui.batchMode && ui.toggleSelect(t.id)"
           @dblclick="!ui.batchMode && ui.openChild('template-edit', t.id)"
         >
-          <span class="handle" data-testid="tpl-handle" title="长按拖动排序" />
+          <span
+            class="grip"
+            data-testid="tpl-handle"
+            :class="{ disabled: ui.batchMode }"
+            title="长按拖动排序"
+            @pointerdown.stop="drag.handleDown(i, $event)"
+            @dblclick.stop
+          />
           <span class="content ellipsis" data-testid="tpl-content">{{ t.content }}</span>
-          <span v-if="!ui.batchMode" class="add" data-testid="tpl-add" @click.stop="quickAdd(t.id)">＋</span>
-          <span v-else class="select-circle" :class="{ checked: ui.selectedIds.includes(t.id) }" />
+          <!-- 决策#25：批量时右端「＋」换为同款勾选框选中示意 -->
+          <span v-if="!ui.batchMode" class="plusbox" data-testid="tpl-add" title="添加到待办列表" @click.stop="quickAdd(t.id)">＋</span>
+          <button v-else type="button" class="checkbox" :class="{ checked: ui.selectedIds.includes(t.id) }" @click.stop="ui.toggleSelect(t.id)" @dblclick.stop>
+            <svg viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5" /></svg>
+          </button>
         </div>
-      </li>
-    </ul>
-    <div v-else class="empty">还没有模板，点右上角 ＋ 新建</div>
+      </div>
+      <div v-else class="panel-empty">还没有模板，点右上角 ＋ 新建</div>
 
-    <p class="note" data-testid="quick-note">
-      模板不计入待办数量上限；点击条目右侧 ＋ 可加入今日待办，模板不会消失
-    </p>
+      <p class="meta-line" data-testid="quick-note">
+        模板不计入待办数量上限；点击条目右侧 ＋ 可加入今日待办，模板不会消失
+      </p>
 
-    <BatchBar v-if="ui.batchTarget === 'templates'" target="templates" />
+      <BatchBar v-if="ui.batchTarget === 'templates'" target="templates" />
+    </div>
   </section>
 </template>
 
 <style scoped>
 .side-panel {
-  width: 260px;
-  height: 520px;
-  flex: none;
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
+/* ===== 标题栏（36px 拖动 + × 关闭面板） ===== */
 .titlebar {
+  height: 36px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.tb-title {
+  font-size: 12.5px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.win-actions {
+  margin-left: auto;
+  display: flex;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.wbtn {
+  width: 42px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+}
+
+.wbtn:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.win-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 2px 14px 24px;
+}
+
+.panel-head {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 12px;
+  padding: 0 2px 8px;
+  flex: none;
 }
 
-.title {
-  font-size: calc(var(--fs, 14px) * 13 / 14);
+.panel-title {
+  font-size: 13px;
   font-weight: 600;
+  margin-right: auto;
 }
 
-.spacer {
-  flex: 1;
-}
-
-.b {
-  border: none;
-  background: transparent;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  cursor: pointer;
-  border-radius: 6px;
-  padding: 3px 6px;
+.btn.sm {
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--btn-border);
+  border-radius: 5px;
+  background: var(--btn);
   color: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
 }
 
-.b:hover {
-  background: rgba(47, 111, 237, 0.14);
+.btn.sm:hover {
+  background: var(--btn-hover);
 }
 
-.b.new {
-  font-size: calc(var(--fs, 14px) * 15 / 14);
+.icon-btn.accent {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 14px;
   font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn.accent:hover {
+  background: var(--accent-hover);
 }
 
 .error {
-  margin: 0 12px 6px;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  color: #e5484d;
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--danger);
 }
 
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0 8px;
-  overflow-y: auto;
+.scroll {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px;
 }
 
 .tpl-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 8px;
-  border-radius: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  user-select: none;
+  cursor: default;
 }
 
 .tpl-row:hover {
-  background: rgba(0, 0, 0, 0.05);
+  border-color: var(--accent);
+  background: var(--hover);
 }
 
-.tpl-row.selected {
-  background: rgba(47, 111, 237, 0.12);
+.tpl-row.selrow {
+  border-color: var(--accent);
+  background: var(--hover);
 }
 
-.handle {
-  width: 12px;
-  height: 18px;
+.tpl-row.dragging {
+  opacity: 0.5;
+  background: var(--active);
+  border-color: var(--accent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  z-index: 5;
+}
+
+.grip {
+  width: 14px;
+  height: 20px;
   flex: none;
   border-radius: 4px;
-  background: radial-gradient(circle, currentColor 1px, transparent 1.4px);
+  background: radial-gradient(circle, var(--faint) 1px, transparent 1.4px);
   background-size: 6px 6px;
-  opacity: 0.45;
   cursor: grab;
+  touch-action: none;
+}
+
+.grip:hover {
+  background-image: radial-gradient(circle, var(--accent) 1px, transparent 1.4px);
+}
+
+.grip.disabled {
+  cursor: default;
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 .content {
   flex: 1;
   min-width: 0;
-  font-size: calc(var(--fs, 14px) * 13 / 14);
+  font-size: 13.5px;
+  line-height: 1.5;
   text-align: left;
 }
 
@@ -157,47 +328,81 @@ function enterBatch(): void {
   text-overflow: ellipsis;
 }
 
-.add {
+.plusbox {
   flex: none;
-  width: 22px;
-  height: 22px;
-  line-height: 20px;
-  text-align: center;
-  border-radius: 50%;
-  border: 1px solid rgba(47, 111, 237, 0.6);
-  color: #2f6fed;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--cb-border);
+  border-radius: 5px;
+  color: var(--muted);
   cursor: pointer;
-  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
+  background: transparent;
 }
 
-.select-circle {
+.plusbox:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--hover);
+}
+
+.checkbox {
   flex: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1.5px solid currentColor;
-  opacity: 0.6;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1.5px solid var(--cb-border);
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+  color: transparent;
 }
 
-.select-circle.checked {
-  background: currentColor;
-  opacity: 1;
+.checkbox:hover {
+  border-color: var(--accent);
 }
 
-.empty {
+.checkbox.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+
+.checkbox svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.panel-empty {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.55;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
+  color: var(--faint);
+  font-size: 12px;
+  text-align: center;
 }
 
-.note {
-  margin: 0;
-  padding: 8px 12px 10px;
-  font-size: calc(var(--fs, 14px) * 11 / 14);
-  opacity: 0.6;
-  line-height: 1.6;
+.meta-line {
+  margin: 8px 0 0;
+  flex: none;
+  font-size: 11.5px;
+  color: var(--muted);
+  background: var(--hover);
+  border-radius: 6px;
+  padding: 7px 10px;
+  line-height: 1.5;
 }
 </style>

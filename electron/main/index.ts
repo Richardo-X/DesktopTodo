@@ -6,7 +6,7 @@ import { SystemClock } from '../../src/core/interfaces/clock'
 import { OffsetClock } from './clock'
 import type { IClock } from '../../src/core/interfaces/clock'
 import { AppContext } from './context'
-import { clusterBounds, defaultWindowOptions, initialPos, type PanelVisibility } from './layout'
+import { clusterBounds, defaultWindowOptions, effectiveClusterScale, initialPos, type PanelVisibility } from './layout'
 import { acquireSingleInstanceLock } from './single-instance'
 import { buildTrayContextMenu, exitConfirmMessage } from './tray-menu'
 import { trayIconPng } from './icon'
@@ -76,7 +76,9 @@ function panelVisibility(): PanelVisibility {
 
 function createWindow(data: ReturnType<AppContext['current']>): void {
   const wa = screen.getPrimaryDisplay().workArea
-  const bounds = clusterBounds(data.uiState.clusterScale, panelVisibility())
+  // 决策#23：初始缩放按所在屏钳制（高度≤半屏、宽度≤屏宽），窗口与渲染层 zoom 1:1
+  const scale = effectiveClusterScale(data.uiState.clusterScale, panelVisibility(), wa)
+  const bounds = clusterBounds(scale, panelVisibility())
   const pos =
     data.uiState.pos !== null
       ? clampPosToWorkArea(data.uiState.pos, bounds, wa)
@@ -189,12 +191,13 @@ function quitNow(): void {
 
 const childWindows = new Set<BrowserWindow>()
 
-/** 按 uiState（缩放/面板开关/缩进）同步主窗口尺寸；位置不变（T38/T39/T43） */
+/** 按 uiState（缩放/面板开关/缩进）同步主窗口尺寸；位置不变（T38/T39/T43；缩放经决策#23 钳制） */
 function syncMainBounds(): void {
   const w = safeWin()
   if (!w || !ctx) return
   const d = ctx.current()
-  const b = clusterBounds(d.uiState.clusterScale, panelVisibility())
+  const scale = effectiveClusterScale(d.uiState.clusterScale, panelVisibility(), screen.getPrimaryDisplay().workArea)
+  const b = clusterBounds(scale, panelVisibility())
   const height = tucked ? TUCK_BAR_HEIGHT : b.height
   const pos = currentPos ?? w.getBounds()
   w.setBounds({ x: pos.x, y: pos.y, width: b.width, height })

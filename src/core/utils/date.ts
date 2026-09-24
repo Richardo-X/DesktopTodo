@@ -37,13 +37,13 @@ export function fmtLocalDateTime(date: Date): string {
   return `${localDateKey(date)} ${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`
 }
 
-/** "HH:mm:ss" 或 12 小时制 "h:mm:ss AM/PM" */
+/** "HH:mm" 或 12 小时制 "h:mm AM/PM"（决策#2：时钟精确到分钟，内部仍每秒刷新） */
 export function fmtTime(date: Date, hour12: boolean): string {
   const p = (n: number): string => String(n).padStart(2, '0')
-  if (!hour12) return `${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`
+  if (!hour12) return `${p(date.getHours())}:${p(date.getMinutes())}`
   const h24 = date.getHours()
   const h = h24 % 12 === 0 ? 12 : h24 % 12
-  return `${h}:${p(date.getMinutes())}:${p(date.getSeconds())} ${h24 < 12 ? 'AM' : 'PM'}`
+  return `${h}:${p(date.getMinutes())} ${h24 < 12 ? 'AM' : 'PM'}`
 }
 
 /** "YYYY年M月D日 星期X" */

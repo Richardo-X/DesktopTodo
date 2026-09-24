@@ -59,9 +59,9 @@ describe('T31 已完成面板', () => {
     expect(api.openChildCalls).toContainEqual({ kind: 'history' })
   })
 
-  it('空提示"今天还没有完成的事项"', async () => {
+  it('空提示"今天也要继续加油"（决策#18）', async () => {
     const { wrapper } = await mountWithStore(DonePanel)
-    expect(wrapper.find('[data-testid="done-empty"]').text()).toBe('今天还没有完成的事项')
+    expect(wrapper.find('[data-testid="done-empty"]').text()).toBe('今天也要继续加油')
   })
 
   it('今天键一致（供测试对照）', () => {

@@ -78,7 +78,7 @@ test('验收6：退出重启后事项与界面状态恢复', async () => {
   // 改主题（记忆项）；等待子窗口完全关闭后再操作
   await main.waitForTimeout(400)
   await main.click('[data-testid="tb-theme"]')
-  await expect(main.locator('.cluster')).toHaveAttribute('data-theme', 'night', { timeout: 15_000 })
+  await expect(main.locator('.stage')).toHaveAttribute('data-theme', 'night', { timeout: 15_000 })
 
   const userData = h.userData
   await h.close()
@@ -86,6 +86,6 @@ test('验收6：退出重启后事项与界面状态恢复', async () => {
   const h2 = await launchApp({ userData })
   await expect(h2.main.locator('[data-testid="todo-row"]')).toHaveCount(1)
   await expect(h2.main.locator('[data-testid="row-content"]')).toContainText('持久化事项')
-  await expect(h2.main.locator('.cluster')).toHaveAttribute('data-theme', 'night')
+  await expect(h2.main.locator('.stage')).toHaveAttribute('data-theme', 'night')
   await h2.close()
 })

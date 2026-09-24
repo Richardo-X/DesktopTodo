@@ -35,34 +35,47 @@ async function onDelete(): Promise<void> {
 
 <style scoped>
 .batch-bar {
+  flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  gap: 10px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--accent, #0a63b8);
+  border-radius: 8px;
+  background: var(--hover, rgba(0, 0, 0, 0.05));
+  font-size: 12px;
+  color: var(--muted, #666);
 }
 
 .count {
-  font-size: calc(var(--fs, 14px) * 12 / 14);
   flex: 1;
   text-align: left;
 }
 
 .b {
-  border: none;
-  background: transparent;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  color: inherit;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--btn-border, rgba(0, 0, 0, 0.13));
+  border-radius: 5px;
+  background: var(--btn, rgba(255, 255, 255, 0.75));
+  color: var(--text, #1c1c1c);
+  font-size: 11.5px;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
 }
 
 .b:hover {
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--btn-hover, #ffffff);
 }
 
-.danger {
-  color: #e5484d;
+/* 决策#22：危险按钮 hover 深红（不随通用白底 hover 变白） */
+.b.danger {
+  background: var(--danger, #c42b1c);
+  border-color: transparent;
+  color: #fff;
+}
+
+.b.danger:hover {
+  background: #a9271c;
 }
 </style>

@@ -2,10 +2,7 @@
 import { computed, ref } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
-
-function pad(n: number): string {
-  return String(n).padStart(2, '0')
-}
+import { fmtTime } from '../core/utils/date'
 
 const store = useAppStore()
 const ui = useUiStore()
@@ -30,126 +27,225 @@ function toggleSort(): void {
   void store.updateSettings({ doneSort: store.settings.doneSort === 'asc' ? 'desc' : 'asc' })
 }
 
+/** 完成时间显示精确到分钟（决策#2） */
 function fmtDone(iso: string | null): string {
   if (!iso) return ''
-  const d = new Date(iso)
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return fmtTime(new Date(iso), store.settings.hour12)
 }
 </script>
 
 <template>
   <section class="panel side-panel" data-testid="done-panel">
+    <!-- 决策#8：标题栏拖动；× 隐藏面板 -->
     <header class="titlebar">
-      <span class="title" data-testid="done-title">{{ title }}</span>
-      <span class="spacer" />
-      <button class="b" data-testid="done-sort" @click="toggleSort">
-        {{ store.settings.doneSort === 'asc' ? '正序↑' : '倒序↓' }}
-      </button>
+      <span class="tb-title">已完成</span>
+      <div class="win-actions right">
+        <button class="wbtn" data-testid="done-close" title="隐藏面板" @click="store.updateUiState({ doneVisible: false })">×</button>
+      </div>
     </header>
 
-    <p v-if="error" class="error" data-testid="done-error">{{ error }}</p>
+    <div class="win-body">
+      <div class="panel-head">
+        <span class="panel-title" data-testid="done-title">{{ title }}</span>
+        <button class="icon-btn" data-testid="done-sort" :title="store.settings.doneSort === 'asc' ? '切换倒序' : '切换正序'" @click="toggleSort">
+          {{ store.settings.doneSort === 'asc' ? '↑' : '↓' }}
+        </button>
+      </div>
 
-    <ul v-if="store.completed.length > 0" class="list">
-      <li v-for="t in sorted" :key="t.id">
-        <div class="done-row" data-testid="done-row" :data-id="t.id" @dblclick="ui.openChild('detail', t.id)">
-          <input
-            type="checkbox"
-            class="check"
+      <p v-if="error" class="error" data-testid="done-error">{{ error }}</p>
+
+      <div v-if="store.completed.length > 0" class="scroll">
+        <div
+          v-for="t in sorted"
+          :key="t.id"
+          class="todo-row"
+          data-testid="done-row"
+          :data-id="t.id"
+          @dblclick="ui.openChild('detail', t.id)"
+        >
+          <button
+            type="button"
+            class="checkbox checked"
             data-testid="done-check"
             title="点击退回待办"
             @click.stop="toggleBack(t.id)"
             @dblclick.stop
-          />
+          >
+            <svg viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5" /></svg>
+          </button>
           <span class="content ellipsis">{{ t.content }}</span>
-          <span v-if="t.overdue" class="overdue red" data-testid="done-overdue-tag">逾期</span>
-          <span class="time" data-testid="done-time">{{ fmtDone(t.completedAt) }}</span>
+          <span v-if="t.overdue" class="tag overdue" data-testid="done-overdue-tag">逾期</span>
+          <span class="done-time" data-testid="done-time">{{ fmtDone(t.completedAt) }}</span>
         </div>
-      </li>
-    </ul>
-    <div v-else class="empty" data-testid="done-empty">今天还没有完成的事项</div>
+      </div>
+      <!-- 决策#18：空状态文案与样式（17px、字距 5px、水平垂直居中） -->
+      <div v-else class="panel-empty empty-big" data-testid="done-empty">今天也要继续加油</div>
 
-    <footer class="footer">
-      <button class="b" data-testid="done-history" @click="ui.openChild('history')">历史记录</button>
-    </footer>
+      <footer class="foot">
+        <button class="btn block" data-testid="done-history" @click="ui.openChild('history')">🕘 历史记录</button>
+      </footer>
+    </div>
   </section>
 </template>
 
 <style scoped>
 .side-panel {
-  width: 260px;
-  height: 520px;
-  flex: none;
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
+/* ===== 标题栏（36px 拖动 + × 隐藏面板） ===== */
 .titlebar {
+  height: 36px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.tb-title {
+  font-size: 12.5px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.win-actions {
+  margin-left: auto;
+  display: flex;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.wbtn {
+  width: 42px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+}
+
+.wbtn:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.win-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 2px 14px 24px;
+}
+
+.panel-head {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 12px;
+  padding: 0 2px 8px;
+  flex: none;
 }
 
-.title {
-  font-size: calc(var(--fs, 14px) * 13 / 14);
+.panel-title {
+  font-size: 13px;
   font-weight: 600;
+  margin-right: auto;
 }
 
-.spacer {
-  flex: 1;
-}
-
-.b {
-  border: none;
-  background: transparent;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  cursor: pointer;
+.icon-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--btn-border);
   border-radius: 6px;
-  padding: 3px 6px;
+  background: var(--btn);
   color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.b:hover {
-  background: rgba(47, 111, 237, 0.14);
+.icon-btn:hover {
+  background: var(--btn-hover);
 }
 
 .error {
-  margin: 0 12px 6px;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  color: #e5484d;
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--danger);
 }
 
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0 8px;
-  overflow-y: auto;
+.scroll {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px;
 }
 
-.done-row {
+.todo-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px;
-  border-radius: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  cursor: default;
 }
 
-.done-row:hover {
-  background: rgba(0, 0, 0, 0.05);
+.todo-row:hover {
+  border-color: var(--accent);
+  background: var(--hover);
 }
 
-.check {
+.checkbox {
   flex: none;
-  width: 15px;
-  height: 15px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1.5px solid var(--cb-border);
+  border-radius: 5px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
   cursor: pointer;
+}
+
+.checkbox:hover {
+  filter: brightness(1.1);
+}
+
+.checkbox svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .content {
   flex: 1;
   min-width: 0;
-  font-size: calc(var(--fs, 14px) * 13 / 14);
+  font-size: 13.5px;
+  line-height: 1.5;
   text-align: left;
 }
 
@@ -159,36 +255,60 @@ function fmtDone(iso: string | null): string {
   text-overflow: ellipsis;
 }
 
-.overdue {
+.tag {
   flex: none;
-  font-size: calc(var(--fs, 14px) * 11 / 14);
-  padding: 1px 6px;
-  border-radius: 6px;
-  color: #fff;
+  font-size: 10px;
+  line-height: 15px;
+  padding: 0 6px;
+  border-radius: 99px;
+  border: 1px solid currentColor;
+  opacity: 0.95;
 }
 
-.red {
-  background: #e5484d;
+.tag.overdue {
+  color: var(--overdue);
 }
 
-.time {
+.done-time {
   flex: none;
-  font-size: calc(var(--fs, 14px) * 11 / 14);
-  opacity: 0.6;
+  font-size: 11px;
+  color: var(--faint);
 }
 
-.empty {
+/* 决策#18：空状态 17px、字距 5px、窗口内水平垂直居中 */
+.panel-empty {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.55;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
+  color: var(--faint);
+  font-size: 12px;
+  text-align: center;
 }
 
-.footer {
-  padding: 8px 12px 12px;
-  display: flex;
-  justify-content: center;
+.panel-empty.empty-big {
+  font-size: 17px;
+  color: var(--muted);
+  letter-spacing: 5px;
+}
+
+.foot {
+  flex: none;
+  margin-top: 8px;
+}
+
+.btn.block {
+  width: 100%;
+  height: 30px;
+  border: 1px solid var(--btn-border);
+  border-radius: 5px;
+  background: var(--btn);
+  color: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.btn.block:hover {
+  background: var(--btn-hover);
 }
 </style>
