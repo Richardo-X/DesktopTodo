@@ -317,12 +317,6 @@ input[type="date"]{font-size:calc(11.5px * var(--fs))}
 .panel-title,.tb-left,.clock-time,.clock-date,.a-bolt,.a-chip,.a-batch,.a-done,.a-add,.a-add *,
 .foot-note,.rec-time,.batch-bar,.empty-sub,.hint-sm,.wbtn.save,.todo-row,.done-row,.tpl-row,.rec-row{white-space:nowrap}
 
-/* 6) v3.1 回收站行 */
-.rec-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:var(--card);border:1px solid var(--card-border);margin-bottom:6px}
-.rec-row:hover{border-color:var(--accent)}
-.rec-main{flex:1;min-width:0}
-.rec-time{font-size:calc(10.5px * var(--fs));color:var(--faint);margin-top:2px}
-.rec-row .btn{flex:none}
 .checkbox.dim{background:transparent;color:var(--faint)}
 .checkbox.dim::after{content:''}
 
@@ -414,8 +408,7 @@ input[type="date"]{font-size:calc(11.5px * var(--fs))}
 <div id="devConsole">
   <div class="dc-head" id="dcToggle"><span>原型控制台（仅演示用）</span><span class="arr" id="dcArr">▾</span></div>
   <div class="dc-body">
-    <button id="dcNextDay">模拟「跨过 24 点」（逾期标记＋结算归档＋回收站清理）</button>
-    <button id="dcRecycle">打开回收站（评审入口）</button>
+    <button id="dcNextDay">模拟「跨过 24 点」（逾期标记＋结算归档）</button>
     <button id="dcReset" class="warn">重置演示数据</button>
     <p class="dc-note">凡需求未定义的行为，本原型采用临时默认值，逐条列在《产品评审报告 v3》中，待你拍板。</p>
   </div>
@@ -439,7 +432,7 @@ const dateOfMs=ms=>locISO(new Date(ms));
 const CHAR_LIMIT=300, MAX_TPL=10;
 
 /* ================= 状态 ================= */
-const KEY='todo-proto-v5';   // v3.1：新增回收站/自启字段，升版避免旧存档缺字段
+const KEY='todo-proto-v5';   // v3.1：字段升版，避免旧存档缺字段
 let state=null, simOffset=0;
 const S=()=>state.settings;
 /* 设置项默认值：读取旧存档时补齐缺失字段，避免出现 NaN 之类的问题 */
@@ -452,10 +445,6 @@ function seed(){
     settings:defaults(),
     pos:{x:Math.round(innerWidth*0.28),y:60},
     theme:'day', doneSort:'asc',
-    recycleBin:[
-      {id:'rb-seed-1',type:'todo',originDate:null,deletedAt:nowMs()-3600e3,item:{id:uid(),content:'示例：误删的待办事项（可在回收站恢复）',createdAt:nowMs()-DAY,overdue:false}},
-      {id:'rb-seed-2',type:'history',originDate:yd2,deletedAt:nowMs()-7200e3,item:{id:uid(),content:'示例：上周的完成记录（历史归档删除）',createdAt:nowMs()-3*DAY,completedAt:nowMs()-2*DAY,overdue:false}}
-    ],
     lastSettleDate:yd,   // 种子设为昨天 → 首次启动立即补结算（归档发生在窗口出现之前）
     todos:[
       {id:uid(),content:'整理本周项目周报：汇总各模块进度与风险，更新里程碑计划，并发送给对接的项目组、测试组与部门负责人',createdAt:nowMs()-DAY,overdue:false},
@@ -1145,8 +1134,8 @@ function openEdit(id){
     const upd=()=>{ cnt.textContent=`${inp.value.length}/${CHAR_LIMIT}`; cnt.classList.toggle('full',inp.value.length>=CHAR_LIMIT); rb.disabled=!dirty(); };
     inp.addEventListener('input',upd); upd();
     rb.onclick=()=>{ inp.value=original; upd(); inp.focus(); };
-    b.querySelector('#eDel').onclick=()=>modal({title:'删除待办事项',body:'确定要删除这条待办事项吗？删除后将进入回收站，可随时恢复。',parent:winOf(b),buttons:[
-      {label:'取消'},{label:'删除',kind:'danger',onClick:()=>{ const it=state.todos.find(x=>x.id===id); if(it) toRecycle('todo',it); state.todos=state.todos.filter(x=>x.id!==id); save(); closeWin('edit-'+id); refresh(); toast('已移入回收站'); }}]});
+    b.querySelector('#eDel').onclick=()=>modal({title:'删除待办事项',body:'确定要删除这条待办事项吗？删除后无法恢复。',parent:winOf(b),buttons:[
+      {label:'取消'},{label:'删除',kind:'danger',onClick:()=>{ const it=state.todos.find(x=>x.id===id); state.todos=state.todos.filter(x=>x.id!==id); save(); closeWin('edit-'+id); refresh(); toast('已删除'); }}]});
     b.querySelector('#eToTpl').onclick=()=>{ const v=inp.value.trim(); addToTemplate(v||t.content,b); };
   }});
 }
@@ -1232,9 +1221,9 @@ function openTEdit(id){
     const upd=()=>{ cnt.textContent=`${inp.value.length}/${CHAR_LIMIT}`; rb.disabled=inp.value===original; };
     inp.addEventListener('input',upd); upd();
     rb.onclick=()=>{ inp.value=original; upd(); inp.focus(); };
-    b.querySelector('#tDel').onclick=()=>modal({title:'删除模板',body:'确定要删除这个模板吗？删除后将进入回收站。',parent:winOf(b),buttons:[
+    b.querySelector('#tDel').onclick=()=>modal({title:'删除模板',body:'确定要删除这个模板吗？删除后无法恢复。',parent:winOf(b),buttons:[
       {label:'取消'},{label:'删除',kind:'danger',onClick:()=>{
-        toRecycle('template',t); state.templates=state.templates.filter(x=>x.id!==t.id); save(); closeWin(winId); renderQuick(); toast('模板已移入回收站');
+        state.templates=state.templates.filter(x=>x.id!==t.id); save(); closeWin(winId); renderQuick(); toast('模板已删除');
       }}]});
   }});
 }
@@ -1270,6 +1259,7 @@ function openInfo(item,fromHistory){
 }
 
 /* ================= 历史记录窗口 ================= */
+const histBatch={on:false,sel:new Set()};   // 历史页批量删除模式（不持久化）
 let histDate=null;
 function earliestRecordDate(){
   const ds=Object.keys(state.archive).sort();
@@ -1288,7 +1278,7 @@ function renderHistory(b){
       ${histDate!==today?'<button class="btn sm" id="dToday">回到今天</button>':''}
       <span class="spacer"></span>
       <span style="font-size:11.5px;color:var(--muted)">${list.length} 条</span>
-      <button class="btn sm" id="hBatch" title="批量删除（勾选后可删多条，进入回收站）"
+      <button class="btn sm" id="hBatch" title="批量删除（勾选后可删多条，删除后无法恢复）"
         style="${histBatch.on?'border-color:var(--accent);color:var(--accent)':''}">${histBatch.on?'退出批量':'批量删除'}</button>
     </div>
     <div class="scroll" id="histList" style="border:1px solid var(--card-border);border-radius:8px;padding:6px">
@@ -1323,13 +1313,12 @@ function renderHistory(b){
     const del=b.querySelector('#hbDel');
     if(del) del.onclick=()=>{
       if(!histBatch.sel.size) return;
-      modal({title:'删除所选记录',body:`确定删除所选的 ${histBatch.sel.size} 条记录吗？删除后将进入回收站。`,parent:winOf(b),buttons:[
+      modal({title:'删除所选记录',body:`确定删除所选的 ${histBatch.sel.size} 条记录吗？删除后无法恢复。`,parent:winOf(b),buttons:[
         {label:'取消'},
         {label:'删除',kind:'danger',onClick:()=>{
-          const delIt=it=>toRecycle('history',it,histDate);
-          if(histDate===todayStr()){ state.completed=state.completed.filter(it=>{ if(histBatch.sel.has(String(it.completedAt))){ delIt(it); return false; } return true; }); }
-          else { const arr=state.archive[histDate]||[]; state.archive[histDate]=arr.filter(it=>{ if(histBatch.sel.has(String(it.completedAt))){ delIt(it); return false; } return true; }); }
-          histBatch.sel.clear(); save(); renderHistory(b); refresh(); toast('已移入回收站');
+          if(histDate===todayStr()){ state.completed=state.completed.filter(it=>{ if(histBatch.sel.has(String(it.completedAt))){ return false; } return true; }); }
+          else { const arr=state.archive[histDate]||[]; state.archive[histDate]=arr.filter(it=>{ if(histBatch.sel.has(String(it.completedAt))){ return false; } return true; }); }
+          histBatch.sel.clear(); save(); renderHistory(b); refresh(); toast('已删除');
         }}]});
     }
   }
@@ -1477,16 +1466,6 @@ function openSettings(){
         <div class="form-label"><b>开机自启</b><span>开机后自动运行并直接显示组件窗口</span></div>
         <button class="switch ${S().autoStart?'on':''}" id="autoStartSw"><span class="knob"></span></button>
       </div>
-      <div class="divider"></div>
-      <div class="form-row">
-        <div class="form-label"><b>回收站</b><span>被删除的待办/模板/历史记录在此保留，超过时限自动彻底清除</span></div>
-        <div class="seg" id="rkSeg">
-          <button data-v="7" class="${S().recycleKeep===7?'on':''}">7 天</button>
-          <button data-v="30" class="${S().recycleKeep===30?'on':''}">30 天</button>
-          <button data-v="never" class="${S().recycleKeep==='never'?'on':''}">永不</button>
-        </div>
-        <button class="btn" id="openRecycle">打开回收站</button>
-      </div>
       <div class="meta-line" style="margin-top:6px">所有设置即时生效，并在关闭软件后保留。</div>`;
     const setMax=v=>{ S().maxItems=Math.min(10,Math.max(1,v)); b.querySelector('#maxVal').textContent=S().maxItems; save(); refresh(); };
     b.querySelector('#maxMinus').onclick=()=>setMax(S().maxItems-1);
@@ -1500,10 +1479,6 @@ function openSettings(){
     b.querySelector('#importBtn').onclick=()=>fi.click();
     const asw=b.querySelector('#autoStartSw');
     asw.onclick=()=>{ S().autoStart=!S().autoStart; asw.classList.toggle('on',S().autoStart); save(); toast(S().autoStart?'已开启开机自启':'已关闭开机自启'); };
-    const rkSeg=b.querySelector('#rkSeg');
-    const syncRk=()=>rkSeg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',String(S().recycleKeep)===x.dataset.v));
-    rkSeg.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{ S().recycleKeep=btn.dataset.v==='never'?'never':Number(btn.dataset.v); save(); syncRk(); });
-    b.querySelector('#openRecycle').onclick=()=>openRecycleWin();
     fi.onchange=e=>{ if(e.target.files[0]) handleImport(e.target.files[0]); e.target.value=''; };
   }});
 }
@@ -1528,52 +1503,6 @@ function settleAndNotify(){
   const moved=settle();
   refresh();
   if(moved) toast(`跨天结算：${moved} 条已完成事项已归档，未完成事项已标记逾期`);
-}
-
-/* ================= 回收站（v3.1 新增，PRD §八；样式沿用原型设计语言） ================= */
-let recycleSeq=0;
-const histBatch={on:false,sel:new Set()};   // 历史页批量删除模式（不持久化）
-function fmtLocalDT(ms){ const d=new Date(ms); const p2=pad; return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`; }
-function toRecycle(type,item,originDate){
-  state.recycleBin.push({id:'rb'+(++recycleSeq)+'-'+Date.now(),type,item:JSON.parse(JSON.stringify(item)),originDate:originDate||null,deletedAt:nowMs()});
-  save();
-}
-function purgeRecycle(){
-  const keep=S().recycleKeep; if(keep==='never') return 0;
-  const dl=keep*DAY; const before=state.recycleBin.length;
-  state.recycleBin=state.recycleBin.filter(e=>nowMs()-e.deletedAt<dl);
-  return before-state.recycleBin.length;
-}
-function openRecycleWin(){
-  openChild('recycleWin',{title:'回收站',group:'set',w:420,h:480,render:renderRecycle});
-}
-function renderRecycle(b){
-  const groups=[['todo','待办'],['template','模板'],['history','历史记录']];
-  let rows='';
-  groups.forEach(([t,label])=>{
-    const es=state.recycleBin.filter(e=>e.type===t).sort((a,b2)=>b2.deletedAt-a.deletedAt);
-    if(!es.length) return;
-    rows+=`<div class="panel-head"><span class="panel-title">${label} · ${es.length}</span></div>`;
-    rows+=es.map(e=>`<div class="rec-row"><div class="rec-main"><div class="tt trunc">${esc(e.item.content)}</div><div class="rec-time">删除于 ${fmtLocalDT(e.deletedAt)}</div></div>
-      <button class="btn sm" data-restore="${e.id}">恢复</button>
-      <button class="btn sm danger-ghost" data-purge="${e.id}">彻底删除</button></div>`).join('');
-  });
-  b.innerHTML = state.recycleBin.length
-    ? `<div class="form-row" style="padding:0 0 8px"><span style="font-size:11.5px;color:var(--muted)">条目保留 ${S().recycleKeep==='never'?'永久（当前设置）':S().recycleKeep+' 天（当前设置）'}，到期自动彻底清除</span><span class="spacer"></span><button class="btn sm danger-ghost" id="rcClear">一键清空</button></div><div class="scroll" style="border:1px solid var(--card-border);border-radius:8px;padding:6px">${rows}</div>`
-    : '<div class="panel-empty" style="flex:1;display:flex;align-items:center;justify-content:center">回收站是空的</div>';
-  b.querySelectorAll('[data-restore]').forEach(btn=>btn.onclick=()=>{
-    const e=state.recycleBin.find(x=>x.id===btn.dataset.restore); if(!e) return;
-    if(e.type==='todo'){ state.todos.push(e.item); }
-    else if(e.type==='template'){ state.templates.push(e.item); }
-    else { const k=e.originDate||dateOfMs(e.item.completedAt||nowMs()); (state.archive[k]??=[]).push(e.item); }
-    state.recycleBin=state.recycleBin.filter(x=>x.id!==e.id); save(); renderRecycle(b); refresh(); toast('已恢复到原列表末尾');
-  });
-  b.querySelectorAll('[data-purge]').forEach(btn=>btn.onclick=()=>{
-    const e=state.recycleBin.find(x=>x.id===btn.dataset.purge); if(!e) return;
-    modal({title:'彻底删除',body:`确定彻底删除“${esc(e.item.content.slice(0,24))}”吗？此操作不可恢复。`,parent:winOf(b),buttons:[{label:'取消'},{label:'删除',kind:'danger',onClick:()=>{ state.recycleBin=state.recycleBin.filter(x=>x.id!==e.id); save(); renderRecycle(b); }}]});
-  });
-  const clr=b.querySelector('#rcClear');
-  if(clr) clr.onclick=()=>modal({title:'清空回收站',body:'确定清空回收站吗？此操作不可恢复。',parent:winOf(b),buttons:[{label:'取消'},{label:'清空',kind:'danger',onClick:()=>{ state.recycleBin=[]; save(); renderRecycle(b); }}]});
 }
 
 /* ================= 组件簇：拖动 / 吸附 / 缩进 / 缩放 ================= */
@@ -1855,7 +1784,6 @@ new ResizeObserver(()=>{ clearTimeout(rzT); rzT=setTimeout(()=>{ measureTrunc(do
 /* ================= 演示控制台 ================= */
 $('#dcToggle').onclick=()=>{ const c=$('#devConsole'); c.classList.toggle('collapsed'); $('#dcArr').textContent=c.classList.contains('collapsed')?'▸':'▾'; };
 $('#dcNextDay').onclick=()=>{ simOffset++; save(); settleAndNotify(); };
-$('#dcRecycle').onclick=()=>openRecycleWin();
 $('#dcReset').onclick=()=>{ try{localStorage.removeItem(KEY);}catch(e){} location.reload(); };
 
 /* ================= 启动 ================= */
