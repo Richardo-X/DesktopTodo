@@ -1,7 +1,7 @@
 {
   "name": "desktop-todo",
   "productName": "桌面待办",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Windows 桌面待办悬浮小组件",
   "main": "out/main/index.js",
   "author": "DesktopTodo",
