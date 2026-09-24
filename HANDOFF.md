@@ -20,7 +20,8 @@
   - 6fe4ed3 / 173c052 / c149f00 / 4827484 / 967a61a / 5bee942 / d236dfe / 44bd4e2 / b91e27a / ff7361a：原型底本 + 交互原型 v3.1（经多轮评审修订，**2026-09-24 用户确认定稿，作为 UI 参考**）
   - 原型评审全部反馈已折入：决策 #13~#20 与本文件第 4 节工作分解
 - **真实 UI 代码未动**：工作区干净，等于 v1.0.0 交付代码。v1.0.1 的全部代码实施由新会话（你）执行
-- 用户已确认原型的功能裁定：**设置页 6 项（PRD 功能 + 原型样式延展）**；回收站窗口为原型语言新造
+- 2026-09-24 更新：**回收站机制彻底移除**（决策#21，用户指示）已落文档——PRD/需求文档升 v1.2；原型 danger 按钮 hover 修正（决策#22）；新增决策 #21~#24 与 B1.5 批次。**开发未开始，待用户通知**
+- 用户已确认原型的功能裁定：**设置页 4 项（上限/时制/导入/自启）**——字体项随决策#3 移除（PRD 条款留待产品经理修订）、回收站项随决策#21 移除；~~回收站窗口为原型语言新造~~（v1.2 已整体移除）
 
 ## 3. 已确认决策清单（实现时必须遵守）
 
@@ -30,8 +31,8 @@
 | 2 | **时钟显示精确到分钟**（HH:mm / h:mm AM/PM；内部仍每秒刷新） | 验收反馈#7 + PRD v1.1 #2 |
 | 3 | **移除"字体大小"设置项**：文字随窗口缩放同步等比变化（无独立字体系数；删 settings 第 3 项与 --fs 档位机制） | 原型评审确认 + PRD v1.1 #8 |
 | 4 | **面板尺寸基准（原型 v3）**：主窗 470×640、快捷添加 310×640、已完成 272×640，顶边对齐、间隙 12px | 验收反馈#4 + 原型提取 |
-| 5 | **二级窗口尺寸基准**：新增待办 360×360、编辑待办 360×400、新建模板 360×360、编辑模板 360×380、详情 360×400、历史 560×540、设置 400×470、回收站 420×480；按类别组共享缩放（事项/模板/设置/历史） | PRD v1.1 #5 + 原型 |
-| 6 | **二级窗口关闭规范**：表单类（新增/编辑事项、新建/编辑模板、设置）＝标题栏左「←」返回（无×，编辑类标题栏右「保存」）；浏览类（详情/历史/回收站）＝标题栏右「×」 | 验收反馈#6 + 原型 openChild |
+| 5 | **二级窗口尺寸基准**：新增待办 360×360、编辑待办 360×400、新建模板 360×360、编辑模板 360×380、详情 360×400、历史 560×540、设置 400×470、~~回收站 420×480~~（回收站一项随 #21 移除，最终 7 项；编辑待办/详情尺寸后经 #14 校准）；按类别组共享缩放（事项/模板/设置/历史） | PRD v1.1 #5 + 原型 |
+| 6 | **二级窗口关闭规范**：表单类（新增/编辑事项、新建/编辑模板、设置）＝标题栏左「←」返回（无×，编辑类标题栏右「保存」）；浏览类（详情/历史）＝标题栏右「×」 | 验收反馈#6 + 原型 openChild |
 | 7 | **缩放＝真实窗口尺寸变化**：主簇与二级窗口都不得出现"透明框内内容放大"；实现＝窗口 setBounds 与内容基准尺寸 1:1 同步 | 验收反馈#3 |
 | 8 | **组件可拖动**：面板标题栏 `-webkit-app-region: drag`（按钮区 no-drag） | 验收反馈#3 |
 | 9 | **托盘隐藏＝组件整体隐藏（含全部二级窗口）**；显示同步恢复 | 验收反馈#8 |
@@ -46,6 +47,10 @@
 | 19 | **两侧窗口阴影调小**：快捷添加/已完成使用小阴影（`0 4px 12px rgba(5,15,35,.22)`），主窗口保持大阴影；实现时面板需分档设置阴影，避免两侧阴影盖到中间窗口 | 原型 v3.1.1 评审（阴影反馈） |
 | 20 | **窗口缝隙 12px → 6px**（簇基准宽相应 -12） | 原型 v3.1.1 评审（缝隙反馈） |
 | 15 | **历史记录只显示已结算归档的记录**（不合并当天已完成；当天项在"已完成"窗口，跨天结算后进历史）；历史行正常模式**不渲染勾选框**（仅批量模式出现）；导出 CSV 口径不变（仍含今天已完成，PRD F1） | 原型 v3.1.1 评审（历史口径反馈，对齐 PRD §六） |
+| 21 | **回收站机制彻底移除**（2026-09-24 用户指示）：删除（单条/批量/清空）确认后直接永久删除、不可恢复，无任何恢复入口；设置页回收站区块（清理时限＋入口）删除→设置页 4 项；RecycleWindow/回收站服务/数据字段/自动清理/相关测试全删；删除确认框文案＝「删除后无法恢复」类；PRD/需求文档已同步升 v1.2 | 用户当次指示 |
+| 22 | **危险按钮 hover 修正**：通用 `.btn:hover` 白底会盖掉 danger 红底（hover 时白底白字不可见）；修正＝danger 按钮 hover 深红 `#a9271c`；原型 HTML 已同步修，实现照抄 | 用户报告（批量删除「删除所选」/确认框红色「删除」hover 变白） |
+| 23 | **初始缩放按半屏钳制**：启动/恢复时 `clusterScale = min(存值, 半屏高/基准高640, 屏宽/簇基准宽)`（复用 clampClusterScale 语义，纯函数+单测）；1080p 等矮屏首启约 0.81 | 用户裁定（PRD §8.1「高度≤半屏」与基准高 640 在矮屏上的冲突处理） |
+| 24 | **子窗口缩放内容适配＝内容按基准尺寸渲染 + zoom=组缩放 + 真窗口 resize 到 base×scale**：文字随窗口等比缩放、内容恰好填满真窗口（决策#3/#7 落实）；B3 原文「移除 CSS zoom」指移除旧「只 zoom 不改真窗口」机制 | 用户裁定（2026-09-24，原 B3 文字与决策#3 冲突） |
 
 ## 4. v1.0.1 待实施工作分解（按序执行）
 
@@ -60,6 +65,14 @@
 - 删 `electron/preload/index.ts` 桥接、`electron/main/index.ts` handler、`tests/helpers/api.ts` mock
 - （渲染层本就无人调用，纯删除）
 
+### B1.5 移除回收站（决策#21，2026-09-24 新增；文档已先行落库）
+- 删 `src/windows/RecycleWindow.vue`、`src/core/services/recycle.ts`、`tests/unit/recycle.test.ts`、`tests/component/recycle-window.test.ts`
+- models 删 recycle 数据字段（normalize 丢弃遗留数据）；settlement/context 移除 purgeExpired 自动清理调用；stores 删恢复/清空 action
+- SettingsWindow 删回收站区块（set-recycle-*）；ChildHost 路由/`ChildKind`/`CHILD_SIZES`/`GROUP_OF` 删 recycle
+- 删除确认框文案统一为「删除后无法恢复」类
+- E2E main-flow 批量删除段改「直接消失」；完成后全仓 grep recycle 应清零
+- 提交 `test(v1.0.1-B1.5)` → `feat(v1.0.1-B1.5)`
+
 ### B2 布局基准 + 主簇重构（决策#4/#7/#8/#12，原型样式落位）
 - 新建 `src/core/utils/cluster-layout.ts`：`BASE_PANEL={quick:310,done:310,main:470,height:640}`（**done=310，决策#18**）、`BASE_GAP=6`（决策#20）、`clusterBaseWidth/clusterBounds`（主进程与渲染层单一来源）
 - `electron/main/layout.ts` 改为 re-export 该来源（`defaultWindowOptions/initialPos/MIN_SCALE=0.7` 保留）
@@ -71,14 +84,14 @@
 - **同时更新测试**：`tests/unit/main-layout.test.ts`（尺寸期望 1076×640 等）、`home-panel.test.ts`（时钟正则 `^\d{2}:\d{2}$`）、`app-shell.test.ts`（主题断言改查 `.cluster`）
 - 提交 `feat(v1.0.1-B2)`
 
-### B3 二级窗口（决策#5/#6/#7，工作量最大）
-- `electron/main/child-windows.ts`：CHILD_SIZES 改上表 8 项，其中**编辑待办 400×430、详情 360×430**（决策#14 校准）；`childWindowOptions(kind, wa, openIndex, groupScale)` 增组缩放参数；`GROUP_OF` 组映射导出（todo-new/todo-edit/detail→todo；template-*→template；history/recycle→history；settings→settings）；各窗口 win-body 底部内边距 24px；缩放角组件为圆角同弧度弧线（决策#16）
+### B3 二级窗口（决策#5/#6/#7/#14/#16/#17/#24，工作量最大）
+- `electron/main/child-windows.ts`：CHILD_SIZES 改 **7 项**（回收站随 #21 移除），其中**编辑待办 400×430、详情 360×430**（决策#14 校准）；`childWindowOptions(kind, wa, openIndex, groupScale)` 增组缩放参数；`GROUP_OF` 组映射导出（todo-new/todo-edit/detail→todo；template-*→template；history→history；settings→settings）；各窗口 win-body 底部内边距 24px；缩放角组件为圆角同弧度弧线（决策#16）
 - main `openChildWindow`：从 `ctx.current().uiState.childScales[group]` 取缩放
 - 新增 IPC `resizeSelf({width,height})`：主进程对 `BrowserWindow.fromWebContents(e.sender).setSize`（钳制屏宽/半屏高）
 - `ChildHost.vue`：移除 CSS zoom；保留组映射与 grip（grip→`setChildScale`+`api.resizeSelf`）；`--fs` 机制删除（决策#3）
-- 八个页面按原型重制：根 `.win.child`、36px 标题栏（← / 标题 / 保存或×）、win-body 内滚动；**保留全部现有 data-testid**（各页清单见 tests/component/ 对应文件），新增仅 `set-back`、`hist-close`、`recycle-close`
+- 七个页面按原型重制：根 `.win.child`、36px 标题栏（← / 标题 / 保存或×）、win-body 内滚动；**保留全部现有 data-testid**（各页清单见 tests/component/ 对应文件），新增仅 `set-back`、`hist-close`
 - **详情窗口例外（决策#17）**：以 PRD 速查#13 为准——只渲染四项信息＋「关闭」，无「添加到模板」、无括号注释文字（原型 v3.1.1 已同步移除）
-  - 设置页按原型 form-row/divider/seg/stepper/switch 重排，6 项齐全；回收站按分组行+恢复/彻底删除/清空
+  - 设置页按原型 form-row/divider/seg/stepper/switch 重排，**4 项齐全（上限/时制/导入/自启）**——字体项随决策#3 删、回收站项随决策#21 删
 - 测试：`tests/unit/child-windows.test.ts` 更新尺寸+组缩放用例；settings 增返回用例；其余组件测试保持绿
 - 提交 `feat(v1.0.1-B3)`
 
@@ -89,12 +102,12 @@
 
 ### B5 回归与收尾
 - 全量 vue-tsc + vitest + playwright；修补失败（只许改选择器/期望到新行为，禁止删测试降标准）
-- 确认 fmtTime 分钟制（`src/core/utils/date.ts` 当前仍是 HH:mm:ss，需改 + m1-exit/home-panel 测试期望）
+- 确认 fmtTime 分钟制（已在 B2 落地：`src/core/utils/date.ts` 改 HH:mm / h:mm AM/PM + m1-exit/home-panel 测试期望，此处仅回归确认）
 - 历史口径（决策#15）：真实应用 HistoryWindow 目前合并当天已完成（`getDoneForDate` 等价逻辑），需改为仅 archive；历史行去除勾选框（保留批量 selbox）；导出 collectRange 保持含今天已完成（PRD F1 不变）
 
 ### B6 交付 v1.0.1
 - `npm run dist` → tag `v1.0.1` → push → CI 绿 → `gh release create v1.0.1`（**资产必须 ASCII 名**：DesktopTodo-Setup-1.0.1.exe / DesktopTodo-Portable-1.0.1.exe，中文名上传会 404）
-- 更新 `docs/验收报告.md`：v1.0.1 修复记录 + 人工重验清单（拖动、主簇/二级窗口缩放、滚动条、对齐缝隙、返回按钮、分钟时钟、托盘同步隐藏）
+- 更新 `docs/验收报告.md`：v1.0.1 修复记录 + 人工重验清单（拖动、主簇/二级窗口缩放、滚动条、对齐缝隙、返回按钮、分钟时钟、托盘同步隐藏、危险按钮 hover、删除即永久删除[回收站已移除]）
 
 ## 5. 关键文件地图
 
@@ -104,10 +117,10 @@ electron/main/    index.ts(接线/托盘/IPC/广播) · context.ts(AppContext �
                   · single-instance/auto-start/window-state/tray-menu/icon
 electron/preload/ index.ts（typed API 桥接）
 src/core/         models(factories/defaults) · services(overdue/settlement/limits/
-                  templates/recycle/csv/settings) · utils(date/cluster-layout/hit-test*
+                  templates/csv/settings) · utils(date/cluster-layout/hit-test*
                   /screen-clamp/tuck/scale) · constants
 src/panels/       AppShell(簇布局+令牌) · HomePanel · QuickPanel · DonePanel
-src/windows/      ChildHost(路由+组缩放) + 8 个窗口页
+src/windows/      ChildHost(路由+组缩放) + 7 个窗口页
 src/stores/       app(领域动作+持久化) · ui(批量/确认框/tuck 状态机/子窗口)
 src/ipc/          contract.ts（typed IPC 契约）
 tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
