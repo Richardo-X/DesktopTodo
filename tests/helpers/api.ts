@@ -13,6 +13,7 @@ export interface TestApi extends DesktopTodoApi {
   topMostCalls: boolean[]
   minimizeCalls: number
   closeSelfCalls: number
+  resizeSelfCalls: Array<{ width: number; height: number }>
   unsavedCalls: boolean[]
   openCsvCalls: number
   tuckedCalls: boolean[]
@@ -35,6 +36,7 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
   const topMostCalls: boolean[] = []
   let minimizeCalls = 0
   let closeSelfCalls = 0
+  const resizeSelfCalls: Array<{ width: number; height: number }> = []
   let openCsvCalls = 0
   const unsavedCalls: boolean[] = []
   const tuckedCalls: boolean[] = []
@@ -56,6 +58,9 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     },
     get closeSelfCalls() {
       return closeSelfCalls
+    },
+    get resizeSelfCalls() {
+      return resizeSelfCalls
     },
     get openCsvCalls() {
       return openCsvCalls
@@ -99,6 +104,9 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     },
     closeSelf: async () => {
       closeSelfCalls++
+    },
+    resizeSelf: async (params: { width: number; height: number }) => {
+      resizeSelfCalls.push(params)
     },
     setTucked: async (tucked: boolean) => {
       tuckedCalls.push(tucked)

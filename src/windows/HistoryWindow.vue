@@ -4,6 +4,7 @@ import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import BatchBar from '../components/BatchBar.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { getApi } from '../services/api'
 import { shiftDateKey, localDateKey } from '../core/utils/date'
 
 function pad(n: number): string {
@@ -75,182 +76,157 @@ async function doExport(): Promise<void> {
 </script>
 
 <template>
-  <div class="child-window" data-theme="day">
+  <div class="child-window">
     <header class="titlebar">
       <span class="title">历史记录</span>
       <span class="spacer" />
+      <!-- 决策#6：浏览类窗口标题栏右「×」 -->
+      <button class="close" data-testid="hist-close" title="关闭" @click="getApi().closeSelf()">×</button>
     </header>
 
-    <div class="nav">
-      <button class="b" data-testid="hist-prev" @click="prevDay">前一天</button>
-      <input
-        type="date"
-        class="date"
-        data-testid="hist-date-input"
-        :value="currentDate"
-        :min="earliest"
-        :max="todayKey"
-        @change="onDateInput"
-      />
-      <button class="b" data-testid="hist-next" :disabled="isToday" @click="nextDay">后一天</button>
-      <button class="b" data-testid="hist-today" :disabled="isToday" @click="currentDate = todayKey">回到今天</button>
-    </div>
+    <div class="body">
+      <div class="nav">
+        <button class="b" data-testid="hist-prev" @click="prevDay">前一天</button>
+        <input
+          type="date"
+          class="date"
+          data-testid="hist-date-input"
+          :value="currentDate"
+          :min="earliest"
+          :max="todayKey"
+          @change="onDateInput"
+        />
+        <button class="b" data-testid="hist-next" :disabled="isToday" @click="nextDay">后一天</button>
+        <button class="b" data-testid="hist-today" :disabled="isToday" @click="currentDate = todayKey">回到今天</button>
+        <span class="spacer" />
+        <button v-if="!ui.batchMode" class="b" data-testid="hist-batch" @click="enterBatch">批量删除</button>
+      </div>
 
-    <div class="meta">
-      <span class="date-label" data-testid="hist-date-label">{{ dateLabel }}</span>
-      <span data-testid="hist-count">{{ items.length }} 条</span>
-      <span class="spacer" />
-      <button v-if="!ui.batchMode" class="b" data-testid="hist-batch" @click="enterBatch">批量删除</button>
-    </div>
+      <div class="meta">
+        <span class="date-label" data-testid="hist-date-label">{{ dateLabel }}</span>
+        <span data-testid="hist-count">{{ items.length }} 条</span>
+      </div>
 
-    <ul v-if="items.length > 0" class="list">
-      <li v-for="t in items" :key="t.id">
+      <!-- 决策#15：正常模式不渲染勾选框；决策#25：批量模式行尾同款勾选框选中示意 -->
+      <div v-if="items.length > 0" class="list">
         <div
+          v-for="t in items"
+          :key="t.id"
           class="hist-row"
           data-testid="hist-row"
           :data-id="t.id"
-          :class="{ selected: ui.batchMode && ui.selectedIds.includes(t.id) }"
+          :class="{ selrow: ui.batchMode && ui.selectedIds.includes(t.id) }"
           @click="ui.batchMode && ui.toggleSelect(t.id)"
           @dblclick="!ui.batchMode && ui.openChild('detail', t.id)"
         >
-          <span v-if="ui.batchMode" class="circle" :class="{ checked: ui.selectedIds.includes(t.id) }" />
           <span class="content ellipsis">{{ t.content }}</span>
-          <span v-if="t.overdue" class="overdue red">逾期</span>
+          <span v-if="t.overdue" class="tag overdue">逾期</span>
           <span class="time">{{ fmtDone(t.completedAt) }}</span>
+          <button
+            v-if="ui.batchMode"
+            type="button"
+            class="checkbox"
+            :class="{ checked: ui.selectedIds.includes(t.id) }"
+            @click.stop="ui.toggleSelect(t.id)"
+            @dblclick.stop
+          >
+            <svg viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5" /></svg>
+          </button>
         </div>
-      </li>
-    </ul>
-    <div v-else class="empty" data-testid="hist-empty">该日期暂无已完成事项</div>
+      </div>
+      <div v-else class="panel-empty" data-testid="hist-empty">该日期暂无已完成事项</div>
 
-    <div class="export">
-      <span class="label">导出</span>
-      <input type="date" class="date" data-testid="hist-export-from" v-model="exportFrom" />
-      <span class="label">至</span>
-      <input type="date" class="date" data-testid="hist-export-to" v-model="exportTo" />
-      <button class="b" data-testid="hist-export" @click="doExport">导出 CSV</button>
+      <BatchBar v-if="ui.batchTarget === 'history'" target="history" :history-date-key="currentDate" />
+
+      <div class="export">
+        <span class="label">导出</span>
+        <input type="date" class="date" data-testid="hist-export-from" v-model="exportFrom" />
+        <span class="label">至</span>
+        <input type="date" class="date" data-testid="hist-export-to" v-model="exportTo" />
+        <button class="b primary-sm" data-testid="hist-export" @click="doExport">导出 CSV</button>
+      </div>
+      <p v-if="exportError" class="error" data-testid="hist-export-error">{{ exportError }}</p>
     </div>
-    <p v-if="exportError" class="error" data-testid="hist-export-error">{{ exportError }}</p>
-
-    <BatchBar
-      v-if="ui.batchTarget === 'history'"
-      target="history"
-      :history-date-key="currentDate"
-    />
 
     <ConfirmDialog />
   </div>
 </template>
 
 <style scoped>
-.child-window {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: rgba(252, 252, 253, 0.97);
-  color: #2a2f3a;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.titlebar {
+.nav {
   display: flex;
   align-items: center;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  gap: 6px;
+  flex: none;
 }
 
-.title {
-  font-size: calc(var(--fs, 14px) * 14 / 14);
-  font-weight: 600;
+.date {
+  height: 28px;
+  border: 1px solid var(--btn-border);
+  border-radius: 5px;
+  background: var(--field);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11.5px;
+  padding: 0 5px;
+  outline: none;
 }
 
 .spacer {
   flex: 1;
 }
 
-.nav {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 12px 4px;
-}
-
-.date {
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 8px;
-  padding: 4px 8px;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  background: transparent;
-  color: inherit;
-}
-
-.b {
-  border: none;
-  background: rgba(0, 0, 0, 0.06);
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  cursor: pointer;
-  border-radius: 8px;
-  padding: 4px 10px;
-  color: inherit;
-}
-
-.b:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 .meta {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 12px;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  opacity: 0.85;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+  flex: none;
+}
+
+.date-label {
+  font-weight: 600;
 }
 
 .list {
-  list-style: none;
-  margin: 0;
-  padding: 0 12px;
-  overflow-y: auto;
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
 }
 
 .hist-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px;
-  border-radius: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  cursor: default;
+  user-select: none;
 }
 
 .hist-row:hover {
-  background: rgba(0, 0, 0, 0.05);
+  border-color: var(--accent);
+  background: var(--hover);
 }
 
-.hist-row.selected {
-  background: rgba(47, 111, 237, 0.12);
-}
-
-.circle {
-  flex: none;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  border: 1.5px solid currentColor;
-  opacity: 0.6;
-}
-
-.circle.checked {
-  background: currentColor;
-  opacity: 1;
+.hist-row.selrow {
+  border-color: var(--accent);
+  background: var(--hover);
 }
 
 .content {
   flex: 1;
   min-width: 0;
-  font-size: calc(var(--fs, 14px) * 13 / 14);
+  font-size: 13px;
   text-align: left;
 }
 
@@ -260,49 +236,84 @@ async function doExport(): Promise<void> {
   text-overflow: ellipsis;
 }
 
-.overdue {
+.tag {
   flex: none;
-  font-size: calc(var(--fs, 14px) * 11 / 14);
-  padding: 1px 6px;
-  border-radius: 6px;
-  color: #fff;
-}
-
-.red {
-  background: #e5484d;
+  font-size: 10px;
+  line-height: 15px;
+  padding: 0 6px;
+  border-radius: 99px;
+  border: 1px solid currentColor;
+  color: var(--overdue);
 }
 
 .time {
   flex: none;
-  font-size: calc(var(--fs, 14px) * 11 / 14);
-  opacity: 0.6;
+  font-size: 11px;
+  color: var(--faint);
 }
 
-.empty {
-  flex: 1;
+.checkbox {
+  flex: none;
+  width: 19px;
+  height: 19px;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.55;
-  font-size: calc(var(--fs, 14px) * 13 / 14);
+  padding: 0;
+  border: 1.5px solid var(--cb-border, #8a8a8a);
+  border-radius: 5px;
+  background: transparent;
+  color: transparent;
+  cursor: pointer;
+}
+
+.checkbox.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+
+.checkbox svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.panel-empty {
+  flex: 1;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--faint);
+  font-size: 12px;
 }
 
 .export {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  flex: none;
+  padding-top: 8px;
+  border-top: 1px solid var(--card-border);
 }
 
 .label {
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  opacity: 0.7;
+  font-size: 11.5px;
+  color: var(--muted);
 }
 
-.error {
-  margin: 0 12px 8px;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  color: #e5484d;
+.primary-sm {
+  border-color: transparent !important;
+  background: var(--accent) !important;
+  color: var(--accent-fg) !important;
+}
+
+.primary-sm:hover {
+  background: var(--accent-hover) !important;
 }
 </style>

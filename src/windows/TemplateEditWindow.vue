@@ -82,7 +82,7 @@ async function onBack(): Promise<void> {
 </script>
 
 <template>
-  <div class="child-window" data-theme="day">
+  <div class="child-window">
     <header class="titlebar">
       <button class="back" data-testid="tpl-edit-back" aria-label="返回" @click="onBack">←</button>
       <span class="title">编辑模板</span>
@@ -124,74 +124,9 @@ async function onBack(): Promise<void> {
 </template>
 
 <style scoped>
-.child-window {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: rgba(252, 252, 253, 0.96);
-  color: #2a2f3a;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.titlebar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.back,
-.save {
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  color: inherit;
-  font-size: calc(var(--fs, 14px) * 14 / 14);
-}
-
-.save {
-  color: #2f6fed;
-  font-weight: 600;
-}
-
-.title {
-  font-size: calc(var(--fs, 14px) * 14 / 14);
-  font-weight: 600;
-}
-
-.spacer {
-  flex: 1;
-}
-
-.body {
-  flex: 1;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.props {
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-}
-
 .created {
-  opacity: 0.7;
-}
-
-.input {
-  flex: 1;
-  resize: none;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 10px;
-  padding: 10px;
-  font-size: calc(var(--fs, 14px) * 14 / 14);
-  font-family: inherit;
-  background: transparent;
-  color: inherit;
+  font-size: 11.5px;
+  color: var(--muted);
 }
 
 .meta {
@@ -200,52 +135,13 @@ async function onBack(): Promise<void> {
   justify-content: space-between;
 }
 
-.count {
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  opacity: 0.7;
-}
-
-.count.danger {
-  color: #e5484d;
-  font-weight: 700;
-  opacity: 1;
-}
-
-.b {
-  border: none;
-  background: rgba(0, 0, 0, 0.06);
-  border-radius: 8px;
-  padding: 4px 12px;
-  cursor: pointer;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  color: inherit;
-}
-
-.b:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.b.danger {
-  color: #e5484d;
-}
-
 .row {
   display: flex;
   align-items: center;
 }
 
-.error {
-  margin: 0;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  color: #e5484d;
-}
-
-.missing {
+.spacer {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.6;
 }
 </style>
+

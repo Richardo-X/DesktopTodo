@@ -1,4 +1,4 @@
-import type { AppSettings, DoneSort, FontScale } from '../models/types'
+import type { AppSettings, DoneSort } from '../models/types'
 import { defaultSettings } from '../models/defaults'
 
 export { defaultSettings }
@@ -10,7 +10,6 @@ export { defaultSettings }
  * 这里只做 1~10 的兜底 clamp。
  */
 
-const FONT_SCALES: readonly FontScale[] = ['small', 'medium', 'large']
 const DONE_SORTS: readonly DoneSort[] = ['asc', 'desc']
 
 /** 单字段校验后的补丁结果 */
@@ -31,7 +30,6 @@ export function applySettings(current: AppSettings, patch: Partial<AppSettings>)
   return {
     maxItems: isInt(patch.maxItems) ? clampMax(patch.maxItems) : current.maxItems,
     hour12: typeof patch.hour12 === 'boolean' ? patch.hour12 : current.hour12,
-    fontScale: FONT_SCALES.includes(patch.fontScale as never) ? (patch.fontScale as FontScale) : current.fontScale,
     autoStart: typeof patch.autoStart === 'boolean' ? patch.autoStart : current.autoStart,
     doneSort: DONE_SORTS.includes(patch.doneSort as never) ? (patch.doneSort as DoneSort) : current.doneSort
   }
@@ -43,7 +41,6 @@ export function validateSettingsPatch(patch: Partial<AppSettings>): PatchResult 
     return { ok: false, field: 'maxItems' }
   }
   if (patch.hour12 !== undefined && typeof patch.hour12 !== 'boolean') return { ok: false, field: 'hour12' }
-  if (patch.fontScale !== undefined && !FONT_SCALES.includes(patch.fontScale)) return { ok: false, field: 'fontScale' }
   if (patch.autoStart !== undefined && typeof patch.autoStart !== 'boolean') return { ok: false, field: 'autoStart' }
   if (patch.doneSort !== undefined && !DONE_SORTS.includes(patch.doneSort)) return { ok: false, field: 'doneSort' }
 

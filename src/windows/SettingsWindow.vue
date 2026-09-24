@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { getApi } from '../services/api'
 import { clampMaxItems } from '../core/services/limits'
 
 const store = useAppStore()
@@ -23,17 +24,12 @@ async function stepMax(delta: number): Promise<void> {
   await store.updateSettings({ maxItems: next })
 }
 
-// —— 2. 时间制式 ——
-async function toggleHour12(): Promise<void> {
-  await store.updateSettings({ hour12: !store.settings.hour12 })
+// —— 2. 时间制式（seg：24h/12h） ——
+async function setHour12(v: boolean): Promise<void> {
+  await store.updateSettings({ hour12: v })
 }
 
-// —— 3. 字体三档 ——
-async function setFont(scale: 'small' | 'medium' | 'large'): Promise<void> {
-  await store.updateSettings({ fontScale: scale })
-}
-
-// —— 4. 导入历史记录 ——
+// —— 3. 导入历史记录 ——
 async function importCsv(mode: 'cover' | 'merge'): Promise<void> {
   importError.value = ''
   if (mode === 'cover') {
@@ -46,61 +42,79 @@ async function importCsv(mode: 'cover' | 'merge'): Promise<void> {
   }
 }
 
-// —— 5. 开机自启 ——
+// —— 4. 开机自启（switch） ——
 async function toggleAutoStart(): Promise<void> {
   await store.updateSettings({ autoStart: !store.settings.autoStart })
+}
+
+// 决策#6：设置=表单类，标题栏左「←」直接关闭
+async function onBack(): Promise<void> {
+  await getApi().closeSelf()
 }
 </script>
 
 <template>
-  <div class="child-window" data-theme="day">
+  <div class="child-window">
     <header class="titlebar">
+      <button class="back" data-testid="set-back" title="返回" @click="onBack">←</button>
       <span class="title">设置</span>
       <span class="spacer" />
     </header>
 
     <div class="body">
-      <section class="item" data-testid="set-max">
-        <span class="label">待办数量上限</span>
-        <div class="stepper">
+      <div class="form-row">
+        <span class="form-label">
+          <b>待办数量上限</b>
+          <span>1~10 条；不可低于当前待办数量</span>
+        </span>
+        <div class="stepper" data-testid="set-max">
           <button class="step" data-testid="set-max-minus" :disabled="!canDecrease" @click="stepMax(-1)">−</button>
-          <span class="value" data-testid="set-max-value">{{ maxItems }}</span>
+          <span class="val" data-testid="set-max-value">{{ maxItems }}</span>
           <button class="step" data-testid="set-max-plus" :disabled="!canIncrease" @click="stepMax(1)">＋</button>
         </div>
-        <span v-if="atFloor" class="note" data-testid="set-max-note">不可低于当前待办数量</span>
-      </section>
+      </div>
+      <p v-if="atFloor" class="note" data-testid="set-max-note">不可低于当前待办数量</p>
 
-      <section class="item" data-testid="set-hour12">
-        <span class="label">时间显示制式</span>
-        <button class="b" data-testid="set-hour12-btn" @click="toggleHour12">
-          {{ store.settings.hour12 ? '12 小时制' : '24 小时制' }}
-        </button>
-      </section>
+      <div class="divider" />
 
-      <section class="item" data-testid="set-font">
-        <span class="label">字体大小</span>
-        <div class="row">
-          <button class="b" data-testid="set-font-small" :class="{ active: store.settings.fontScale === 'small' }" @click="setFont('small')">小</button>
-          <button class="b" data-testid="set-font-medium" :class="{ active: store.settings.fontScale === 'medium' }" @click="setFont('medium')">中</button>
-          <button class="b" data-testid="set-font-large" :class="{ active: store.settings.fontScale === 'large' }" @click="setFont('large')">大</button>
+      <div class="form-row">
+        <span class="form-label">
+          <b>时间显示制式</b>
+          <span>作用于主窗时钟与各列表时间</span>
+        </span>
+        <div class="seg" data-testid="set-hour12">
+          <button :class="{ on: !store.settings.hour12 }" @click="setHour12(false)">24 小时制</button>
+          <button data-testid="set-hour12-btn" :class="{ on: store.settings.hour12 }" @click="setHour12(true)">12 小时制</button>
         </div>
-      </section>
+      </div>
 
-      <section class="item" data-testid="set-import">
-        <span class="label">导入历史记录</span>
+      <div class="divider" />
+
+      <div class="form-col" data-testid="set-import">
+        <span class="form-label">
+          <b>导入历史记录</b>
+          <span>只接受本软件导出的 CSV；覆盖导入将替换现有全部历史</span>
+        </span>
         <div class="row">
           <button class="b" data-testid="set-import-cover" @click="importCsv('cover')">覆盖导入</button>
           <button class="b" data-testid="set-import-merge" @click="importCsv('merge')">合并导入</button>
         </div>
         <p v-if="importError" class="error" data-testid="set-import-error">{{ importError }}</p>
-      </section>
+      </div>
 
-      <section class="item" data-testid="set-autostart">
-        <span class="label">开机自启</span>
-        <button class="b" data-testid="set-autostart-btn" @click="toggleAutoStart">
-          {{ store.settings.autoStart ? '已开启' : '已关闭' }}
+      <div class="divider" />
+
+      <div class="form-row" data-testid="set-autostart">
+        <span class="form-label">
+          <b>开机自启</b>
+          <span>开启后开机直接显示组件窗口</span>
+        </span>
+        <button class="switch" data-testid="set-autostart-btn" :class="{ on: store.settings.autoStart }" @click="toggleAutoStart">
+          <span class="knob" />
         </button>
-      </section>
+      </div>
+
+      <p class="meta-line">所有设置即时生效并保留。</p>
     </div>
 
     <ConfirmDialog />
@@ -108,54 +122,43 @@ async function toggleAutoStart(): Promise<void> {
 </template>
 
 <style scoped>
-.child-window {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: rgba(252, 252, 253, 0.97);
-  color: #2a2f3a;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.titlebar {
+.form-row {
   display: flex;
   align-items: center;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  justify-content: space-between;
+  gap: 14px;
+  padding: 6px 0;
 }
 
-.title {
-  font-size: calc(var(--fs, 14px) * 14 / 14);
+.form-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+}
+
+.form-label b {
+  font-size: 13px;
   font-weight: 600;
 }
 
-.spacer {
-  flex: 1;
+.form-label span {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
-.body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.label {
-  width: 110px;
-  font-size: calc(var(--fs, 14px) * 13 / 14);
-  font-weight: 500;
-  text-align: left;
+.divider {
+  height: 1px;
+  background: var(--card-border);
+  flex: none;
 }
 
 .row {
@@ -166,61 +169,99 @@ async function toggleAutoStart(): Promise<void> {
 .stepper {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 .step {
-  width: 26px;
-  height: 26px;
-  border: none;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.07);
-  font-size: calc(var(--fs, 14px) * 15 / 14);
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--btn-border);
+  border-radius: 5px;
+  background: var(--btn);
+  color: var(--text);
+  font-size: 15px;
   cursor: pointer;
-  color: inherit;
+  line-height: 1;
+  font-family: inherit;
 }
 
 .step:disabled {
-  opacity: 0.35;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
-.value {
-  min-width: 22px;
-  text-align: center;
-  font-size: calc(var(--fs, 14px) * 14 / 14);
-  font-weight: 600;
+.val {
+  width: 44px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--btn-border);
+  border-radius: 5px;
+  background: var(--field);
+  color: var(--text);
+  font-size: 12.5px;
+}
+
+.seg {
+  display: flex;
+  border: 1px solid var(--btn-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.seg button {
+  border: none;
+  background: var(--btn);
+  color: var(--muted);
+  font-size: 11.5px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.seg button.on {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.switch {
+  width: 40px;
+  height: 21px;
+  flex: none;
+  border-radius: 99px;
+  border: 1px solid var(--btn-border);
+  background: var(--btn);
+  position: relative;
+  cursor: pointer;
+  transition: 0.18s;
+  padding: 0;
+}
+
+.switch .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: 0.18s;
+}
+
+.switch.on {
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.switch.on .knob {
+  left: 21px;
+  background: var(--accent-fg);
 }
 
 .note {
-  font-size: calc(var(--fs, 14px) * 11 / 14);
-  color: #e5484d;
-}
-
-.b {
-  border: none;
-  background: rgba(0, 0, 0, 0.06);
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  cursor: pointer;
-  border-radius: 8px;
-  padding: 5px 12px;
-  color: inherit;
-}
-
-.b.active {
-  background: #2f6fed;
-  color: #fff;
-}
-
-.b.link {
-  color: #2f6fed;
-  background: transparent;
-  text-decoration: underline;
-}
-
-.error {
-  margin: 0;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  color: #e5484d;
+  margin: -2px 0 0;
+  font-size: 11.5px;
+  color: var(--danger);
 }
 </style>

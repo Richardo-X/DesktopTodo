@@ -21,6 +21,10 @@ const item = computed<TodoItem | undefined>(() => {
 })
 
 const overdueLabel = computed(() => (item.value && isCompletedOverdue(item.value) ? '已逾期' : '未逾期'))
+/** 窗口标题（原型语言）：归档事项=历史事项，当天已完成=已完成事项 */
+const titleText = computed(() =>
+  item.value && Object.values(store.archive).flat().some((t) => t.id === item.value!.id) ? '历史事项' : '已完成事项'
+)
 const createdText = computed(() => (item.value ? fmtLocalDateTime(new Date(item.value.createdAt)) : ''))
 const completedText = computed(() =>
   item.value?.completedAt ? fmtLocalDateTime(new Date(item.value.completedAt)) : ''
@@ -32,9 +36,9 @@ async function close(): Promise<void> {
 </script>
 
 <template>
-  <div class="child-window" data-theme="day">
+  <div class="child-window">
     <header class="titlebar">
-      <span class="title">详情</span>
+      <span class="title">{{ titleText }}</span>
       <span class="spacer" />
     </header>
 
@@ -49,88 +53,38 @@ async function close(): Promise<void> {
     <div v-else class="missing">事项不存在</div>
 
     <footer class="footer">
-      <button class="close" data-testid="detail-close" @click="close">关闭</button>
+      <button class="b" data-testid="detail-close" @click="close">关闭</button>
     </footer>
   </div>
 </template>
 
 <style scoped>
-.child-window {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: rgba(252, 252, 253, 0.96);
-  color: #2a2f3a;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.titlebar {
-  display: flex;
-  align-items: center;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.title {
-  font-size: calc(var(--fs, 14px) * 14 / 14);
-  font-weight: 600;
-}
-
-.spacer {
-  flex: 1;
-}
-
-.body {
-  flex: 1;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 .content {
   margin: 0;
-  font-size: calc(var(--fs, 14px) * 14 / 14);
-  line-height: 1.7;
+  font-size: 13.5px;
+  line-height: 1.6;
   white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .props {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  opacity: 0.8;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--hover);
+  border-radius: 6px;
+  padding: 10px;
 }
 
-.late {
-  color: #e5484d;
+.props .late {
+  color: var(--overdue);
   font-weight: 600;
 }
 
-.missing {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.6;
-}
-
-.footer {
-  padding: 12px;
-  display: flex;
-  justify-content: center;
-}
-
-.close {
-  border: none;
-  border-radius: 10px;
-  padding: 8px 24px;
-  background: #2f6fed;
-  color: #fff;
-  font-size: calc(var(--fs, 14px) * 14 / 14);
-  cursor: pointer;
+.footer .b {
+  margin-left: auto;
 }
 </style>
+

@@ -16,7 +16,7 @@ import { ensureOnSomeDisplay, clampPosToWorkArea } from '../../src/core/utils/sc
 import { localDateKey } from '../../src/core/utils/date'
 import { IPC, type ChildKind } from '../../src/ipc/contract'
 import { SNAP_THRESHOLD, TUCK_BAR_HEIGHT } from '../../src/core/constants'
-import { childWindowOptions } from './child-windows'
+import { GROUP_OF, childWindowOptions } from './child-windows'
 
 let win: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -232,10 +232,11 @@ function lockNonChildWindows(lock: boolean): void {
   }
 }
 
-/** 打开子窗口：屏内居中级联、位置不记忆、高度≤半屏（速查 #7） */
+/** 打开子窗口：屏内居中级联、位置不记忆、高度≤半屏（速查 #7）；尺寸按组缩放（决策#5/#24） */
 function openChildWindow(kind: ChildKind, id?: string): void {
   const wa = screen.getPrimaryDisplay().workArea
-  const placement = childWindowOptions(kind, wa, childWindows.size)
+  const groupScale = ctx.current().uiState.childScales[GROUP_OF[kind]] ?? 1
+  const placement = childWindowOptions(kind, wa, childWindows.size, groupScale)
   const child = new BrowserWindow({
     width: placement.width,
     height: placement.height,
@@ -283,6 +284,16 @@ function registerIpc(): void {
   ipcMain.handle(IPC.openChild, (_e, p: { kind: ChildKind; id?: string }) => openChildWindow(p.kind, p.id))
   ipcMain.handle(IPC.closeSelf, (e) => {
     BrowserWindow.fromWebContents(e.sender)?.close()
+  })
+
+  // 决策#7/#24：子窗口缩放=真窗口尺寸变化（渲染层 zoom 同步，主进程钳制屏宽/半屏高）
+  ipcMain.handle(IPC.resizeSelf, (e, p: { width: number; height: number }) => {
+    const w = BrowserWindow.fromWebContents(e.sender)
+    if (!w || w.isDestroyed()) return
+    const wa = screen.getPrimaryDisplay().workArea
+    const width = Math.min(Math.round(p.width), wa.width - 20)
+    const height = Math.max(120, Math.min(Math.round(p.height), Math.floor(wa.height / 2)))
+    w.setSize(width, height)
   })
 
   ipcMain.handle(IPC.setTucked, (_e, v: boolean) => {

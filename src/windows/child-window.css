@@ -1,0 +1,271 @@
+/* ============================================================
+ * 二级窗口共用骨架与设计令牌（B3，原型 v3.1.2 .win.child）
+ * 由 ChildHost.vue 引入（全局）；令牌挂在 .child-root[data-theme]。
+ * ============================================================ */
+
+.child-root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
+}
+
+.child-root[data-theme='day'] {
+  --accent: #0a63b8;
+  --accent-hover: #0d6fc9;
+  --accent-fg: #ffffff;
+  --win-bg: rgba(243, 246, 251, 0.94);
+  --card: rgba(255, 255, 255, 0.7);
+  --card-border: rgba(0, 0, 0, 0.09);
+  --field: rgba(255, 255, 255, 0.9);
+  --text: #1c1c1c;
+  --muted: #666;
+  --faint: #9a9a9a;
+  --hover: rgba(0, 0, 0, 0.05);
+  --active: rgba(0, 0, 0, 0.09);
+  --btn: rgba(255, 255, 255, 0.75);
+  --btn-border: rgba(0, 0, 0, 0.13);
+  --btn-hover: #ffffff;
+  --danger: #c42b1c;
+  --danger-hover: #a9271c; /* 决策#22 */
+  --overdue: #d13438;
+}
+
+.child-root[data-theme='night'] {
+  --accent: #4cc2ff;
+  --accent-hover: #6fcdff;
+  --accent-fg: #06131c;
+  --win-bg: rgba(30, 30, 33, 0.96);
+  --card: rgba(255, 255, 255, 0.055);
+  --card-border: rgba(255, 255, 255, 0.11);
+  --field: rgba(255, 255, 255, 0.07);
+  --text: #f0f0f0;
+  --muted: #a4a4a4;
+  --faint: #7a7a7a;
+  --hover: rgba(255, 255, 255, 0.06);
+  --active: rgba(255, 255, 255, 0.12);
+  --btn: rgba(255, 255, 255, 0.08);
+  --btn-border: rgba(255, 255, 255, 0.15);
+  --btn-hover: rgba(255, 255, 255, 0.16);
+  --danger: #c42b1c;
+  --danger-hover: #a9271c;
+  --overdue: #d13438;
+}
+
+/* ===== 窗口骨架 ===== */
+.child-window {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--win-bg);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* ===== 标题栏（36px 拖动；决策#6/#8） ===== */
+.child-window .titlebar {
+  height: 36px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 8px;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.child-window .titlebar .title,
+.child-window .titlebar .tb-title {
+  font-size: 12.5px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.child-window .titlebar .spacer {
+  flex: 1;
+}
+
+/* 标题栏按钮：← 返回 / 保存 / × 关闭（决策#6） */
+.child-window .titlebar .back,
+.child-window .titlebar .close {
+  width: 34px;
+  height: 100%;
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  -webkit-app-region: no-drag;
+}
+
+.child-window .titlebar .back:hover {
+  background: var(--hover);
+}
+
+.child-window .titlebar .close:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.child-window .titlebar .save {
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0 12px;
+  -webkit-app-region: no-drag;
+}
+
+.child-window .titlebar .save:hover {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+/* ===== 主体与页脚 ===== */
+.child-window .body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 14px 24px; /* 底部 24px：避让右下缩放角 */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.child-window .footer {
+  flex: none;
+  padding: 10px 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+/* ===== 通用控件 ===== */
+.child-window textarea,
+.child-window .input {
+  width: 100%;
+  resize: none;
+  border: 1px solid var(--btn-border);
+  border-radius: 6px;
+  background: var(--field);
+  color: var(--text);
+  padding: 9px 11px;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.6;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.child-window textarea:focus,
+.child-window .input:focus {
+  border-color: var(--accent);
+}
+
+.child-window .b {
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--btn-border);
+  border-radius: 5px;
+  background: var(--btn);
+  color: var(--text);
+  font-size: 11.5px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.child-window .b:hover:not(:disabled) {
+  background: var(--btn-hover);
+}
+
+.child-window .b:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.child-window .b.danger,
+.child-window .b.danger-ghost {
+  color: var(--danger);
+  border-color: rgba(196, 43, 28, 0.55);
+  background: transparent;
+}
+
+.child-window .b.danger:hover,
+.child-window .b.danger-ghost:hover {
+  background: rgba(196, 43, 28, 0.12); /* 决策#22：不随通用 hover 变白 */
+}
+
+.child-window .primary {
+  height: 30px;
+  padding: 0 13px;
+  border: none;
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 12.5px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.child-window .primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.child-window .primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.child-window .count {
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.child-window .count.danger {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.child-window .error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--danger);
+}
+
+.child-window .hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.child-window .meta-line {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--muted);
+  background: var(--hover);
+  border-radius: 6px;
+  padding: 7px 10px;
+  line-height: 1.5;
+}
+
+.child-window .missing {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--faint);
+  font-size: 12px;
+}

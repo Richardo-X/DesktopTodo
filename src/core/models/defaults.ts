@@ -1,11 +1,10 @@
 import type { AppData, AppSettings, UiState } from './types'
 
-/** 设置默认值（PRD §5.6：上限 10 / 24 小时制 / 中号字体 / 不自启 / 正序） */
+/** 设置默认值（PRD §5.6：上限 10 / 24 小时制 / 不自启 / 正序） */
 export function defaultSettings(): AppSettings {
   return {
     maxItems: 10,
     hour12: false,
-    fontScale: 'medium',
     autoStart: false,
     doneSort: 'asc'
   }
@@ -39,7 +38,6 @@ export function defaultAppData(): AppData {
   }
 }
 
-const FONT_SCALES = ['small', 'medium', 'large'] as const
 const DONE_SORTS = ['asc', 'desc'] as const
 
 /** 设置归一化：旧档缺字段补默认、非法枚举回退默认 */
@@ -52,7 +50,6 @@ export function normalizeSettings(raw: Partial<AppSettings> | undefined | null):
         ? Math.min(10, Math.max(1, raw.maxItems))
         : d.maxItems,
     hour12: typeof raw.hour12 === 'boolean' ? raw.hour12 : d.hour12,
-    fontScale: FONT_SCALES.includes(raw.fontScale as never) ? (raw.fontScale as AppSettings['fontScale']) : d.fontScale,
     autoStart: typeof raw.autoStart === 'boolean' ? raw.autoStart : d.autoStart,
     doneSort: DONE_SORTS.includes(raw.doneSort as never) ? (raw.doneSort as AppSettings['doneSort']) : d.doneSort
   }

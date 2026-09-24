@@ -42,7 +42,7 @@ async function onBack(): Promise<void> {
 </script>
 
 <template>
-  <div class="child-window" data-theme="day">
+  <div class="child-window">
     <header class="titlebar">
       <button class="back" data-testid="tpl-new-back" aria-label="返回" @click="onBack">←</button>
       <span class="title">新建模板</span>
@@ -75,120 +75,10 @@ async function onBack(): Promise<void> {
 </template>
 
 <style scoped>
-.child-window {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: rgba(252, 252, 253, 0.96);
-  color: #2a2f3a;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.titlebar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.back {
-  border: none;
-  background: transparent;
-  font-size: calc(var(--fs, 14px) * 16 / 14);
-  cursor: pointer;
-  color: inherit;
-}
-
-.title {
-  font-size: calc(var(--fs, 14px) * 14 / 14);
-  font-weight: 600;
-}
-
-.spacer {
-  flex: 1;
-}
-
-.body {
-  flex: 1;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.hint {
-  margin: 0 0 4px;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  opacity: 0.65;
-  line-height: 1.6;
-}
-
-.input {
-  flex: 1;
-  resize: none;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 10px;
-  padding: 10px;
-  font-size: calc(var(--fs, 14px) * 14 / 14);
-  font-family: inherit;
-  background: transparent;
-  color: inherit;
-}
-
 .meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-
-.count {
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  opacity: 0.7;
-}
-
-.count.danger {
-  color: #e5484d;
-  font-weight: 700;
-  opacity: 1;
-}
-
-.b {
-  border: none;
-  background: rgba(0, 0, 0, 0.06);
-  border-radius: 8px;
-  padding: 4px 12px;
-  cursor: pointer;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  color: inherit;
-}
-
-.error {
-  margin: 0;
-  font-size: calc(var(--fs, 14px) * 12 / 14);
-  color: #e5484d;
-}
-
-.footer {
-  padding: 12px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.primary {
-  border: none;
-  border-radius: 10px;
-  padding: 8px 18px;
-  background: #2f6fed;
-  color: #fff;
-  font-size: calc(var(--fs, 14px) * 14 / 14);
-  cursor: pointer;
-}
-
-.primary:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
 </style>
+

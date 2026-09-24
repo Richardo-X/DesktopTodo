@@ -20,6 +20,7 @@ const api = {
   setUnsavedEdits: (flag: boolean) => ipcRenderer.send('app:set-unsaved', flag),
   openChild: (params: { kind: ChildKind; id?: string }) => ipcRenderer.invoke(IPC.openChild, params),
   closeSelf: () => ipcRenderer.invoke(IPC.closeSelf),
+  resizeSelf: (params: { width: number; height: number }) => ipcRenderer.invoke(IPC.resizeSelf, params),
   setTucked: (tucked: boolean) => ipcRenderer.invoke(IPC.setTucked, tucked),
   onSnapChanged: (cb: (snapped: boolean) => void) => {
     const listener = (_e: unknown, snapped: boolean): void => cb(snapped)

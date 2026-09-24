@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useAppStore } from '../stores/app'
+import { CHILD_SIZES, GROUP_MAX, GROUP_OF } from '../../electron/main/child-windows'
 import { clampChildScale } from '../core/utils/scale'
+import { getApi } from '../services/api'
 import TodoNewWindow from './TodoNewWindow.vue'
 import TodoEditWindow from './TodoEditWindow.vue'
 import TemplateNewWindow from './TemplateNewWindow.vue'
@@ -10,6 +12,7 @@ import DetailWindow from './DetailWindow.vue'
 import HistoryWindow from './HistoryWindow.vue'
 import SettingsWindow from './SettingsWindow.vue'
 import type { ChildKind } from '../ipc/contract'
+import './child-window.css'
 
 const props = defineProps<{ kind: ChildKind; id?: string }>()
 
@@ -18,18 +21,24 @@ onMounted(() => {
   void store.init()
 })
 
-/** 子窗口缩放分组：事项类/模板类/详情与历史/设置（PRD §二；B1.5：回收站已移除） */
-const GROUP_OF: Record<string, string> = {
-  'todo-new': 'todo',
-  'todo-edit': 'todo',
-  'template-new': 'template',
-  'template-edit': 'template',
-  detail: 'todo',
-  history: 'history',
-  settings: 'settings'
-}
+/** 缩放分组：单一来源 electron/main/child-windows（B3） */
 const group = computed(() => GROUP_OF[props.kind] ?? 'todo')
 const scale = computed(() => store.uiState.childScales[group.value] ?? 1)
+
+function rendererWorkArea(): { x: number; y: number; width: number; height: number } {
+  const s = window.screen as unknown as {
+    availLeft?: number
+    availTop?: number
+    availWidth?: number
+    availHeight?: number
+  }
+  return {
+    x: s.availLeft ?? 0,
+    y: s.availTop ?? 0,
+    width: s.availWidth ?? 1920,
+    height: s.availHeight ?? 1080
+  }
+}
 
 let gripStart: { x: number; scale: number } | null = null
 
@@ -42,14 +51,13 @@ function onGripDown(e: PointerEvent): void {
 function onGripMove(e: PointerEvent): void {
   if (gripStart === null) return
   const dx = e.clientX - gripStart.x
-  const wa = {
-    x: (window.screen as unknown as { availLeft?: number }).availLeft ?? 0,
-    y: (window.screen as unknown as { availTop?: number }).availTop ?? 0,
-    width: window.screen.availWidth ?? 1920,
-    height: window.screen.availHeight ?? 1080
-  }
-  const base = { width: 600, height: 516 }
-  void store.setChildScale(group.value, clampChildScale(gripStart.scale + dx / 500, base.width, base.height, wa))
+  const max = GROUP_MAX[group.value]
+  // 组缩放按组内最大基准钳制（保证组内任一窗口都不越界）
+  const next = clampChildScale(gripStart.scale + dx / 500, max.w, max.h, rendererWorkArea())
+  void store.setChildScale(group.value, next)
+  // 决策#7/#24：真窗口尺寸变化 = 本窗口基准 × 组缩放（渲染层 zoom 与窗口 1:1）
+  const base = CHILD_SIZES[props.kind]
+  void getApi().resizeSelf({ width: Math.round(base.w * next), height: Math.round(base.h * next) })
 }
 
 function onGripUp(): void {
@@ -87,48 +95,37 @@ const page = computed(() => {
     class="child-root"
     data-testid="child-root"
     :data-theme="store.uiState.theme"
-    :data-font="store.settings.fontScale"
     :style="{ zoom: scale }"
   >
     <component :is="page" :item-id="id" />
-    <span class="child-grip" title="拖动缩放" @pointerdown.stop.prevent="onGripDown" />
+    <span class="child-grip" title="拖动缩放（同组窗口共享大小设置）" @pointerdown.stop.prevent="onGripDown" />
   </div>
 </template>
 
 <style scoped>
-.child-root {
-  width: 100vw;
-  height: 100vh;
-  background: transparent;
-}
-
-.child-root[data-font='small'] {
-  --fs: 12px;
-}
-
-.child-root[data-font='medium'] {
-  --fs: 14px;
-}
-
-.child-root[data-font='large'] {
-  --fs: 16px;
-}
-
+/* 缩放角（决策#16：与窗口圆角同弧度的弧线） */
 .child-grip {
   position: fixed;
-  right: 2px;
-  bottom: 2px;
+  right: 1px;
+  bottom: 1px;
   width: 16px;
   height: 16px;
   cursor: nwse-resize;
-  border-right: 3px solid rgba(47, 111, 237, 0.55);
-  border-bottom: 3px solid rgba(47, 111, 237, 0.55);
-  border-bottom-right-radius: 8px;
   z-index: 200;
+  opacity: 0.6;
+  transition: opacity 0.15s;
 }
 
-:global([data-theme='night']) .child-root :deep(.child-window) {
-  background: rgba(30, 33, 42, 0.96);
-  color: #e8eaf0;
+.child-grip::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  border-bottom-right-radius: 10px;
+}
+
+.child-grip:hover {
+  opacity: 1;
 }
 </style>

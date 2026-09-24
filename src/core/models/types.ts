@@ -23,9 +23,6 @@ export interface TemplateItem {
   createdAt: string
 }
 
-/** 字体三档（只改文字不改窗口） */
-export type FontScale = 'small' | 'medium' | 'large'
-
 /** 已完成/历史页排序（默认正序，两页共用） */
 export type DoneSort = 'asc' | 'desc'
 
@@ -33,7 +30,6 @@ export interface AppSettings {
   /** 待办数量上限 1~10，默认 10；不可低于当前待办数量 */
   maxItems: number
   hour12: boolean
-  fontScale: FontScale
   autoStart: boolean
   doneSort: DoneSort
 }

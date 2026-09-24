@@ -61,8 +61,10 @@ describe('childWindowOptions', () => {
     expect(b.y).toBeGreaterThan(a.y)
   })
 
-  it('正常屏幕下高度不放大', () => {
-    const o = childWindowOptions('history', WA, 0)
+  it('正常屏幕下高度不放大（工作区半屏 ≥ 窗口基准高）', () => {
+    // 历史窗基准高 540，需半屏 ≥ 540 的屏幕（可用高 ≥1080）
+    const tall = { x: 0, y: 40, width: 1920, height: 1200 }
+    const o = childWindowOptions('history', tall, 0)
     expect(o.height).toBe(CHILD_SIZES['history'].h)
   })
 
@@ -77,9 +79,13 @@ describe('childWindowOptions', () => {
     expect(o2.height).toBe(300) // min(720, 600/2)
   })
 
-  it('B3 组缩放缺省为 1（既有调用兼容）', () => {
-    const o = childWindowOptions('history', WA, 0)
+  it('B3 组缩放缺省为 1（既有调用兼容；矮屏上半屏钳制生效）', () => {
+    const tall = { x: 0, y: 40, width: 1920, height: 1200 }
+    const o = childWindowOptions('history', tall, 0)
     expect(o.width).toBe(560)
     expect(o.height).toBe(540)
+
+    const oShort = childWindowOptions('history', WA, 0)
+    expect(oShort.height).toBe(520) // min(540, 1040/2)
   })
 })
