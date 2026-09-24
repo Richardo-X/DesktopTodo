@@ -308,6 +308,7 @@ input[type="date"]{font-size:calc(11.5px * var(--fs))}
 .todo-row.selrow{border-color:var(--accent);background:var(--hover)}
 .selbox{width:19px;height:19px;flex:none;border:1.5px solid var(--cb-border);border-radius:50%;display:flex;align-items:center;justify-content:center;color:transparent;cursor:pointer}
 .selbox.on{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.selbox:hover{border-color:var(--accent)}
 .selbox svg{width:11px;height:11px;stroke-width:3}
 .batch-bar{flex:none;display:flex;align-items:center;gap:10px;margin-top:8px;padding:8px 10px;border:1px solid var(--accent);border-radius:8px;background:var(--hover);font-size:calc(12px * var(--fs));color:var(--muted)}
 .checkbox:disabled,.plusbox:disabled{opacity:.35;cursor:default}
@@ -637,10 +638,10 @@ function undoBatchDelete(){
 function todoRowHTML(t){
   const inBatch=batch.mode==='todos', sel=inBatch&&batch.sel.has(t.id);
   return `<div class="todo-row ${sel?'selrow':''}" data-id="${t.id}">
-    ${inBatch?`<span class="selbox ${sel?'on':''}">${I.check}</span>`:`<div class="grip" title="按住拖动调整顺序">${I.grip}</div>`}
+    ${inBatch?`<span class="selbox ${sel?'on':''}" title="${sel?'取消选择':'选择'}">${I.check}</span>`:`<div class="grip" title="按住拖动调整顺序">${I.grip}</div>`}
     <div class="tt"><span class="tt-in" data-full="${esc(t.content)}">${esc(t.content)}</span></div>
     ${t.overdue?'<span class="tag overdue">逾期</span>':''}
-    <button class="checkbox" title="标记完成" ${inBatch?'disabled':''}>${I.check}</button>
+    ${inBatch?'':`<button class="checkbox" title="标记完成">${I.check}</button>`}
   </div>`;
 }
 function doneRowHTML(it,interactive){
@@ -664,9 +665,9 @@ function histRowHTML(it,batchOn,sel){
 function tplRowHTML(t){
   const inBatch=batch.mode==='templates', sel=inBatch&&batch.sel.has(t.id);
   return `<div class="todo-row ${sel?'selrow':''}" data-id="${t.id}">
-    ${inBatch?`<span class="selbox ${sel?'on':''}">${I.check}</span>`:`<div class="grip" title="按住拖动调整顺序">${I.grip}</div>`}
+    ${inBatch?`<span class="selbox ${sel?'on':''}" title="${sel?'取消选择':'选择'}">${I.check}</span>`:`<div class="grip" title="按住拖动调整顺序">${I.grip}</div>`}
     <div class="tt"><span class="tt-in" data-full="${esc(t.content)}">${esc(t.content)}</span></div>
-    <button class="plusbox" title="添加到待办列表" ${inBatch?'disabled':''}>${I.plus}</button>
+    ${inBatch?'':`<button class="plusbox" title="添加到待办列表">${I.plus}</button>`}
   </div>`;
 }
 
