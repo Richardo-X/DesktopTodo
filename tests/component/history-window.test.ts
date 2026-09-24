@@ -28,11 +28,22 @@ function seed() {
 
 /** T33 历史记录窗口（PRD §七：按天翻阅/日期选择/回到今天/只读/批量删除/导出） */
 describe('T33 历史记录窗口', () => {
-  it('默认今天：当日条数；空提示；「回到今天」可用', async () => {
+  it('默认今天：仅显示已归档记录，不合并当天已完成（决策#15）→ 无归档则空提示', async () => {
     const { wrapper } = await mountWithStore(HistoryWindow, seed())
     expect(wrapper.find('[data-testid="hist-date-label"]').text()).toContain(TODAY_KEY)
-    expect(wrapper.find('[data-testid="hist-count"]').text()).toBe('1 条')
-    expect(wrapper.find('[data-testid="hist-empty"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="hist-count"]').text()).toBe('0 条')
+    expect(wrapper.find('[data-testid="hist-empty"]').text()).toBe('该日期暂无已完成事项')
+  })
+
+  it('导出口径不变：含今天已完成（PRD F1，决策#15）', async () => {
+    const { wrapper, api } = await mountWithStore(HistoryWindow, seed())
+    await wrapper.find('[data-testid="hist-export-from"]').setValue(TODAY_KEY)
+    await wrapper.find('[data-testid="hist-export-to"]').setValue(TODAY_KEY)
+    await wrapper.find('[data-testid="hist-export"]').trigger('click')
+    await flushPromises()
+    expect(api.savedCsv).toHaveLength(1)
+    // 视图只显示归档（决策#15），但导出仍包含今天已完成
+    expect(api.savedCsv[0].content).toContain('今天完成')
   })
 
   it('空日期显示空提示', async () => {
