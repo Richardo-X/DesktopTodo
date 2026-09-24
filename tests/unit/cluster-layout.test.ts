@@ -4,7 +4,8 @@ import {
   BASE_GAP,
   clusterBaseWidth,
   clusterBounds,
-  effectiveClusterScale
+  effectiveClusterScale,
+  anchoredMainX
 } from '../../src/core/utils/cluster-layout'
 import { MIN_SCALE } from '../../src/core/constants'
 
@@ -51,6 +52,31 @@ describe('clusterBounds 簇尺寸', () => {
       width: Math.round(1102 * 0.8),
       height: Math.round(640 * 0.8)
     })
+  })
+})
+
+describe('anchoredMainX 展开锚定（第二轮反馈：以待办窗口为中心向两边展开）', () => {
+  const ALL = { quickVisible: true, doneVisible: true }
+
+  it('打开快捷面板：窗口 x 左移 316×scale，主窗面板原地不动', () => {
+    // 之前无快捷面板（offset 0），现在 offset=316 → x = 100 - 316×0.8
+    expect(anchoredMainX(100, { quickVisible: false, doneVisible: false }, { quickVisible: true, doneVisible: false }, 0.8)).toBe(
+      100 - (BASE_PANEL.quick + BASE_GAP) * 0.8
+    )
+  })
+
+  it('关闭快捷面板：窗口 x 右移，主窗面板回到原位', () => {
+    expect(anchoredMainX(100, ALL, { quickVisible: false, doneVisible: true }, 1)).toBe(100 + 316)
+  })
+
+  it('仅切换已完成面板：主窗不动，x 不变', () => {
+    expect(anchoredMainX(100, { quickVisible: true, doneVisible: false }, { quickVisible: true, doneVisible: true }, 1)).toBe(100)
+    expect(anchoredMainX(100, { quickVisible: false, doneVisible: true }, { quickVisible: false, doneVisible: false }, 1)).toBe(100)
+  })
+
+  it('缩放变化但面板开关不变：x 不变（缩放由左缘锚定）', () => {
+    // anchoredMainX 不感知缩放变化本身（scale 作为参数只影响偏移量计算）
+    expect(anchoredMainX(100, ALL, ALL, 0.7)).toBe(100)
   })
 })
 
