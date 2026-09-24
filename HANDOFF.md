@@ -17,7 +17,8 @@
 - **v1.0.0 已发布**：tag `v1.0.0` + GitHub Release（DesktopTodo-Setup/Portable-1.0.0.exe）。用户已完成第一轮人工验收
 - **HEAD = 173c052** = v1.0.0 代码基线（a102ec1）+ 纯文档/原型提交：
   - 5fe9206 P0：验收反馈落入 PRD/需求文档/开发计划（v1.1 变更记录 7 条）
-  - 6fe4ed3 / 173c052：原型底本 + 交互原型 v3.1（经两轮评审，用户已确认"暂时没有问题"）
+  - 6fe4ed3 / 173c052 / c149f00 / 4827484 / 967a61a / 5bee942 / d236dfe / 44bd4e2 / b91e27a / ff7361a：原型底本 + 交互原型 v3.1（经多轮评审修订，**2026-09-24 用户确认定稿，作为 UI 参考**）
+  - 原型评审全部反馈已折入：决策 #13~#20 与本文件第 4 节工作分解
 - **真实 UI 代码未动**：工作区干净，等于 v1.0.0 交付代码。v1.0.1 的全部代码实施由新会话（你）执行
 - 用户已确认原型的功能裁定：**设置页 6 项（PRD 功能 + 原型样式延展）**；回收站窗口为原型语言新造
 
@@ -65,7 +66,8 @@
 - `src/panels/AppShell.vue` 重构：stage+cluster 结构；cluster 固定基准尺寸、`zoom: clusterScale`；设计令牌（日 `--accent:#0a63b8` / 夜 `#4cc2ff`、win/card/btn/seg 等全套，来源 docs/交互原型-v3.1.html 的 :root 与 .win/.titlebar/.wbtn/.resize-grip/.btn/.scroll 样式，可直接照抄）
 - HomePanel（470 宽）：标题栏拖动区+五按钮（wbtn）、时钟居中分钟制、两行 actions 网格（⚡快捷添加｜☑已完成 / 计数chip｜批量删除｜＋accent）、卡片式事项行（.todo-row 卡片+边框 hover）、右下 resize-grip→`updateUiState({clusterScale})`（主进程 commit 后 syncMainBounds 已按 clusterBounds 改窗口尺寸，二者天然 1:1）
 - 拖拽排序（`src/components/useDragSort.ts`）：改为**相邻增量交换**（决策#13）——替换现"越过中线才换位"的 idx 统计算法；注意 src/components/useDragSort.ts 的 handleMove 目前移动不取消（符合），但换位阈值需从中线改为触碰相邻 4px；模板列表同步
-- QuickPanel（310）/DonePanel（272）：原型标题栏（批量删除/＋/×关闭面板、排序/×）、卡片行、底注/历史按钮
+- QuickPanel（310）/DonePanel（310）：原型标题栏（批量删除/＋/×关闭面板、排序/×）、卡片行、底注/历史按钮
+- **阴影分档（决策#19）**：主窗 `.win` 保持大阴影（`0 18px 60px rgba(5,15,35,.5)`）；快捷添加/已完成两侧面板覆盖为小阴影（`0 4px 12px rgba(5,15,35,.22)`），避免投射到主窗
 - **同时更新测试**：`tests/unit/main-layout.test.ts`（尺寸期望 1076×640 等）、`home-panel.test.ts`（时钟正则 `^\d{2}:\d{2}$`）、`app-shell.test.ts`（主题断言改查 `.cluster`）
 - 提交 `feat(v1.0.1-B2)`
 
