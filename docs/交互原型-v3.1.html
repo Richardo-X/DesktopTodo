@@ -1675,10 +1675,10 @@ function bindPanelGrip(){
 }
 function layout(){
   const d=$('#doneWin');
-  d.style.left='482px'; d.style.top='0px';
+  d.style.left='476px'; d.style.top='0px';
   d.style.display=S().doneVisible?'flex':'none';
   const q=$('#quickWin');
-  q.style.left='-322px'; q.style.top='0px';
+  q.style.left='-316px'; q.style.top='0px';
   if(q.style.display!=='none') renderQuick();
   refreshMainChips();
   requestAnimationFrame(()=>{ measureTrunc(document); updateDesktopExtent(); });
