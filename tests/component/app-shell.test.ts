@@ -25,14 +25,11 @@ describe('T21 AppShell 三面板簇', () => {
     expect(cluster.find('[data-testid="done-panel"]').exists()).toBe(true)
   })
 
-  it('缩放修复：zoom 容器按视口反比定尺寸（zoom×尺寸=视口，页面不溢出滚动）', async () => {
+  it('缩放修复：zoom 容器按内容基准尺寸定宽高（+2px 余量，zoom×尺寸=真窗口，无溢出裁切）', async () => {
     const { wrapper } = await mountWithStore(AppShell)
     const style = wrapper.find('.cluster').attributes('style') ?? ''
-    expect(style).toContain('zoom')
-    expect(style).toContain('calc(100vw /')
-    expect(style).toContain('calc(100vh /')
-    // 格式：zoom: <数值> 与成对的反比 calc 尺寸（数值一致地联动）
-    expect(style).toMatch(/zoom: [\d.]+; width: calc\(100vw \/ [\d.]+\); height: calc\(100vh \/ [\d.]+\)/)
+    // 默认全开 → 簇基准宽 1102、高 640
+    expect(style).toMatch(/zoom: [\d.]+; width: calc\(1102px \/ [\d.]+ \+ 2px\); height: calc\(640px \/ [\d.]+ \+ 2px\)/)
   })
 
   it('面板开关：关闭快捷面板后不渲染，且状态持久化', async () => {

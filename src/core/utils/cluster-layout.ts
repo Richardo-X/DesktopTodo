@@ -57,3 +57,18 @@ export function clusterBounds(scale: number, visibility: PanelVisibility): Bound
 export function effectiveClusterScale(stored: number, visibility: PanelVisibility, wa: WorkArea): number {
   return clampClusterScale(stored, { width: clusterBaseWidth(visibility), height: BASE_PANEL.height }, wa)
 }
+
+/**
+ * 展开锚定（第二轮验收反馈：以待办窗口为中心向两边展开）：
+ * 快捷添加面板在主窗左侧——其开关会改变主窗在簇内的偏移量，
+ * 窗口 x 需反向平移该偏移差，使「待办主窗」在屏幕上原地不动。
+ */
+export function anchoredMainX(
+  prevX: number,
+  prevVis: PanelVisibility,
+  nextVis: PanelVisibility,
+  scale: number
+): number {
+  const offset = (v: PanelVisibility): number => (v.quickVisible ? BASE_PANEL.quick + BASE_GAP : 0) * scale
+  return prevX + offset(prevVis) - offset(nextVis)
+}

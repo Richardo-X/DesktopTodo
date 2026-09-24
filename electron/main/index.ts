@@ -6,7 +6,7 @@ import { SystemClock } from '../../src/core/interfaces/clock'
 import { OffsetClock } from './clock'
 import type { IClock } from '../../src/core/interfaces/clock'
 import { AppContext } from './context'
-import { clusterBounds, defaultWindowOptions, effectiveClusterScale, initialPos, type PanelVisibility } from './layout'
+import { anchoredMainX, clusterBounds, defaultWindowOptions, effectiveClusterScale, initialPos, type PanelVisibility } from './layout'
 import { acquireSingleInstanceLock } from './single-instance'
 import { buildTrayContextMenu, exitConfirmMessage } from './tray-menu'
 import { trayIconPng } from './icon'
@@ -96,6 +96,7 @@ function createWindow(data: ReturnType<AppContext['current']>): void {
   win = win_
   visible = true
   currentPos = pos
+  lastPanelVis = panelVisibility()
 
   win_.on('ready-to-show', () => win_!.show())
   win_.on('moved', () => {
@@ -199,16 +200,25 @@ function quitNow(): void {
 
 const childWindows = new Set<BrowserWindow>()
 
-/** 按 uiState（缩放/面板开关/缩进）同步主窗口尺寸；位置不变（T38/T39/T43；缩放经决策#23 钳制） */
+let lastPanelVis: PanelVisibility | null = null
+
+/** 按 uiState（缩放/面板开关/缩进）同步主窗口尺寸（T38/T39/T43）；
+ * 缩放经决策#23 钳制；面板开关时以待办主窗为锚（第二轮反馈：向两边展开，主窗原地不动） */
 function syncMainBounds(): void {
   const w = safeWin()
   if (!w || !ctx) return
   const d = ctx.current()
-  const scale = effectiveClusterScale(d.uiState.clusterScale, panelVisibility(), screen.getPrimaryDisplay().workArea)
-  const b = clusterBounds(scale, panelVisibility())
+  const vis = panelVisibility()
+  const scale = effectiveClusterScale(d.uiState.clusterScale, vis, screen.getPrimaryDisplay().workArea)
+  const b = clusterBounds(scale, vis)
   const height = tucked ? TUCK_BAR_HEIGHT : b.height
   const pos = currentPos ?? w.getBounds()
-  w.setBounds({ x: pos.x, y: pos.y, width: b.width, height })
+  const wa = screen.getPrimaryDisplay().workArea
+  let x = lastPanelVis ? anchoredMainX(pos.x, lastPanelVis, vis, scale) : pos.x
+  x = Math.max(wa.x, Math.min(x, wa.x + wa.width - b.width))
+  lastPanelVis = vis
+  if (x !== pos.x) currentPos = { x, y: pos.y }
+  w.setBounds({ x, y: pos.y, width: b.width, height })
 }
 
 /** 吸附检测：窗口顶边接近工作区顶（阈值见附录 A8）→ 通知渲染层状态机 */
@@ -294,14 +304,19 @@ function registerIpc(): void {
     BrowserWindow.fromWebContents(e.sender)?.close()
   })
 
-  // 决策#7/#24：子窗口缩放=真窗口尺寸变化（渲染层 zoom 同步，主进程钳制屏宽/半屏高）
+  // 决策#7/#24：子窗口缩放=真窗口尺寸变化（渲染层 zoom 同步，主进程钳制屏宽/半屏高）。
+  // Windows 限制：resizable=false 时 setSize 缩小不生效（Electron 已知问题）→ 临时解除；
+  // 无框窗口用户本就无法系统调整大小，用户体验不受影响。
   ipcMain.handle(IPC.resizeSelf, (e, p: { width: number; height: number }) => {
     const w = BrowserWindow.fromWebContents(e.sender)
     if (!w || w.isDestroyed()) return
     const wa = screen.getPrimaryDisplay().workArea
     const width = Math.min(Math.round(p.width), wa.width - 20)
     const height = Math.max(120, Math.min(Math.round(p.height), Math.floor(wa.height / 2)))
+    const wasResizable = w.isResizable()
+    if (!wasResizable) w.setResizable(true)
     w.setSize(width, height)
+    if (!wasResizable) w.setResizable(false)
   })
 
   ipcMain.handle(IPC.setTucked, (_e, v: boolean) => {

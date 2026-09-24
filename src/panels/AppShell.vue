@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import { TUCK_BAR_HEIGHT } from '../core/constants'
-import { effectiveClusterScale } from '../core/utils/cluster-layout'
+import { BASE_PANEL, clusterBaseWidth, effectiveClusterScale } from '../core/utils/cluster-layout'
 import HomePanel from './HomePanel.vue'
 import QuickPanel from './QuickPanel.vue'
 import DonePanel from './DonePanel.vue'
@@ -35,10 +35,12 @@ const clusterScale = computed(() =>
   effectiveClusterScale(store.uiState.clusterScale, store.uiState, rendererWorkArea())
 )
 
-/** zoom 容器尺寸=视口÷缩放：zoom 会把布局尺寸再乘一次，否则 scale≠1 时内容溢出视口产生页面滚动条 */
+/** zoom 容器尺寸=内容基准÷缩放（+2px 透明余量防取整裁切圆角）：
+ * zoom 会把布局尺寸再乘一次，容器按内容基准定尺寸后 zoom×尺寸=真窗口尺寸，无溢出无裁切 */
 const clusterStyle = computed(() => {
   const s = clusterScale.value
-  return { zoom: String(s), width: `calc(100vw / ${s})`, height: `calc(100vh / ${s})` }
+  const baseW = clusterBaseWidth(store.uiState)
+  return { zoom: String(s), width: `calc(${baseW}px / ${s} + 2px)`, height: `calc(${BASE_PANEL.height}px / ${s} + 2px)` }
 })
 
 onMounted(() => {
@@ -97,9 +99,6 @@ onUnmounted(() => {
   --shadow-main: 0 18px 60px rgba(5, 15, 35, 0.5);
   --shadow-side: 0 4px 12px rgba(5, 15, 35, 0.22); /* 决策#19：两侧小阴影，不盖中间主窗 */
 
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
   color: var(--text);
   font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
 }

@@ -9,6 +9,7 @@ export {
   clusterBaseWidth,
   clusterBounds,
   effectiveClusterScale,
+  anchoredMainX,
   type PanelVisibility,
   type Bounds,
   type WorkArea

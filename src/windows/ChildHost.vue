@@ -25,10 +25,11 @@ onMounted(() => {
 const group = computed(() => GROUP_OF[props.kind] ?? 'todo')
 const scale = computed(() => store.uiState.childScales[group.value] ?? 1)
 
-/** zoom 容器尺寸=视口÷缩放：zoom 会把布局尺寸再乘一次，否则 scale≠1 时内容溢出视口（页面滚动条/角标脱离窗口） */
+/** zoom 容器尺寸=内容基准÷缩放（+2px 透明余量防取整裁切圆角）：zoom×尺寸=真窗口尺寸（决策#7/#24） */
 const rootStyle = computed(() => {
   const s = scale.value
-  return { zoom: String(s), width: `calc(100vw / ${s})`, height: `calc(100vh / ${s})` }
+  const base = CHILD_SIZES[props.kind]
+  return { zoom: String(s), width: `calc(${base.w}px / ${s} + 2px)`, height: `calc(${base.h}px / ${s} + 2px)` }
 })
 
 function rendererWorkArea(): { x: number; y: number; width: number; height: number } {
