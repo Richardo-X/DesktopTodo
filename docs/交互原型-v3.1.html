@@ -304,6 +304,11 @@ input[type="date"]{font-size:calc(11.5px * var(--fs))}
 .batch-bar{flex:none;display:flex;align-items:center;gap:10px;margin-top:8px;padding:8px 10px;border:1px solid var(--accent);border-radius:8px;background:var(--hover);font-size:calc(12px * var(--fs));color:var(--muted)}
 .checkbox:disabled,.plusbox:disabled{opacity:.35;cursor:default}
 
+/* 8) v3.1.2：窗口缩放时横向文字不换行（避免被挤成竖排） */
+.btn,.wbtn,.icon-btn,.cap-chip,.tag,.done-time,.counter,.step-btn,.seg button,
+.panel-title,.tb-left,.clock-time,.clock-date,.a-bolt,.a-chip,.a-batch,.a-done,.a-add,.a-add *,
+.foot-note,.rec-time,.batch-bar,.empty-sub,.hint-sm,.wbtn.save,.todo-row,.done-row,.tpl-row,.rec-row{white-space:nowrap}
+
 /* 6) v3.1 回收站行 */
 .rec-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:var(--card);border:1px solid var(--card-border);margin-bottom:6px}
 .rec-row:hover{border-color:var(--accent)}
@@ -922,10 +927,7 @@ function bindGrip(grip,listSel,kind){
     const timer=setTimeout(()=>{ started=true; row.classList.add('dragging'); hideBubble(); },230);
     const arr=()=> kind==='templates'?state.templates:state.todos;
     const onMove=ev=>{
-      if(!started){
-        if(Math.hypot(ev.clientX-startX,ev.clientY-startY)>7){ cleanup(); }
-        return;
-      }
+      if(!started){ return; }   // v3.1.2：长按 230ms 后进入拖动，期间移动不再取消（修复"拖拽无法使用"）
       const y=ev.clientY; let idx=0;
       nodes().forEach((n,i)=>{
         if(i===srcIdx) return;
@@ -990,7 +992,7 @@ function renderQuick(){
   b.innerHTML=`
     <div class="panel-head">
       <span class="panel-title">模板 · ${state.templates.length}/${MAX_TPL}</span>
-      <button class="btn sm" id="tplBatchBtn">${I.trash}<span>批量</span></button>
+      <button class="btn sm" id="tplBatchBtn">${I.trash}<span>批量删除</span></button>
       <button class="icon-btn accent" id="tplAdd" title="新建模板">${I.plus}</button>
     </div>
     <div class="scroll" id="tplList">
@@ -1178,16 +1180,13 @@ function openTEdit(id){
   if(isNew){
     openChild('tedit-new',{title:'新建模板',group:'tpl',w:360,h:360,back:true,noClose:true,onBack:()=>tNewBack('tedit-new'),render:(b)=>{
       b.innerHTML=`
-        <div class="meta-line">将常用待办保存为模板，点击条目右侧 ＋ 即可快速加入待办。</div>
-        <div class="ta-wrap">
-          <textarea maxlength="${CHAR_LIMIT}" rows="5" id="tInput" placeholder="输入模板内容…"></textarea>
-          <button class="corner-btn" id="tClear" title="清空输入内容">清空</button>
-        </div>
+        <textarea maxlength="${CHAR_LIMIT}" rows="5" id="tInput" placeholder="输入模板内容…"></textarea>
         <div class="counter" id="tCnt">0/${CHAR_LIMIT}</div>
         <div class="form-actions">
-          <button class="btn primary" id="tCreate" disabled>${I.plus}<span>新建</span></button>
-        </div>
-        <div class="meta-line" style="margin-top:8px">有内容时「新建」可用，成功新建后自动返回上一级；点左上角 ‹ 返回会询问是否退出（不保存）。</div>`;
+          <button class="btn" id="tClear">清空</button>
+          <span class="spacer"></span>
+          <button class="btn primary" id="tCreate" disabled>新建模板</button>
+        </div>`;
       const inp=b.querySelector('#tInput'), cnt=b.querySelector('#tCnt'), cbtn=b.querySelector('#tCreate');
       const upd=()=>{ cnt.textContent=`${inp.value.length}/${CHAR_LIMIT}`; cbtn.disabled=!inp.value.trim(); };
       inp.addEventListener('input',upd); upd();
@@ -1457,13 +1456,6 @@ function openSettings(){
       </div>
       <div class="divider"></div>
       <div class="form-row">
-        <div class="form-label"><b>字体大小</b><span>小 / 中 / 大三档，只调整文字大小；窗口大小请用边框拖拽调整（主窗口右下角、各小窗口右下角）</span></div>
-        <div class="seg" id="fsSeg">
-          ${FONT_SPECS.map(s=>`<button data-v="${s.v}" class="${nearestFontSpec(S().fontScale).v===s.v?'on':''}">${s.label}</button>`).join('')}
-        </div>
-      </div>
-      <div class="divider"></div>
-      <div class="form-row">
         <div class="form-label"><b>导入历史记录</b><span>支持本软件导出的 CSV 格式（UTF-8）；重复记录由你选择覆盖或保留</span></div>
         <button class="btn" id="importBtn">选择文件</button>
         <input type="file" id="importFile" accept=".csv,text/csv" hidden>
@@ -1492,17 +1484,6 @@ function openSettings(){
       b.querySelector('#hourSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===btn));
       tick(); renderDone();
     });
-    // 字体大小：三档单选（小 / 中 / 大）
-    const fsSeg=b.querySelector('#fsSeg');
-    const syncFsSeg=()=>{
-      const cur=nearestFontSpec(S().fontScale).v;
-      fsSeg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',Number(x.dataset.v)===cur));
-    };
-    fsSeg.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
-      S().fontScale=Number(btn.dataset.v); save();
-      applyFontScale(); syncFsSeg();
-    });
-    syncFsSeg();
     const fi=b.querySelector('#importFile');
     b.querySelector('#importBtn').onclick=()=>fi.click();
     const asw=b.querySelector('#autoStartSw');
