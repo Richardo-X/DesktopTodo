@@ -147,12 +147,20 @@ function toggleVisibility(): void {
 function showWindow(): void {
   visible = true
   safeWin()?.show()
+  // 决策#9：显示=组件整体恢复（含全部二级窗口）
+  for (const c of childWindows) {
+    if (!c.isDestroyed()) c.show()
+  }
   refreshTrayMenu()
 }
 
 function hideToTray(): void {
   visible = false
   safeWin()?.hide()
+  // 决策#9：托盘隐藏=组件整体隐藏（含全部二级窗口）
+  for (const c of childWindows) {
+    if (!c.isDestroyed()) c.hide()
+  }
   refreshTrayMenu()
 }
 
