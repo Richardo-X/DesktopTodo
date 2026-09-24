@@ -435,7 +435,7 @@ let state=null, simOffset=0;
 const S=()=>state.settings;
 /* 设置项默认值：读取旧存档时补齐缺失字段，避免出现 NaN 之类的问题 */
 function defaults(){ return {maxItems:10,hour12:false,doneVisible:true,topMost:false,zoom:1,fontScale:1,   /* fontScale：小/中/大三档，1 = 中 */
-  panelScale:1,tplScale:1,itemScale:1,histScale:1,setScale:1,tuckLock:false,autoStart:false,recycleKeep:'never'}; }   /* tuckLock：缩进锁定，开启后吸附边缘但不缩进 */
+  panelScale:1,tplScale:1,itemScale:1,histScale:1,setScale:1,tuckLock:false,autoStart:false}; }   /* tuckLock：缩进锁定，开启后吸附边缘但不缩进 */
 
 function seed(){
   const yd=dateOfMs(nowMs()-DAY), yd2=dateOfMs(nowMs()-2*DAY);
@@ -1494,7 +1494,6 @@ function settle(){
   });
   state.todos.forEach(t=>{ t.overdue=true; });        // 昨天未完成 → 逾期；当日新建事项排在其后
   state.lastSettleDate=today;
-  purgeRecycle();
   save();
   return moved;
 }
