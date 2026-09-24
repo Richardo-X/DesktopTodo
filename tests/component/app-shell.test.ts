@@ -25,6 +25,20 @@ describe('T21 AppShell 三面板簇', () => {
     expect(cluster.find('[data-testid="done-panel"]').exists()).toBe(true)
   })
 
+  it('缩放修复：zoom 容器按视口反比定尺寸（zoom×尺寸=视口，页面不溢出滚动）', async () => {
+    const { wrapper, store } = await mountWithStore(AppShell)
+    const style = wrapper.find('.cluster').attributes('style') ?? ''
+    expect(style).toContain('zoom')
+    expect(style).toContain('calc(100vw /')
+    expect(style).toContain('calc(100vh /')
+
+    // 缩放值变化 → 反比尺寸随之变化
+    await store.updateUiState({ clusterScale: 0.9 })
+    const style2 = wrapper.find('.cluster').attributes('style') ?? ''
+    expect(style2).toContain('calc(100vw /')
+    expect(style2).not.toBe(style)
+  })
+
   it('面板开关：关闭快捷面板后不渲染，且状态持久化', async () => {
     const { wrapper, store, api } = await mountWithStore(AppShell)
     await store.updateUiState({ quickVisible: false })

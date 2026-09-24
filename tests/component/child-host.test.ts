@@ -48,6 +48,10 @@ describe('ChildHost', () => {
     const { wrapper, store } = await mountWithStore(ChildHost, seedWithTodo(), { kind: 'settings' })
     await store.setChildScale('settings', 1.2)
     const root = wrapper.find('[data-testid="child-root"]')
-    expect(String(root.attributes('style'))).toContain('zoom')
+    const style = String(root.attributes('style'))
+    expect(style).toContain('zoom')
+    // 缩放修复：容器尺寸=视口÷缩放（zoom×尺寸=视口，页面不溢出滚动）
+    expect(style).toContain('calc(100vw / 1.2)')
+    expect(style).toContain('calc(100vh / 1.2)')
   })
 })
