@@ -104,7 +104,7 @@ body{
 .wbtn:hover{background:var(--hover)}
 .wbtn.on{color:var(--accent)}   /* 开关类按钮（置顶 / 缩进锁定）的激活态 */
 .wbtn.close:hover{background:#c42b1c;color:#fff}
-.win-body{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;padding:10px 14px 14px}
+.win-body{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;padding:10px 14px 24px}   /* 底部 24px：不与右下缩放角/按钮相互遮挡 */
 
 /* ---------- 主窗口头部（时钟居中） ---------- */
 .clock{display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 0 10px}
@@ -658,7 +658,7 @@ function doneRowHTML(it,interactive){
 function histRowHTML(it,batchOn,sel){
   const ov=dateOfMs(it.createdAt)!==dateOfMs(it.completedAt);
   return `<div class="todo-row ${sel?'selrow':''}" data-key="${it.completedAt}">
-    ${batchOn?`<span class="selbox ${sel?'on':''}">${I.check}</span>`:`<span class="checkbox checked dim" title="双击查看详情">${I.check}</span>`}
+    ${batchOn?`<span class="selbox ${sel?'on':''}">${I.check}</span>`:''}
     <div class="tt"><span class="tt-in" data-full="${esc(it.content)}">${esc(it.content)}</span></div>
     ${ov?'<span class="tag overdue">逾期</span>':''}
     <span class="done-time">${fmtTime(it.completedAt)}</span>
@@ -921,26 +921,32 @@ function bindGrip(grip,listSel,kind){
     e.preventDefault(); untuck();
     const row=grip.closest('.todo-row');
     const cont=$(listSel); if(!cont) return;
-    const startX=e.clientX,startY=e.clientY;
+    const startX=e.clientX,startY=e.clientY; let lastY=e.clientY;
     let started=false, srcIdx=[...cont.children].findIndex(n=>n===row);
     const nodes=()=>[...cont.querySelectorAll('.todo-row')];
     const timer=setTimeout(()=>{ started=true; row.classList.add('dragging'); hideBubble(); },230);
     const arr=()=> kind==='templates'?state.templates:state.todos;
     const onMove=ev=>{
       if(!started){ return; }   // v3.1.2：长按 230ms 后进入拖动，期间移动不再取消（修复"拖拽无法使用"）
-      const y=ev.clientY; let idx=0;
-      nodes().forEach((n,i)=>{
-        if(i===srcIdx) return;
-        const r=n.getBoundingClientRect();
-        if(y>r.top+r.height/2) idx++;
-      });
-      if(idx!==srcIdx){
-        const ns=nodes(), src=ns[srcIdx];
-        const others=ns.filter(n=>n!==src);
-        const a=arr(); const [it]=a.splice(srcIdx,1); a.splice(idx,0,it);
-        flipRows(cont,()=>cont.insertBefore(src,others[idx]||null));
-        srcIdx=idx;
-      }
+      const y=ev.clientY;
+      const dy=y-lastY; if(Math.abs(dy)<2) return; lastY=y;
+      const swapAdj=(dir)=>{   // v3.1.1：与相邻条目交换（触碰其边缘 4px 内即换位），带 FLIP 动画
+        const ns=nodes(), src=ns[srcIdx], dst=ns[srcIdx+dir];
+        if(!dst) return;
+        const a=arr(); const tmp=a[srcIdx]; a[srcIdx]=a[srcIdx+dir]; a[srcIdx+dir]=tmp;
+        const before=new Map(ns.map(n=>[n.dataset.id||n.dataset.key, n.getBoundingClientRect().top]));
+        if(dir>0) cont.insertBefore(src, dst.nextSibling); else cont.insertBefore(src, dst);
+        srcIdx+=dir;
+        flipRows(cont, ()=>{
+          ns.forEach(n=>{ const k=n.dataset.id||n.dataset.key; const b0=before.get(k); if(b0==null) return;
+            const dy2=b0-n.getBoundingClientRect().top; if(Math.abs(dy2)<2) return;
+            n.style.transition='none'; n.style.transform=`translateY(${dy2}px)`;
+            requestAnimationFrame(()=>{ n.style.transition='transform 130ms ease'; n.style.transform=''; });
+          });
+        });
+      };
+      if(dy>0){ const below=nodes()[srcIdx+1]; if(below){ const r=below.getBoundingClientRect(); if(y>r.top+4) swapAdj(1); } }
+      else if(dy<0){ const above=nodes()[srcIdx-1]; if(above){ const r=above.getBoundingClientRect(); if(y<r.bottom-4) swapAdj(-1); } }
     };
     const cleanup=()=>{
       clearTimeout(timer);
@@ -1112,7 +1118,7 @@ function addBack(){
 function openEdit(id){
   const t=state.todos.find(x=>x.id===id);
   if(!t) return;
-  openChild('edit-'+id,{title:'编辑待办事项',group:'item',w:360,h:400,back:true,onBack:()=>tryCloseEdit('edit-'+id,t),
+  openChild('edit-'+id,{title:'编辑待办事项',group:'item',w:360,h:430,back:true,onBack:()=>tryCloseEdit('edit-'+id,t),
     saveBtn:{label:'保存',title:'保存并返回',onClick:()=>saveEdit('edit-'+id,t)},render:(b)=>{
     const original=t.content;
     b.innerHTML=`
@@ -1241,7 +1247,7 @@ function openInfo(item,fromHistory){
   if(!item) return;
   const key=(fromHistory?'h-':'c-')+item.completedAt+'-'+item.content.slice(0,8);
   const normal=dateOfMs(item.createdAt)===dateOfMs(item.completedAt);
-  openChild('info-'+encodeURIComponent(key),{title:fromHistory?'历史事项':'已完成事项',group:'item',w:360,h:400,render:(b)=>{
+  openChild('info-'+encodeURIComponent(key),{title:fromHistory?'历史事项':'已完成事项',group:'item',w:360,h:430,render:(b)=>{
     b.innerHTML=`
       <div class="meta-line">事项内容</div>
       <div class="meta-line" style="background:var(--field);font-size:13px;color:var(--text);line-height:1.7">${esc(item.content)}</div>
@@ -1336,8 +1342,8 @@ function openHistory(){
   openChild('historyWin',{title:'历史记录',group:'hist',w:560,h:540,render:renderHistory});
 }
 function getDoneForDate(ds){
-  const arr=ds===todayStr()?state.completed:(state.archive[ds]||[]);
-  return arr.slice();
+  // v3.1.1：历史记录只显示已结算归档的记录（当天已完成在“已完成”窗口，跨天结算后才进入历史）
+  return (state.archive[ds]||[]).slice();
 }
 
 /* ---------- 导出 / 导入 ---------- */
