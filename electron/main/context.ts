@@ -3,7 +3,6 @@ import type { IClock } from '../../src/core/interfaces/clock'
 import type { AppData } from '../../src/core/models/types'
 import { defaultAppData, normalizeAppData } from '../../src/core/models/defaults'
 import { settle } from '../../src/core/services/settlement'
-import { purgeExpired } from '../../src/core/services/recycle'
 import { localDateKey } from '../../src/core/utils/date'
 
 /** 跨天检测：日期键变化或从未结算 */
@@ -13,7 +12,7 @@ export function hasCrossedMidnight(lastSettleDate: string | null, nowKey: string
 
 /**
  * 应用上下文（主进程核心，脱离 Electron 可测，T20）：
- * - boot：载入 →（关机跨天）静默补结算 + 回收站清理 → 有变更落盘
+ * - boot：载入 →（关机跨天）静默补结算 → 有变更落盘
  * - commit：渲染层提交数据，合并窗口位置后持久化（防抖语义由仓储实现）
  * - flush：退出前强制落盘（唯一数据丢失风险点，before-quit 调用）
  */
@@ -79,15 +78,14 @@ export class AppContext {
     await this.repo.flush()
   }
 
-  /** 结算 + 回收站清理；返回新数据与是否有变更 */
+  /** 结算；返回新数据与是否有变更（B1.5：不再有回收站清理步骤） */
   private settleIfNeeded(data: AppData): { data: AppData; changed: boolean } {
     const now = this.clock.now()
     const todayKey = localDateKey(now)
     if (!hasCrossedMidnight(data.uiState.lastSettleDate, todayKey) && data.uiState.lastSettleDate !== null) {
       return { data, changed: false }
     }
-    const purged = purgeExpired(data, now)
-    const r = settle(purged, now)
+    const r = settle(data, now)
     return { data: r.data, changed: true }
   }
 }

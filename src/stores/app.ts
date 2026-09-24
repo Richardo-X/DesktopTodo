@@ -6,14 +6,6 @@ import { createTodoItem, DomainError } from '../core/models/factories'
 import { canAddTodo } from '../core/services/limits'
 import { markCompleted, returnToActive as returnToActiveCalc } from '../core/services/overdue'
 import { addToTodoFromTemplate, createTemplate as createTemplateSvc, updateTemplate as updateTemplateSvc } from '../core/services/templates'
-import {
-  clearRecycleBin,
-  deleteHistory as deleteHistorySvc,
-  deleteTemplate as deleteTemplateSvc,
-  deleteTodo as deleteTodoSvc,
-  permanentDelete as permanentDeleteSvc,
-  restoreEntry
-} from '../core/services/recycle'
 import { applySettings, type PatchResult } from '../core/services/settings'
 import { coverImport, exportHistoryCsv, mergeImport, parseCsv } from '../core/services/csv'
 import { localDateKey } from '../core/utils/date'
@@ -42,7 +34,6 @@ export const useAppStore = defineStore('app', () => {
   const completed = computed(() => data.value.completed)
   const archive = computed(() => data.value.archive)
   const templates = computed(() => data.value.templates)
-  const recycleBin = computed(() => data.value.recycleBin)
   const settings = computed(() => data.value.settings)
   const uiState = computed(() => data.value.uiState)
 
@@ -160,18 +151,28 @@ export const useAppStore = defineStore('app', () => {
     return { ok: true }
   }
 
-  // ---------- 删除（进回收站） ----------
+  // ---------- 删除（B1.5：删除即永久删除，不可恢复） ----------
 
   async function deleteTodo(id: string): Promise<OpResult> {
-    return finishRecycle(deleteTodoSvc(data.value, id, now()))
+    const item = data.value.todos.find((t) => t.id === id)
+    if (!item) return { ok: false, reason: 'not-found' }
+    await apply((d) => ({ ...d, todos: d.todos.filter((t) => t.id !== id) }))
+    return { ok: true }
   }
 
   async function deleteTemplate(id: string): Promise<OpResult> {
-    return finishRecycle(deleteTemplateSvc(data.value, id, now()))
+    const item = data.value.templates.find((t) => t.id === id)
+    if (!item) return { ok: false, reason: 'not-found' }
+    await apply((d) => ({ ...d, templates: d.templates.filter((t) => t.id !== id) }))
+    return { ok: true }
   }
 
   async function deleteHistory(dateKey: string, id: string): Promise<OpResult> {
-    return finishRecycle(deleteHistorySvc(data.value, dateKey, id, now()))
+    const group = data.value.archive[dateKey]
+    const item = group?.find((t) => t.id === id)
+    if (!group || !item) return { ok: false, reason: 'not-found' }
+    await apply((d) => ({ ...d, archive: { ...d.archive, [dateKey]: d.archive[dateKey].filter((t) => t.id !== id) } }))
+    return { ok: true }
   }
 
   async function batchDeleteTodos(ids: string[]): Promise<number> {
@@ -188,27 +189,6 @@ export const useAppStore = defineStore('app', () => {
       if ((await deleteHistory(dateKey, id)).ok) n++
     }
     return n
-  }
-
-  // ---------- 回收站 ----------
-
-  async function restore(entryId: string): Promise<OpResult> {
-    const r = restoreEntry(data.value, entryId)
-    return finishRecycle(r)
-  }
-
-  async function permanentDelete(entryId: string): Promise<OpResult> {
-    return finishRecycle(permanentDeleteSvc(data.value, entryId))
-  }
-
-  async function clearBin(): Promise<void> {
-    await apply((d) => clearRecycleBin(d))
-  }
-
-  async function finishRecycle(r: { ok: true; data: AppData } | { ok: false; reason: string }): Promise<OpResult> {
-    if (!r.ok) return { ok: false, reason: r.reason }
-    await apply(() => r.data)
-    return { ok: true }
   }
 
   // ---------- 设置与界面记忆 ----------
@@ -271,7 +251,6 @@ export const useAppStore = defineStore('app', () => {
     completed,
     archive,
     templates,
-    recycleBin,
     settings,
     uiState,
     init,
@@ -290,9 +269,6 @@ export const useAppStore = defineStore('app', () => {
     deleteHistory,
     batchDeleteTodos,
     batchDeleteHistory,
-    restore,
-    permanentDelete,
-    clearBin,
     updateSettings,
     updateUiState,
     setChildScale,

@@ -1,13 +1,12 @@
 import type { AppData, AppSettings, UiState } from './types'
 
-/** 设置默认值（PRD §5.7：上限 10 / 24 小时制 / 中号字体 / 不自启 / 回收站永不清理 / 正序） */
+/** 设置默认值（PRD §5.6：上限 10 / 24 小时制 / 中号字体 / 不自启 / 正序） */
 export function defaultSettings(): AppSettings {
   return {
     maxItems: 10,
     hour12: false,
     fontScale: 'medium',
     autoStart: false,
-    recycleKeep: 'never',
     doneSort: 'asc'
   }
 }
@@ -35,7 +34,6 @@ export function defaultAppData(): AppData {
     completed: [],
     archive: {},
     templates: [],
-    recycleBin: [],
     settings: defaultSettings(),
     uiState: defaultUiState()
   }
@@ -43,7 +41,6 @@ export function defaultAppData(): AppData {
 
 const FONT_SCALES = ['small', 'medium', 'large'] as const
 const DONE_SORTS = ['asc', 'desc'] as const
-const RECYCLE_KEEPS = [7, 30, 'never'] as const
 
 /** 设置归一化：旧档缺字段补默认、非法枚举回退默认 */
 export function normalizeSettings(raw: Partial<AppSettings> | undefined | null): AppSettings {
@@ -57,9 +54,6 @@ export function normalizeSettings(raw: Partial<AppSettings> | undefined | null):
     hour12: typeof raw.hour12 === 'boolean' ? raw.hour12 : d.hour12,
     fontScale: FONT_SCALES.includes(raw.fontScale as never) ? (raw.fontScale as AppSettings['fontScale']) : d.fontScale,
     autoStart: typeof raw.autoStart === 'boolean' ? raw.autoStart : d.autoStart,
-    recycleKeep: RECYCLE_KEEPS.includes(raw.recycleKeep as never)
-      ? (raw.recycleKeep as AppSettings['recycleKeep'])
-      : d.recycleKeep,
     doneSort: DONE_SORTS.includes(raw.doneSort as never) ? (raw.doneSort as AppSettings['doneSort']) : d.doneSort
   }
 }
@@ -106,7 +100,6 @@ export function normalizeAppData(raw: unknown): AppData {
         ? (r.archive as AppData['archive'])
         : d.archive,
     templates: Array.isArray(r.templates) ? r.templates : d.templates,
-    recycleBin: Array.isArray(r.recycleBin) ? r.recycleBin : d.recycleBin,
     settings: normalizeSettings(r.settings),
     uiState: normalizeUiState(r.uiState)
   }

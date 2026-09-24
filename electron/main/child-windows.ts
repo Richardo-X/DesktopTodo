@@ -2,7 +2,7 @@ import type { ChildKind } from '../../src/ipc/contract'
 
 export type { ChildKind }
 
-/** 子窗口默认尺寸（DIP；速查 #7：高度一律 ≤ 屏幕高度一半，宽度 ≤ 屏宽） */
+/** 子窗口默认尺寸（DIP；速查 #7：高度一律 ≤ 屏幕高度一半，宽度 ≤ 屏宽；B1.5：无回收站） */
 export const CHILD_SIZES: Record<ChildKind, { w: number; h: number }> = {
   'todo-new': { w: 380, h: 340 },
   'todo-edit': { w: 380, h: 420 },
@@ -10,8 +10,7 @@ export const CHILD_SIZES: Record<ChildKind, { w: number; h: number }> = {
   'template-edit': { w: 380, h: 380 },
   detail: { w: 360, h: 340 },
   history: { w: 600, h: 516 },
-  settings: { w: 460, h: 516 },
-  recycle: { w: 520, h: 520 }
+  settings: { w: 460, h: 516 }
 }
 
 export interface WorkArea {

@@ -9,7 +9,6 @@ import TemplateEditWindow from './TemplateEditWindow.vue'
 import DetailWindow from './DetailWindow.vue'
 import HistoryWindow from './HistoryWindow.vue'
 import SettingsWindow from './SettingsWindow.vue'
-import RecycleWindow from './RecycleWindow.vue'
 import type { ChildKind } from '../ipc/contract'
 
 const props = defineProps<{ kind: ChildKind; id?: string }>()
@@ -19,7 +18,7 @@ onMounted(() => {
   void store.init()
 })
 
-/** 子窗口缩放分组：事项类/模板类/详情与历史/设置/回收站（PRD §二） */
+/** 子窗口缩放分组：事项类/模板类/详情与历史/设置（PRD §二；B1.5：回收站已移除） */
 const GROUP_OF: Record<string, string> = {
   'todo-new': 'todo',
   'todo-edit': 'todo',
@@ -27,8 +26,7 @@ const GROUP_OF: Record<string, string> = {
   'template-edit': 'template',
   detail: 'todo',
   history: 'history',
-  settings: 'settings',
-  recycle: 'history'
+  settings: 'settings'
 }
 const group = computed(() => GROUP_OF[props.kind] ?? 'todo')
 const scale = computed(() => store.uiState.childScales[group.value] ?? 1)
@@ -76,8 +74,6 @@ const page = computed(() => {
       return HistoryWindow
     case 'settings':
       return SettingsWindow
-    case 'recycle':
-      return RecycleWindow
     default:
       return null
   }

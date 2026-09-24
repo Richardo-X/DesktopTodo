@@ -111,6 +111,6 @@ describe('useAppStore', () => {
 
     await store.deleteTemplate('tpl1')
     expect(store.templates).toHaveLength(1)
-    expect(store.recycleBin).toBeUndefined() // 回收站整体退场
+    expect('recycleBin' in store.data).toBe(false) // 回收站整体退场
   })
 })

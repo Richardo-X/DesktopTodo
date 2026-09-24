@@ -68,7 +68,7 @@ async function onSave(): Promise<void> {
 
 async function onDelete(): Promise<void> {
   if (item.value === undefined) return
-  const ok = await ui.confirm('确定删除这条待办吗？删除后将进入回收站。')
+  const ok = await ui.confirm('确定删除这条待办吗？删除后无法恢复。')
   if (!ok) return
   const r = await store.deleteTodo(item.value.id)
   if (r.ok) {

@@ -2,14 +2,6 @@ import type { AppData } from '../models/types'
 import { localDateKey } from '../utils/date'
 import { recalcActiveOverdue } from './overdue'
 
-export interface SettleOptions {
-  /**
-   * 回收站到期清理回调（由应用层注入 RecycleService.purgeExpired；
-   * 结算与清理同事务执行，见 PRD §7.4 跨天结算）。
-   */
-  purgeRecycle?: (data: AppData) => AppData
-}
-
 export interface SettleResult {
   /** 结算后的新数据（不可变，原数据不改） */
   data: AppData
@@ -29,7 +21,7 @@ export interface SettleResult {
  * - 幂等：同一天重复调用零移动
  * - 不产生任何用户通知（返回纯数据结果）
  */
-export function settle(data: AppData, now: Date, opts: SettleOptions = {}): SettleResult {
+export function settle(data: AppData, now: Date): SettleResult {
   const todayKey = localDateKey(now)
 
   let archivedCount = 0
@@ -60,8 +52,6 @@ export function settle(data: AppData, now: Date, opts: SettleOptions = {}): Sett
     archive,
     uiState: { ...data.uiState, lastSettleDate: todayKey }
   }
-
-  if (opts.purgeRecycle) next = opts.purgeRecycle(next)
 
   return {
     data: next,

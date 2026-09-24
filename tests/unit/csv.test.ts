@@ -15,7 +15,6 @@ import {
 } from '../../src/core/models'
 
 const TODAY = '2026-09-21'
-const NOW = new Date(2026, 8, 21, 12, 0, 0)
 
 /** 以本地日期时间分量构造 ISO 串 */
 function localIso(y: number, mo: number, d: number, h = 0, mi = 0, s = 0): string {

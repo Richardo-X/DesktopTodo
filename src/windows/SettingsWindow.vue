@@ -4,7 +4,6 @@ import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { clampMaxItems } from '../core/services/limits'
-import type { RecycleKeepDays } from '../core/models/types'
 
 const store = useAppStore()
 const ui = useUiStore()
@@ -38,7 +37,7 @@ async function setFont(scale: 'small' | 'medium' | 'large'): Promise<void> {
 async function importCsv(mode: 'cover' | 'merge'): Promise<void> {
   importError.value = ''
   if (mode === 'cover') {
-    const ok = await ui.confirm('覆盖导入将清空现有全部历史记录（含当天已完成），被清掉的内容不会进入回收站。确定继续吗？')
+    const ok = await ui.confirm('覆盖导入将清空现有全部历史记录（含当天已完成），被清掉的内容将直接消失、无法恢复。确定继续吗？')
     if (!ok) return
   }
   const r = await store.importCsv(mode === 'cover' ? 'cover' : 'merge')
@@ -50,11 +49,6 @@ async function importCsv(mode: 'cover' | 'merge'): Promise<void> {
 // —— 5. 开机自启 ——
 async function toggleAutoStart(): Promise<void> {
   await store.updateSettings({ autoStart: !store.settings.autoStart })
-}
-
-// —— 6. 回收站 ——
-async function setRecycleKeep(days: RecycleKeepDays): Promise<void> {
-  await store.updateSettings({ recycleKeep: days })
 }
 </script>
 
@@ -106,16 +100,6 @@ async function setRecycleKeep(days: RecycleKeepDays): Promise<void> {
         <button class="b" data-testid="set-autostart-btn" @click="toggleAutoStart">
           {{ store.settings.autoStart ? '已开启' : '已关闭' }}
         </button>
-      </section>
-
-      <section class="item" data-testid="set-recycle">
-        <span class="label">回收站</span>
-        <div class="row">
-          <button class="b" data-testid="set-recycle-keep7" :class="{ active: store.settings.recycleKeep === 7 }" @click="setRecycleKeep(7)">7 天清理</button>
-          <button class="b" data-testid="set-recycle-keep30" :class="{ active: store.settings.recycleKeep === 30 }" @click="setRecycleKeep(30)">30 天清理</button>
-          <button class="b" data-testid="set-recycle-never" :class="{ active: store.settings.recycleKeep === 'never' }" @click="setRecycleKeep('never')">永不清理</button>
-          <button class="b link" data-testid="set-recycle-open" @click="ui.openChild('recycle')">打开回收站</button>
-        </div>
       </section>
     </div>
 

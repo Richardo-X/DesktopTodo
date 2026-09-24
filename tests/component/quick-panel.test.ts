@@ -68,7 +68,7 @@ describe('T29 快捷添加面板', () => {
     await wrapper.find('[data-testid="confirm-ok"]').trigger('click')
     await flushPromises()
     expect(store.templates).toHaveLength(0)
-    expect(store.recycleBin).toBeUndefined() // 回收站整体退场
+    expect('recycleBin' in store.data).toBe(false) // 回收站整体退场
   })
 
   it('模板拖拽排序后持久化', async () => {

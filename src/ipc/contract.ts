@@ -24,7 +24,7 @@ export const IPC = {
   minimizeToTray: 'window:minimize-to-tray'
 } as const
 
-/** 子窗口种类（PRD §2.1） */
+/** 子窗口种类（PRD §2.1；B1.5：回收站窗口已移除） */
 export type ChildKind =
   | 'todo-new'
   | 'todo-edit'
@@ -33,7 +33,6 @@ export type ChildKind =
   | 'detail'
   | 'history'
   | 'settings'
-  | 'recycle'
 
 export interface WindowPos {
   x: number

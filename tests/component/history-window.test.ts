@@ -87,7 +87,7 @@ describe('T33 历史记录窗口', () => {
     await wrapper.find('[data-testid="confirm-ok"]').trigger('click')
     await flushPromises()
     expect(store.archive[D10]).toHaveLength(1)
-    expect(store.recycleBin).toBeUndefined() // 回收站整体退场
+    expect('recycleBin' in store.data).toBe(false) // 回收站整体退场
   })
 
   it('导出：选起止日期 → 系统另存为（文件名与内容表头正确）', async () => {

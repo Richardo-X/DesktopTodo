@@ -15,7 +15,7 @@ const allIds = (): string[] => {
 
 async function onDelete(): Promise<void> {
   const count = ui.selectedIds.length
-  const ok = await ui.confirm(`确定删除所选的 ${count} 项吗？删除后将进入回收站。`)
+  const ok = await ui.confirm(`确定删除所选的 ${count} 项吗？删除后无法恢复。`)
   if (!ok) return
   if (props.target === 'templates') await store.batchDeleteTemplates([...ui.selectedIds])
   else if (props.target === 'history') await store.batchDeleteHistory(props.historyDateKey ?? '', [...ui.selectedIds])

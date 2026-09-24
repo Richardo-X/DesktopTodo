@@ -1,4 +1,4 @@
-import type { RecycleEntry, RecycleEntryType, TemplateItem, TodoItem } from './types'
+import type { TemplateItem, TodoItem } from './types'
 
 /** 内容校验失败原因（UI 层映射为 PRD 原文提示，附录 A11） */
 export type ContentError = 'empty-content' | 'too-long'
@@ -46,19 +46,5 @@ export function createTemplateItem(params: { content: string; now: Date; id?: st
     id: params.id ?? crypto.randomUUID(),
     content: assertValidContent(params.content),
     createdAt: params.now.toISOString()
-  }
-}
-
-export function createRecycleEntry(params: {
-  type: RecycleEntryType
-  payload: TodoItem | TemplateItem
-  deletedAt: Date
-  id?: string
-}): RecycleEntry {
-  return {
-    id: params.id ?? crypto.randomUUID(),
-    type: params.type,
-    payload: params.payload,
-    deletedAt: params.deletedAt.toISOString()
   }
 }

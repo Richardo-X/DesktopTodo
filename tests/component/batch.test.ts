@@ -14,7 +14,7 @@ function seedTodos() {
   }
 }
 
-/** T25 批量删除：多选状态机 + 确认后进回收站（PRD §5.2/验收 14） */
+/** T25 批量删除：多选状态机 + 确认后直接删除（PRD §5.2/验收 14；B1.5 起无回收站） */
 describe('T25 批量删除模式', () => {
   it('进入批量模式：批量条出现，行显示选择圈，点击行=选中/取消', async () => {
     const { wrapper } = await mountWithStore(AppShell, seedTodos())
@@ -62,7 +62,7 @@ describe('T25 批量删除模式', () => {
     await flushPromises()
     expect(store.todos).toHaveLength(1)
     expect(store.todos[0].id).toBe('t2')
-    expect(store.recycleBin).toBeUndefined() // 回收站整体退场
+    expect('recycleBin' in store.data).toBe(false) // 回收站整体退场
     expect(wrapper.find('[data-testid="batch-bar"]').exists()).toBe(false)
   })
 

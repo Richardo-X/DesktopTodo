@@ -306,7 +306,7 @@ export function mergeImport(
 
 /**
  * 覆盖导入（F9，附录 A1）：清空 completed + archive 全部（含当天已完成）后按落位导入；
- * 被清掉的数据直接消失，不进回收站（导入前 UI 已有确认框）。
+ * 被清掉的数据直接消失、无法恢复（导入前 UI 已有确认框；B1.5：无回收站）。
  */
 export function coverImport(
   data: AppData,

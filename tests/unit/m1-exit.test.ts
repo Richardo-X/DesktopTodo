@@ -11,7 +11,7 @@ import {
 } from '../../src/core/utils/date'
 import { MemoryRepository } from '../../src/core/repositories/memory'
 import { FileRepository, type FileIo } from '../../src/core/repositories/file'
-import { defaultAppData, normalizeUiState, createTodoItem, createTemplateItem } from '../../src/core/models'
+import { defaultAppData, normalizeUiState, createTodoItem } from '../../src/core/models'
 import { isActiveOverdue, returnToActive } from '../../src/core/services/overdue'
 import { settle } from '../../src/core/services/settlement'
 import { canAddTodo, maxItemsBounds } from '../../src/core/services/limits'

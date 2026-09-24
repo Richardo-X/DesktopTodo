@@ -23,22 +23,8 @@ export interface TemplateItem {
   createdAt: string
 }
 
-export type RecycleEntryType = 'todo' | 'template' | 'history'
-
-/** 回收站条目：被删内容原样保存在 payload，deletedAt 起算清理时限 */
-export interface RecycleEntry {
-  id: string
-  type: RecycleEntryType
-  payload: TodoItem | TemplateItem
-  /** ISO 8601 UTC */
-  deletedAt: string
-}
-
 /** 字体三档（只改文字不改窗口） */
 export type FontScale = 'small' | 'medium' | 'large'
-
-/** 回收站自动清理时限（天）；'never' = 永不 */
-export type RecycleKeepDays = 7 | 30 | 'never'
 
 /** 已完成/历史页排序（默认正序，两页共用） */
 export type DoneSort = 'asc' | 'desc'
@@ -49,7 +35,6 @@ export interface AppSettings {
   hour12: boolean
   fontScale: FontScale
   autoStart: boolean
-  recycleKeep: RecycleKeepDays
   doneSort: DoneSort
 }
 
@@ -85,7 +70,6 @@ export interface AppData {
   /** 历史记录：按完成日（本地日期键）归档 */
   archive: Record<string, TodoItem[]>
   templates: TemplateItem[]
-  recycleBin: RecycleEntry[]
   settings: AppSettings
   uiState: UiState
 }

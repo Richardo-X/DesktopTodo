@@ -68,7 +68,7 @@ describe('T27 编辑事项窗口', () => {
     await wrapper.find('[data-testid="confirm-ok"]').trigger('click')
     await flushPromises()
     expect(store.todos).toHaveLength(0)
-    expect(store.recycleBin).toBeUndefined() // 回收站整体退场
+    expect('recycleBin' in store.data).toBe(false) // 回收站整体退场
     expect(api.closeSelfCalls).toBe(1)
   })
 
