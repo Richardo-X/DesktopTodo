@@ -12,3 +12,9 @@ blob-report/
 
 # ZCode 工作区配置
 .zcode/
+.repro-*.png
+.repro-data/
+.repro-*.mjs
+.pkg-err.log
+.pkg-out.log
+.proto-check.js
