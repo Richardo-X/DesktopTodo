@@ -2,9 +2,42 @@ import { test, expect } from '@playwright/test'
 import { spawn } from 'node:child_process'
 import { resolve } from 'node:path'
 import { launchApp } from './helpers'
+import { createTodoItem } from '../../src/core/models'
 
 const ELECTRON_EXE = resolve('node_modules/electron/dist/electron.exe')
 const APP_MAIN = resolve('out/main/index.js')
+
+function doneItems(n: number) {
+  return Array.from({ length: n }, (_, i) => {
+    const item = createTodoItem({ content: `已完成${i + 1}`, now: new Date(), id: `d${i}` })
+    return { ...item, completedAt: new Date().toISOString() }
+  })
+}
+
+/** 二轮反馈：滚动条出现在「列表与窗口边框之间」的专用带（12px），行宽不因滚动条出现/消失而变化（无挤压无覆盖） */
+test('已完成窗滚动条不挤压行：溢出/不溢出两种状态行宽一致', async () => {
+  const measure = async (n: number): Promise<{ gutter: number; rowW: number }> => {
+    const h = await launchApp({ seed: { completed: doneItems(n) } })
+    const m = await h.main.evaluate(() => {
+      const list = document.querySelector('[data-testid="done-panel"] .scroll')
+      const row = document.querySelector('[data-testid="done-row"]')
+      if (!list || !row) return null
+      return { clientW: list.clientWidth, rowW: Math.round(row.getBoundingClientRect().width) }
+    })
+    await h.close()
+    if (!m) throw new Error('已完成列表缺失')
+    return { gutter: m.clientW - m.rowW, rowW: m.rowW }
+  }
+
+  const overflow = await measure(12) // 溢出：滚动条出现
+  const fit = await measure(1) // 不溢出：无滚动条
+
+  // 两种状态下行宽完全一致 → 滚动条只在专用带内出现，不影响行
+  expect(overflow.gutter).toBe(12)
+  expect(fit.gutter).toBe(12)
+  expect(overflow.rowW).toBe(fit.rowW)
+})
+
 
 /** B5（决策#7/#24）：resizeSelf 真窗口双向缩放——放大与缩小都必须改变 OS 窗口尺寸 */
 test('resizeSelf 双向缩放：设置窗 400 → 300 → 440 → 360', async () => {
