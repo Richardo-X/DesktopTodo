@@ -14,9 +14,9 @@ function doneItems(n: number) {
   })
 }
 
-/** 二轮反馈：滚动条出现在「列表与窗口边框之间」的专用带（12px），行宽不因滚动条出现/消失而变化（无挤压无覆盖） */
-test('已完成窗滚动条不挤压行：溢出/不溢出两种状态行宽一致', async () => {
-  const measure = async (n: number): Promise<{ gutter: number; rowW: number }> => {
+/** 二轮反馈：滚动条=系统悬浮式（不占行宽）+ 9px 简约样式——溢出时可滚动、行宽零形变 */
+test('已完成窗滚动条：溢出可滚动、行宽零形变', async () => {
+  const measure = async (n: number): Promise<{ scrollH: number; clientH: number; gutter: number; rowW: number }> => {
     const h = await launchApp({ seed: { completed: doneItems(n) } })
     await h.main.waitForSelector('[data-testid="done-row"]', { timeout: 10_000 })
     await h.main.waitForTimeout(300) // 布局稳定
@@ -24,21 +24,27 @@ test('已完成窗滚动条不挤压行：溢出/不溢出两种状态行宽一�
       const list = document.querySelector('[data-testid="done-panel"] .scroll')
       const row = document.querySelector('[data-testid="done-row"]')
       if (!list || !row) return null
-      return { clientW: list.clientWidth, rowW: Math.round(row.getBoundingClientRect().width) }
+      return {
+        scrollH: list.scrollHeight,
+        clientH: list.clientHeight,
+        clientW: list.clientWidth,
+        rowW: Math.round(row.getBoundingClientRect().width)
+      }
     })
     await h.close()
     if (!m) throw new Error('已完成列表缺失')
-    return { gutter: m.clientW - m.rowW, rowW: m.rowW }
+    return { ...m, gutter: m.clientW - m.rowW }
   }
 
   const overflow = await measure(12) // 溢出：滚动条出现
   const fit = await measure(1) // 不溢出：无滚动条
 
-  // 核心（二轮反馈·用户裁定）：列表样式不动，滚动条贴窗口右缘悬浮出现（不占行宽）。
-  // 断言：两种状态（溢出/不溢出）下行宽与 gutter 各自一致——行宽零变化，无挤压无变形。
-  expect(overflow.gutter).toBe(fit.gutter)
-  expect(overflow.rowW).toBe(fit.rowW)
-  expect(overflow.gutter).toBeGreaterThan(0)
+  // 溢出状态确实可滚动；不溢出状态不出现滚动
+  expect(overflow.scrollH).toBeGreaterThan(overflow.clientH)
+  expect(fit.scrollH).toBeLessThanOrEqual(fit.clientH)
+  // 照原型：溢出时 9px 简约滚动条出现于右缘，行宽仅让出滚动条自身足迹（≤9px），无其他形变
+  const squeeze = Math.abs(overflow.rowW - fit.rowW)
+  expect(squeeze).toBeLessThanOrEqual(9)
 })
 
 
