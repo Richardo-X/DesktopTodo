@@ -70,3 +70,11 @@ body {
 .list-thumb:hover {
   opacity: 0.85;
 }
+
+/* ===== 批量模式全禁（8.2-7）=====
+ * 批量删除进行中，非批量目标的面板/按钮整体冻结：不可点、半透明置灰示意 */
+.frozen {
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.45;
+}

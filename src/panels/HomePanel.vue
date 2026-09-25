@@ -171,17 +171,17 @@ async function onComplete(id: string): Promise<void> {
 
 <template>
   <section class="panel home-panel" data-testid="home-panel">
-    <!-- 决策#8：标题栏拖动窗口；按钮区 no-drag -->
+    <!-- 决策#8：标题栏拖动窗口；按钮区 no-drag；8.2-7：批量进行中禁用 -->
     <header class="titlebar">
       <div class="win-actions">
-        <button data-testid="tb-theme" class="wbtn" title="日/夜主题切换" @click="toggleTheme">
+        <button data-testid="tb-theme" class="wbtn" :class="{ frozen: ui.batchMode }" title="日/夜主题切换" @click="toggleTheme">
           {{ store.uiState.theme === 'day' ? '☾' : '☀' }}
         </button>
-        <button data-testid="tb-settings" class="wbtn" title="设置" @click="ui.openChild('settings')">⚙</button>
+        <button data-testid="tb-settings" class="wbtn" :class="{ frozen: ui.batchMode }" title="设置" @click="ui.openChild('settings')">⚙</button>
         <button
           data-testid="tb-tucklock"
           class="wbtn"
-          :class="{ on: store.uiState.tuckLock }"
+          :class="{ on: store.uiState.tuckLock, frozen: ui.batchMode }"
           title="缩进锁定"
           @click="toggleTuckLock"
         >
@@ -190,7 +190,7 @@ async function onComplete(id: string): Promise<void> {
         <button
           data-testid="tb-topmost"
           class="wbtn"
-          :class="{ on: store.uiState.topMost }"
+          :class="{ on: store.uiState.topMost, frozen: ui.batchMode }"
           title="窗口置顶"
           @click="toggleTopMost"
         >
@@ -198,7 +198,7 @@ async function onComplete(id: string): Promise<void> {
         </button>
       </div>
       <div class="win-actions right">
-        <button data-testid="tb-minimize" class="wbtn" title="缩小到通知栏" @click="getApi().minimizeToTray()">×</button>
+        <button data-testid="tb-minimize" class="wbtn" :class="{ frozen: ui.batchMode }" title="缩小到通知栏" @click="getApi().minimizeToTray()">×</button>
       </div>
     </header>
 
@@ -212,7 +212,7 @@ async function onComplete(id: string): Promise<void> {
         <button
           class="icon-btn a-bolt"
           data-testid="op-quick-toggle"
-          :class="{ on: store.uiState.quickVisible }"
+          :class="{ on: store.uiState.quickVisible, frozen: ui.batchMode }"
           title="快捷添加"
           @click="toggleQuick"
         >
@@ -221,15 +221,15 @@ async function onComplete(id: string): Promise<void> {
         <button
           class="icon-btn a-done"
           data-testid="op-done-toggle"
-          :class="{ on: store.uiState.doneVisible }"
+          :class="{ on: store.uiState.doneVisible, frozen: ui.batchMode }"
           title="已完成"
           @click="toggleDone"
         >
           ☑
         </button>
         <span class="cap-chip a-chip" data-testid="op-count">{{ countText }}</span>
-        <button class="btn sm a-batch" data-testid="op-batch" @click="ui.enterBatch('todos')">批量删除</button>
-        <button class="icon-btn accent a-add" data-testid="op-new" title="新建待办" @click="ui.openChild('todo-new')">＋</button>
+        <button class="btn sm a-batch" data-testid="op-batch" :class="{ frozen: ui.batchMode }" @click="ui.enterBatch('todos')">批量删除</button>
+        <button class="icon-btn accent a-add" data-testid="op-new" :class="{ frozen: ui.batchMode }" title="新建待办" @click="ui.openChild('todo-new')">＋</button>
       </div>
 
       <div v-if="store.todos.length > 0" ref="listEl" class="scroll">

@@ -40,7 +40,7 @@ function fmtDone(iso: string | null): string {
 </script>
 
 <template>
-  <section class="panel side-panel" data-testid="done-panel">
+  <section class="panel side-panel" data-testid="done-panel" :class="{ frozen: ui.batchMode }">
     <!-- 决策#8：标题栏拖动；× 隐藏面板 -->
     <header class="titlebar">
       <span class="tb-title">已完成</span>

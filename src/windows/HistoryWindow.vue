@@ -88,7 +88,7 @@ async function doExport(): Promise<void> {
     </header>
 
     <div class="body">
-      <div class="nav">
+      <div class="nav" data-testid="hist-nav" :class="{ frozen: ui.batchMode }">
         <button class="b" data-testid="hist-prev" @click="prevDay">前一天</button>
         <input
           type="date"
@@ -152,7 +152,7 @@ async function doExport(): Promise<void> {
 
       <BatchBar v-if="ui.batchTarget === 'history'" target="history" :history-date-key="currentDate" />
 
-      <div class="export">
+      <div class="export" data-testid="hist-export-zone" :class="{ frozen: ui.batchMode }">
         <span class="label">导出</span>
         <input type="date" class="date" data-testid="hist-export-from" v-model="exportFrom" />
         <span class="label">至</span>

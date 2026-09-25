@@ -85,7 +85,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="panel side-panel" data-testid="quick-panel">
+  <section class="panel side-panel" data-testid="quick-panel" :class="{ frozen: ui.batchMode && ui.batchTarget !== 'templates' }">
     <!-- 决策#8：标题栏拖动；× 关闭面板 -->
     <header class="titlebar">
       <span class="tb-title">快捷添加</span>
