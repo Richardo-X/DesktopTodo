@@ -15,8 +15,8 @@ function doneItems(n: number) {
 }
 
 /** 二轮反馈：滚动条=系统悬浮式（不占行宽）+ 9px 简约样式——溢出时可滚动、行宽零形变 */
-test('已完成窗滚动条：溢出可滚动、行宽零形变', async () => {
-  const measure = async (n: number): Promise<{ scrollH: number; clientH: number; gutter: number; rowW: number }> => {
+test('已完成窗滚动条：溢出可滚动、行宽零形变、自绘滑块按需出现', async () => {
+  const measure = async (n: number): Promise<{ scrollH: number; clientH: number; gutter: number; rowW: number; thumbShown: boolean | null }> => {
     const h = await launchApp({ seed: { completed: doneItems(n) } })
     await h.main.waitForSelector('[data-testid="done-row"]', { timeout: 10_000 })
     await h.main.waitForTimeout(300) // 布局稳定
@@ -24,11 +24,13 @@ test('已完成窗滚动条：溢出可滚动、行宽零形变', async () => {
       const list = document.querySelector('[data-testid="done-panel"] .scroll')
       const row = document.querySelector('[data-testid="done-row"]')
       if (!list || !row) return null
+      const thumb = document.querySelector('[data-testid="done-thumb"]')
       return {
         scrollH: list.scrollHeight,
         clientH: list.clientHeight,
         clientW: list.clientWidth,
-        rowW: Math.round(row.getBoundingClientRect().width)
+        rowW: Math.round(row.getBoundingClientRect().width),
+        thumbShown: thumb ? getComputedStyle(thumb).display !== 'none' : false
       }
     })
     await h.close()
@@ -39,12 +41,15 @@ test('已完成窗滚动条：溢出可滚动、行宽零形变', async () => {
   const overflow = await measure(12) // 溢出：滚动条出现
   const fit = await measure(1) // 不溢出：无滚动条
 
+  // 自绘滑块：溢出时显示、不溢出时隐藏
+  expect(overflow.thumbShown).toBe(true)
+  expect(fit.thumbShown).toBe(false)
+
   // 溢出状态确实可滚动；不溢出状态不出现滚动
   expect(overflow.scrollH).toBeGreaterThan(overflow.clientH)
   expect(fit.scrollH).toBeLessThanOrEqual(fit.clientH)
-  // 照原型：溢出时 9px 简约滚动条出现于右缘，行宽仅让出滚动条自身足迹（≤9px），无其他形变
-  const squeeze = Math.abs(overflow.rowW - fit.rowW)
-  expect(squeeze).toBeLessThanOrEqual(9)
+  // 原生滚动条已隐藏：行宽恒定，不受滚动影响
+  expect(overflow.gutter).toBe(fit.gutter)
 })
 
 

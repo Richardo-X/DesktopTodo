@@ -55,6 +55,13 @@ describe('T31 已完成面板', () => {
     expect(btn.attributes('title')).toContain('倒序')
   })
 
+  it('二轮反馈：自绘悬浮滚动条——溢出列表显示滑块，原生滚动条隐藏', async () => {
+    const items = Array.from({ length: 12 }, (_, i) => doneToday(`d${i}`, '1', 8 + (i % 8)))
+    const { wrapper } = await mountWithStore(DonePanel, { completed: items })
+    expect(wrapper.find('[data-testid="done-thumb"]').exists()).toBe(true) // 自绘滑块
+    expect(wrapper.find('[data-testid="done-panel"] .scroll').classes()).toContain('hide-native-bar') // 原生滚动条隐藏
+  })
+
   it('勾选框反选退回待办', async () => {
     const { wrapper, store } = await mountWithStore(DonePanel, { completed: [doneToday('a', '喝水', 8)] })
     await wrapper.find('[data-testid="done-check"]').trigger('click')
