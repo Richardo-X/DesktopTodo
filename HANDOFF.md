@@ -190,12 +190,12 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 
 | # | 项 | 状态与要点 |
 |---|-----|-----------|
-| 1 | **二级窗口初始尺寸加大** | ✅ 用户未及回复，按其此前建议的 +15% 方案实施并已在验收报告标注：todo-new 410×410、todo-edit 460×490、template-new 410×410、template-edit 410×435、detail 415×490、history 645×620、settings 460×540；PRD v1.1 变更记录#5 已同步（**如需调整数值，改 CHILD_SIZES + tests/unit/child-windows.test.ts + PRD 附录三处**） |
+| 1 | **二级窗口初始尺寸加大** | ✅ 已按 +15% 方案随 v1.0.2 发布（todo-new 410×410、todo-edit 460×490、template-new 410×410、template-edit 410×435、detail 415×490、history 645×620、settings 460×540）；**用户指示：待其对最新版成品验证后再定是否调整**（改 CHILD_SIZES + tests/unit/child-windows.test.ts + PRD 附录三处） |
 | 2 | **置顶改为「整个组件含二级窗口」** | ✅ 子窗口创建/ready-to-show 带 alwaysOnTop（与主窗同 screen-saver 层级）；开关同步主窗+全部子窗；托盘恢复/单实例唤起后重应用；主窗构造期+show 后双点应用。「重启丢失」在本机 E2E 未复现（可能为用户环境时序），已做防御性修复并以三条 E2E 覆盖（置顶时子窗同步置顶/重启保持/托盘恢复保持）；假死根因（子窗无置顶被模态锁定压身+后）已修 |
-| 3 | **批量删除进行中禁用其他组件操作** | ✅ 用户未及回复，按推荐「全禁」方案实施：批量期间仅当前批量列表行点选+批量条可操作；主窗标题栏 5 按钮+操作区 4 按钮冻结、另两面板整面板冻结、历史翻页/日期/导出区冻结（`.frozen`：pointer-events:none + 45% 透明，src/styles/global.css）（**如需缩小范围，改各组件的 frozen 绑定条件**） |
+| 3 | **批量删除进行中禁用其他组件操作** | ✅ **用户已确认「全禁」**：批量期间仅当前批量列表行点选+批量条可操作；主窗标题栏 5 按钮+操作区 4 按钮冻结、另两面板整面板冻结、历史翻页/日期/导出区冻结（`.frozen`：pointer-events:none + 45% 透明，src/styles/global.css） |
 | 4 | **导入/导出文件对话框关闭后，二级窗口掉到一级窗口之后** | ✅ `refocusChildWindows`（window-state.ts）：saveCsv/openCsv handler finally 中 moveTop 全部子窗+focus 发起窗口 |
 | 5 | **模板「＋」快速连点误触编辑** | ✅ plusbox 加 `@dblclick.stop` |
-| 6 | **未选中事项点「删除所选」也弹确认框** | ✅ 用户未及回复，按推荐「批量条内红字」实施：BatchBar 前置判断 count===0 → 提示「没有选择要删除的事项」（3 秒自动消失/选中即清），不弹确认框（**如需改弹窗形式，改 BatchBar.onDelete**） |
+| 6 | **未选中事项点「删除所选」也弹确认框** | ✅ **用户已定稿「按钮禁用」方案（v1.0.3）**：一行未选时「删除所选」disabled 置灰不可点，至少选中一项才可点击；BatchBar `:disabled="ui.selectedIds.length===0"`（取代 v1.0.2 短暂采用的红字提示方案）；PRD §5.2/需求文档 §三已同步 |
 | 7 | **表单类子窗口提交按钮在左下角** | ✅ child-window.css `.footer` 补 `justify-content:flex-end` |
 | 8 | Win+D 显示桌面最小化组件 | 记录备查、暂不优化（§8.2-7） |
 | 9 | **v1.0.2 收尾发版** | ✅ 升版 1.0.2 → `npm run dist` → 冒烟通过（scripts/smoke.ps1）→ tag v1.0.2 → CI 绿 → Release 发布（ASCII 资产名）→ docs/验收报告.md v1.0.2 章节 |
