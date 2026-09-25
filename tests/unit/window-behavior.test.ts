@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clampClusterScale, clampChildScale } from '../../src/core/utils/scale'
+import { clampClusterScale } from '../../src/core/utils/scale'
 import { MIN_SCALE, SNAP_THRESHOLD, TUCK_BAR_HEIGHT, TUCK_DELAY_MS } from '../../src/core/constants'
 import {
   initialTuckState,
@@ -50,14 +50,7 @@ describe('clampClusterScale', () => {
   })
 })
 
-/** T40 子窗口分组等比缩放同规则 */
-describe('clampChildScale', () => {
-  it('与簇同规则：半屏高/屏宽/MIN_SCALE 钳制', () => {
-    expect(clampChildScale(2, 600, 560, WA)).toBeCloseTo(520 / 560, 6)
-    expect(clampChildScale(0.3, 600, 560, WA)).toBe(MIN_SCALE)
-    expect(clampChildScale(1, 600, 516, WA)).toBe(1)
-  })
-})
+/** 二级窗口组缩放已改照原型规则（clampChildGroupScale，见 cluster-layout.test）；主簇缩放钳制沿用半屏口径（决策#23） */
 
 /** T41/§5-I 缩进状态机（I1-I6） */
 describe('tuck 状态机', () => {

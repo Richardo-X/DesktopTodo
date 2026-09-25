@@ -44,14 +44,12 @@ describe('ChildHost', () => {
     expect(wrapper.find('[data-testid="child-root"]').attributes('data-font')).toBeUndefined()
   })
 
-  it('B3：组缩放渲染为 zoom 且随 childScales 变化（决策#24）', async () => {
+  it('B3→二轮反馈：子窗口内容不再 zoom（照原型流式 reflow），窗口尺寸由 resizeSelf 承担', async () => {
     const { wrapper, store } = await mountWithStore(ChildHost, seedWithTodo(), { kind: 'settings' })
     await store.setChildScale('settings', 1.2)
     const root = wrapper.find('[data-testid="child-root"]')
     const style = String(root.attributes('style'))
-    expect(style).toContain('zoom')
-    // 缩放修复：容器尺寸=窗口内容基准÷缩放（settings 400×470；zoom×尺寸=真窗口）
-    expect(style).toContain('calc(400px / 1.2 + 2px)')
-    expect(style).toContain('calc(470px / 1.2 + 2px)')
+    expect(style).not.toContain('zoom')
+    expect(style).not.toContain('calc(')
   })
 })
