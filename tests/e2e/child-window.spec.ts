@@ -142,3 +142,27 @@ test('托盘隐藏同步隐藏全部子窗口，单实例唤起同步恢复', as
   second.kill()
   await h.close()
 })
+
+/** 8.2-6：表单类子窗口底部提交按钮右对齐（.footer justify-content:flex-end，B3 样式精简时丢失） */
+test('表单类子窗口提交按钮右对齐', async () => {
+  const h = await launchApp()
+  const sp = h.app.waitForEvent('window')
+  await h.main.click('[data-testid="op-new"]')
+  const child = await sp
+  await child.waitForSelector('[data-testid="new-input"]')
+
+  const jc = await child.evaluate(
+    () => getComputedStyle(document.querySelector('.child-window .footer') as Element).justifyContent
+  )
+  expect(jc).toBe('flex-end')
+
+  // 提交按钮贴右侧：按钮右缘与 footer 内容右缘对齐（留 footer 内边距）
+  const gap = await child.evaluate(() => {
+    const footer = document.querySelector('.child-window .footer') as Element
+    const btn = document.querySelector('[data-testid="new-submit"]') as Element
+    return Math.round(footer.getBoundingClientRect().right - btn.getBoundingClientRect().right)
+  })
+  expect(gap).toBeGreaterThanOrEqual(0)
+  expect(gap).toBeLessThanOrEqual(20) // 仅 footer 内边距量级，非贴左
+  await h.close()
+})
