@@ -28,6 +28,14 @@ function seed() {
 
 /** T33 历史记录窗口（PRD §七：按天翻阅/日期选择/回到今天/只读/批量删除/导出） */
 describe('T33 历史记录窗口', () => {
+  it('批量进行中：翻页/日期/导出区冻结，仅批量行与批量条可操作（8.2-7 全禁）', async () => {
+    const { wrapper } = await mountWithStore(HistoryWindow, seed())
+    await wrapper.find('[data-testid="hist-batch"]').trigger('click')
+    expect(wrapper.find('[data-testid="hist-nav"]').classes()).toContain('frozen')
+    expect(wrapper.find('[data-testid="hist-export-zone"]').classes()).toContain('frozen')
+    expect(wrapper.find('[data-testid="batch-bar"]').classes()).not.toContain('frozen')
+  })
+
   it('默认定位当天的前一天（历史口径：不显示今天；前一天为空就显示空）', async () => {
     const { wrapper } = await mountWithStore(HistoryWindow, seed())
     const yesterdayKey = key(M, T.getDate() - 1)

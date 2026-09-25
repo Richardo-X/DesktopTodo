@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 import QuickPanel from '../../src/panels/QuickPanel.vue'
 import AppShell from '../../src/panels/AppShell.vue'
 import { mountWithStore } from '../helpers/mount'
+import { useUiStore } from '../../src/stores/ui'
 import { createTemplateItem, createTodoItem } from '../../src/core/models'
 
 function tpl(id: string, content: string) {
@@ -52,6 +53,18 @@ describe('T29 快捷添加面板', () => {
 
     await wrapper.find('[data-testid="quick-new"]').trigger('click')
     expect(api.openChildCalls).toContainEqual({ kind: 'template-new' })
+  })
+
+  it('其他列表批量进行中：快捷添加面板整面板冻结（8.2-7 全禁）；自身批量时不冻结', async () => {
+    const { wrapper } = await mountWithStore(QuickPanel, { templates: [tpl('a', '喝水')] })
+    const ui = useUiStore()
+    ui.enterBatch('todos')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="quick-panel"]').classes()).toContain('frozen')
+
+    ui.enterBatch('templates')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="quick-panel"]').classes()).not.toContain('frozen')
   })
 
   it('连点「＋」不触发行双击→不弹编辑模板窗口（8.2-5：plusbox dblclick 不冒泡）', async () => {

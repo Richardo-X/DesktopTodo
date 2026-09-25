@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 import DonePanel from '../../src/panels/DonePanel.vue'
 import DetailWindow from '../../src/windows/DetailWindow.vue'
 import { mountWithStore } from '../helpers/mount'
+import { useUiStore } from '../../src/stores/ui'
 import { createTodoItem } from '../../src/core/models'
 
 const T = new Date()
@@ -15,6 +16,15 @@ function doneToday(id: string, content: string, hour: number, overdue = false) {
 
 /** T31 已完成面板（PRD §六：反选退回/详情/排序切换/历史按钮/空提示） */
 describe('T31 已完成面板', () => {
+  it('批量进行中：已完成面板整面板冻结（8.2-7 全禁——反选/排序/历史入口均不可点）', async () => {
+    const { wrapper } = await mountWithStore(DonePanel, { completed: [doneToday('a', '喝水', 8)] })
+    const ui = useUiStore()
+    expect(wrapper.find('[data-testid="done-panel"]').classes()).not.toContain('frozen')
+    ui.enterBatch('todos')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="done-panel"]').classes()).toContain('frozen')
+  })
+
   it('标题"已完成 · N"；行含勾选框/内容/逾期标签/完成时间', async () => {
     const { wrapper } = await mountWithStore(DonePanel, {
       completed: [doneToday('a', '喝水', 8), doneToday('b', '运动', 9, true)]

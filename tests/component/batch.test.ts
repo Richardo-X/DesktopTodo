@@ -112,4 +112,19 @@ describe('T25 批量删除模式', () => {
     await flushPromises()
     expect(store.todos).toHaveLength(3)
   })
+
+  it('批量进行中禁用其余组件（8.2-7 全禁）：标题栏与操作区按钮置 frozen，批量条可用', async () => {
+    const { wrapper } = await mountWithStore(AppShell, seedTodos())
+    await wrapper.find('[data-testid="op-batch"]').trigger('click')
+
+    for (const tid of ['tb-theme', 'tb-settings', 'tb-tucklock', 'tb-topmost', 'tb-minimize', 'op-quick-toggle', 'op-done-toggle', 'op-new', 'op-batch']) {
+      expect(wrapper.find(`[data-testid="${tid}"]`).classes()).toContain('frozen')
+    }
+    // 批量条自身不被冻结
+    expect(wrapper.find('[data-testid="batch-bar"]').classes()).not.toContain('frozen')
+
+    // 退出批量后恢复
+    await wrapper.find('[data-testid="batch-cancel"]').trigger('click')
+    expect(wrapper.find('[data-testid="tb-theme"]').classes()).not.toContain('frozen')
+  })
 })
