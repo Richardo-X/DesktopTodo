@@ -43,11 +43,12 @@ test('验收16/18：跨过0点 → 未完成挂逾期标签、昨日完成归档
   // 昨日完成归档：已完成面板清空
   await expect(main.locator('[data-testid="done-row"]')).toHaveCount(0)
 
-  // 历史记录里能看到归档条目（今天键=真实今天）
+  // 历史记录里能看到归档条目（默认定位昨天=用户裁定；归档日=真实今天 → 显式导航）
   const histPromise = h.app.waitForEvent('window')
   await main.click('[data-testid="done-history"]')
   const hist = await histPromise
   await hist.waitForSelector('[data-testid="hist-count"]')
+  await hist.fill('[data-testid="hist-date-input"]', dateKeyOffset(0))
   await expect(hist.locator('[data-testid="hist-count"]')).toHaveText('1 条')
   await expect(hist.locator('[data-testid="hist-row"]')).toHaveCount(1)
   await h.close()

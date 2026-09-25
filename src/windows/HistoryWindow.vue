@@ -15,7 +15,8 @@ const store = useAppStore()
 const ui = useUiStore()
 
 const todayKey = localDateKey(new Date())
-const currentDate = ref(todayKey)
+// 历史口径（用户裁定）：打开默认定位「当天的前一天」；前一天为空就显示空
+const currentDate = ref(shiftDateKey(todayKey, -1))
 const exportFrom = ref('')
 const exportTo = ref('')
 const exportError = ref('')

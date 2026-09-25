@@ -28,9 +28,10 @@ function seed() {
 
 /** T33 历史记录窗口（PRD §七：按天翻阅/日期选择/回到今天/只读/批量删除/导出） */
 describe('T33 历史记录窗口', () => {
-  it('默认今天：仅显示已归档记录，不合并当天已完成（决策#15）→ 无归档则空提示', async () => {
+  it('默认定位当天的前一天（历史口径：不显示今天；前一天为空就显示空）', async () => {
     const { wrapper } = await mountWithStore(HistoryWindow, seed())
-    expect(wrapper.find('[data-testid="hist-date-label"]').text()).toContain(TODAY_KEY)
+    const yesterdayKey = key(M, T.getDate() - 1)
+    expect(wrapper.find('[data-testid="hist-date-label"]').text()).toContain(yesterdayKey)
     expect(wrapper.find('[data-testid="hist-count"]').text()).toBe('0 条')
     expect(wrapper.find('[data-testid="hist-empty"]').text()).toBe('该日期暂无已完成事项')
   })
