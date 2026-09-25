@@ -84,7 +84,7 @@ function onCheckboxClick(): void {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 10px;
+  padding: 8px 10px;
   border-radius: 8px;
   background: var(--card, rgba(255, 255, 255, 0.7));
   border: 1px solid var(--card-border, rgba(0, 0, 0, 0.09));

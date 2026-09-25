@@ -47,8 +47,37 @@ function fmtDone(iso: string | null): string {
     <div class="win-body">
       <div class="panel-head">
         <span class="panel-title" data-testid="done-title">{{ title }}</span>
-        <button class="icon-btn" data-testid="done-sort" :title="store.settings.doneSort === 'asc' ? '切换倒序' : '切换正序'" @click="toggleSort">
-          {{ store.settings.doneSort === 'asc' ? '↑' : '↓' }}
+        <button
+          class="icon-btn"
+          data-testid="done-sort"
+          :title="store.settings.doneSort === 'asc' ? '当前正序，点击切换为倒序' : '当前倒序，点击切换为正序'"
+          @click="toggleSort"
+        >
+          <!-- 原型同款排序图标（升序/降序） -->
+          <svg
+            v-if="store.settings.doneSort === 'asc'"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M7 20V6M7 6l-3 3M7 6l3 3" />
+            <path d="M13 5h8M13 10h6M13 15h4" />
+          </svg>
+          <svg
+            v-else
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M7 4v14M7 18l-3-3M7 18l3-3" />
+            <path d="M13 5h8M13 10h6M13 15h4" />
+          </svg>
         </button>
       </div>
 
@@ -177,6 +206,11 @@ function fmtDone(iso: string | null): string {
 
 .icon-btn:hover {
   background: var(--btn-hover);
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .error {
