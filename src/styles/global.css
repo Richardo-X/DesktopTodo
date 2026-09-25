@@ -35,3 +35,38 @@ body {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ===== 自绘悬浮滚动条（二轮反馈）=====
+ * 原生滚动条移出布局（行宽与滚动条彻底解耦），滑块绘制在列表与窗口边框之间的专用带 */
+.hide-native-bar {
+  scrollbar-width: none;
+}
+
+.hide-native-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.list-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.list-wrap > .hide-native-bar {
+  height: 100%;
+}
+
+.list-thumb {
+  position: absolute;
+  right: 3px;
+  width: 5px;
+  border-radius: 99px;
+  background: var(--muted, #666);
+  opacity: 0.45;
+  cursor: pointer;
+  z-index: 5;
+}
+
+.list-thumb:hover {
+  opacity: 0.85;
+}

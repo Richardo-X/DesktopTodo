@@ -5,6 +5,7 @@ import { useUiStore } from '../stores/ui'
 import BatchBar from '../components/BatchBar.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { getApi } from '../services/api'
+import { useOverlayThumb } from '../components/useOverlayThumb'
 import { shiftDateKey, localDateKey } from '../core/utils/date'
 
 function pad(n: number): string {
@@ -20,6 +21,10 @@ const currentDate = ref(shiftDateKey(todayKey, -1))
 const exportFrom = ref('')
 const exportTo = ref('')
 const exportError = ref('')
+
+// 自绘悬浮滚动条（二轮反馈）：滑块位于右缘专用带，行宽不受影响
+const listEl = ref<HTMLElement | null>(null)
+const thumb = useOverlayThumb(listEl)
 
 const earliest = computed(() => {
   const keys = Object.keys(store.archive).sort()
@@ -105,34 +110,45 @@ async function doExport(): Promise<void> {
         <span data-testid="hist-count">{{ items.length }} 条</span>
       </div>
 
-      <!-- 决策#15：正常模式不渲染勾选框；决策#25：批量模式行尾同款勾选框选中示意 -->
-      <div v-if="items.length > 0" class="list">
-        <div
-          v-for="t in items"
-          :key="t.id"
-          class="hist-row"
-          data-testid="hist-row"
-          :data-id="t.id"
-          :class="{ selrow: ui.batchMode && ui.selectedIds.includes(t.id) }"
-          @click="ui.batchMode && ui.toggleSelect(t.id)"
-          @dblclick="!ui.batchMode && ui.openChild('detail', t.id)"
-        >
-          <span class="content ellipsis">{{ t.content }}</span>
-          <span v-if="t.overdue" class="tag overdue">逾期</span>
-          <span class="time">{{ fmtDone(t.completedAt) }}</span>
-          <button
-            v-if="ui.batchMode"
-            type="button"
-            class="checkbox"
-            :class="{ checked: ui.selectedIds.includes(t.id) }"
-            @click.stop="ui.toggleSelect(t.id)"
-            @dblclick.stop
+      <!-- 自绘悬浮滚动条（二轮反馈）：原生滚动条隐藏，滑块绘制在右缘专用带 -->
+      <div class="list-wrap">
+        <div v-if="items.length > 0" ref="listEl" class="list hide-native-bar">
+          <div
+            v-for="t in items"
+            :key="t.id"
+            class="hist-row"
+            data-testid="hist-row"
+            :data-id="t.id"
+            :class="{ selrow: ui.batchMode && ui.selectedIds.includes(t.id) }"
+            @click="ui.batchMode && ui.toggleSelect(t.id)"
+            @dblclick="!ui.batchMode && ui.openChild('detail', t.id)"
           >
-            <svg viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5" /></svg>
-          </button>
+            <span class="content ellipsis">{{ t.content }}</span>
+            <span v-if="t.overdue" class="tag overdue">逾期</span>
+            <span class="time">{{ fmtDone(t.completedAt) }}</span>
+            <button
+              v-if="ui.batchMode"
+              type="button"
+              class="checkbox"
+              :class="{ checked: ui.selectedIds.includes(t.id) }"
+              @click.stop="ui.toggleSelect(t.id)"
+              @dblclick.stop
+            >
+              <svg viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5" /></svg>
+            </button>
+          </div>
         </div>
+        <div v-else class="panel-empty" data-testid="hist-empty">该日期暂无已完成事项</div>
+
+        <!-- 自绘滑块：溢出时显示于右缘专用带，可拖拽 -->
+        <div
+          v-show="thumb.state.visible"
+          class="list-thumb"
+          data-testid="hist-thumb"
+          :style="{ top: thumb.state.top + 'px', height: thumb.state.height + 'px' }"
+          @pointerdown="thumb.onThumbPointerDown"
+        />
       </div>
-      <div v-else class="panel-empty" data-testid="hist-empty">该日期暂无已完成事项</div>
 
       <BatchBar v-if="ui.batchTarget === 'history'" target="history" :history-date-key="currentDate" />
 

@@ -20,6 +20,12 @@ test('已完成窗滚动条：溢出可滚动、行宽零形变、自绘滑块�
     const h = await launchApp({ seed: { completed: doneItems(n) } })
     await h.main.waitForSelector('[data-testid="done-row"]', { timeout: 10_000 })
     await h.main.waitForTimeout(300) // 布局稳定
+    await h.main.evaluate(() => {
+      const list = document.querySelector('[data-testid="done-panel"] .scroll')
+      if (!list) return
+      ;(list as unknown as { __n: number }).__n = 0
+      list.addEventListener('scroll', () => { (list as unknown as { __n: number }).__n++ })
+    })
     const m = await h.main.evaluate(() => {
       const list = document.querySelector('[data-testid="done-panel"] .scroll')
       const row = document.querySelector('[data-testid="done-row"]')
@@ -41,7 +47,7 @@ test('已完成窗滚动条：溢出可滚动、行宽零形变、自绘滑块�
   const overflow = await measure(12) // 溢出：滚动条出现
   const fit = await measure(1) // 不溢出：无滚动条
 
-  // 自绘滑块：溢出时显示、不溢出时隐藏
+  // 自绘滑块：溢出时恒定显示（可滚动）、不溢出时隐藏
   expect(overflow.thumbShown).toBe(true)
   expect(fit.thumbShown).toBe(false)
 

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import { fmtTime } from '../core/utils/date'
+import { useOverlayThumb } from '../components/useOverlayThumb'
 
 const store = useAppStore()
 const ui = useUiStore()
@@ -17,6 +18,10 @@ const sorted = computed(() => {
 })
 
 const error = ref('')
+
+// 自绘悬浮滚动条（二轮反馈）：滑块位于右缘专用带，行宽不受影响
+const listEl = ref<HTMLElement | null>(null)
+const thumb = useOverlayThumb(listEl)
 
 async function toggleBack(id: string): Promise<void> {
   const r = await store.returnToActive(id)
@@ -83,32 +88,44 @@ function fmtDone(iso: string | null): string {
 
       <p v-if="error" class="error" data-testid="done-error">{{ error }}</p>
 
-      <div v-if="store.completed.length > 0" class="scroll">
-        <div
-          v-for="t in sorted"
-          :key="t.id"
-          class="todo-row"
-          data-testid="done-row"
-          :data-id="t.id"
-          @dblclick="ui.openChild('detail', t.id)"
-        >
-          <button
-            type="button"
-            class="checkbox checked"
-            data-testid="done-check"
-            title="点击退回待办"
-            @click.stop="toggleBack(t.id)"
-            @dblclick.stop
+      <!-- 自绘悬浮滚动条（二轮反馈）：原生滚动条隐藏，滑块绘制在右缘专用带 -->
+      <div class="list-wrap">
+        <div v-if="store.completed.length > 0" ref="listEl" class="scroll hide-native-bar">
+          <div
+            v-for="t in sorted"
+            :key="t.id"
+            class="todo-row"
+            data-testid="done-row"
+            :data-id="t.id"
+            @dblclick="ui.openChild('detail', t.id)"
           >
-            <svg viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5" /></svg>
-          </button>
-          <span class="content ellipsis">{{ t.content }}</span>
-          <span v-if="t.overdue" class="tag overdue" data-testid="done-overdue-tag">逾期</span>
-          <span class="done-time" data-testid="done-time">{{ fmtDone(t.completedAt) }}</span>
+            <button
+              type="button"
+              class="checkbox checked"
+              data-testid="done-check"
+              title="点击退回待办"
+              @click.stop="toggleBack(t.id)"
+              @dblclick.stop
+            >
+              <svg viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5" /></svg>
+            </button>
+            <span class="content ellipsis">{{ t.content }}</span>
+            <span v-if="t.overdue" class="tag overdue" data-testid="done-overdue-tag">逾期</span>
+            <span class="done-time" data-testid="done-time">{{ fmtDone(t.completedAt) }}</span>
+          </div>
         </div>
+        <!-- 决策#18：空状态文案与样式（17px、字距 5px、水平垂直居中） -->
+        <div v-else class="panel-empty empty-big" data-testid="done-empty">今天也要继续加油</div>
+
+        <!-- 自绘滑块：溢出时显示于右缘专用带，可拖拽 -->
+        <div
+          v-show="thumb.state.visible"
+          class="list-thumb"
+          data-testid="done-thumb"
+          :style="{ top: thumb.state.top + 'px', height: thumb.state.height + 'px' }"
+          @pointerdown="thumb.onThumbPointerDown"
+        />
       </div>
-      <!-- 决策#18：空状态文案与样式（17px、字距 5px、水平垂直居中） -->
-      <div v-else class="panel-empty empty-big" data-testid="done-empty">今天也要继续加油</div>
 
       <footer class="foot">
         <button class="btn block" data-testid="done-history" @click="ui.openChild('history')">🕘 历史记录</button>
@@ -220,8 +237,7 @@ function fmtDone(iso: string | null): string {
 }
 
 .scroll {
-  flex: 1;
-  min-height: 0;
+  height: 100%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
