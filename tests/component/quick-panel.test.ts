@@ -54,6 +54,13 @@ describe('T29 快捷添加面板', () => {
     expect(api.openChildCalls).toContainEqual({ kind: 'template-new' })
   })
 
+  it('连点「＋」不触发行双击→不弹编辑模板窗口（8.2-5：plusbox dblclick 不冒泡）', async () => {
+    const { wrapper, api } = await mountWithStore(QuickPanel, { templates: [tpl('a', '喝水')] })
+    await wrapper.find('[data-testid="tpl-add"]').trigger('dblclick')
+    await flushPromises()
+    expect(api.openChildCalls).toHaveLength(0)
+  })
+
   it('批量删除：进多选、选择、删除所选直接删除（B1.5）', async () => {
     const { wrapper, store } = await mountWithStore(AppShell, { templates: [tpl('a', '一'), tpl('b', '二')] })
     await wrapper.find('[data-testid="quick-batch"]').trigger('click')
