@@ -36,6 +36,8 @@ test('已完成窗滚动条：溢出可滚动、行宽零形变、自绘滑块�
         clientH: list.clientHeight,
         clientW: list.clientWidth,
         rowW: Math.round(row.getBoundingClientRect().width),
+        rowRight: Math.round(row.getBoundingClientRect().right),
+        thumbLeft: thumb ? Math.round(thumb.getBoundingClientRect().left) : -999,
         thumbShown: thumb ? getComputedStyle(thumb).display !== 'none' : false
       }
     })
@@ -50,6 +52,8 @@ test('已完成窗滚动条：溢出可滚动、行宽零形变、自绘滑块�
   // 自绘滑块：溢出时恒定显示（可滚动）、不溢出时隐藏
   expect(overflow.thumbShown).toBe(true)
   expect(fit.thumbShown).toBe(false)
+  // 滑块位于「行右缘与窗口边框之间」的专用带，不与行重叠
+  expect(overflow.thumbLeft).toBeGreaterThanOrEqual(overflow.rowRight)
 
   // 溢出状态确实可滚动；不溢出状态不出现滚动
   expect(overflow.scrollH).toBeGreaterThan(overflow.clientH)

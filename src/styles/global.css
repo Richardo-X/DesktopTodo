@@ -58,7 +58,7 @@ body {
 
 .list-thumb {
   position: absolute;
-  right: 3px;
+  right: -11px; /* 二轮反馈：滑块位于「行右缘与窗口边框之间」的空隙带（win-body 右内边距 14px 内），不接触行 */
   width: 5px;
   border-radius: 99px;
   background: var(--muted, #666);
