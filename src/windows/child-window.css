@@ -4,6 +4,8 @@
  * ============================================================ */
 
 .child-root {
+  width: 100vw; /* 无 zoom：视口=窗口内容尺寸，精确相等 */
+  height: 100vh;
   overflow: hidden;
   font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
 }

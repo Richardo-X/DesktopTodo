@@ -8,6 +8,13 @@ body {
   overflow: hidden;
 }
 
+/* 照原型 *{box-sizing:border-box}：边框计入固定宽度，否则面板比基准宽 2px 被窗口裁切 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 #app {
   height: 100%;
 }

@@ -61,10 +61,10 @@ onUnmounted(() => {
     @mouseenter="ui.mouseEnter"
   >
     <div v-if="!tucked" class="cluster" :style="clusterStyle">
-      <!-- 二轮反馈：恒定三段槽位，面板开关仅显隐（v-show 保留占位），主窗与窗口几何不动 -->
-      <QuickPanel v-show="store.uiState.quickVisible" data-testid="quick-panel" />
+      <!-- 二轮反馈：恒定三段槽位，面板开关用 visibility 占位隐藏（display:none 会塌陷槽位挤动主窗） -->
+      <QuickPanel data-testid="quick-panel" :class="{ 'slot-hidden': !store.uiState.quickVisible }" />
       <HomePanel />
-      <DonePanel v-show="store.uiState.doneVisible" data-testid="done-panel" />
+      <DonePanel data-testid="done-panel" :class="{ 'slot-hidden': !store.uiState.doneVisible }" />
     </div>
     <div v-else class="tuck-bar" :style="{ height: TUCK_BAR_HEIGHT + 'px' }" />
     <ConfirmDialog />
@@ -157,6 +157,11 @@ onUnmounted(() => {
   width: 310px;
   height: 640px;
   flex: none;
+}
+
+/* 面板开关：visibility 占位隐藏（槽位不塌陷），不可见亦不可交互 */
+.stage :deep(.slot-hidden) {
+  visibility: hidden;
 }
 
 /* ===== 缩进小条（约 12px，划过弹出） ===== */
