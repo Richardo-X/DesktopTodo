@@ -64,24 +64,24 @@ test('已完成窗滚动条：溢出可滚动、行宽零形变、自绘滑块�
 
 
 /** B5（决策#7/#24）：resizeSelf 真窗口双向缩放——放大与缩小都必须改变 OS 窗口尺寸 */
-test('resizeSelf 双向缩放：设置窗 400 → 300 → 440 → 360', async () => {
+test('resizeSelf 双向缩放：设置窗 460 → 300 → 440 → 360', async () => {
   const h = await launchApp()
   const sp = h.app.waitForEvent('window')
   await h.main.click('[data-testid="tb-settings"]')
   const settings = await sp
   await settings.waitForSelector('[data-testid="set-max"]')
 
-  // 设置窗识别：可见窗口中宽 400（主窗为 1102×0.7+）
+  // 设置窗识别：可见窗口中宽 ≤500（主窗为 1102×0.7+；设置窗新基准 460）
   const settingsBounds = async (): Promise<{ w: number; h: number } | undefined> => {
     const list = await h.app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()
         .filter((w) => !w.isDestroyed())
         .map((w) => ({ w: w.getBounds().width, h: w.getBounds().height, vis: w.isVisible() }))
     )
-    return list.find((b) => b.vis && b.w <= 460)
+    return list.find((b) => b.vis && b.w <= 500)
   }
 
-  await expect.poll(async () => (await settingsBounds())?.w, { timeout: 10_000 }).toBe(400)
+  await expect.poll(async () => (await settingsBounds())?.w, { timeout: 10_000 }).toBe(460)
 
   // 缩小 400 → 300
   await settings.evaluate(() => {

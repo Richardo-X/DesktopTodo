@@ -5,14 +5,14 @@ const WA = { x: 0, y: 40, width: 1920, height: 1040 }
 
 /** B3（决策#5/#14/#21）+ 二轮反馈（照原型组缩放规则） */
 describe('CHILD_SIZES 基准尺寸与分组', () => {
-  it('7 类原型基准尺寸（回收站已移除；编辑待办/详情经 #14 校准）', () => {
-    expect(CHILD_SIZES['todo-new']).toEqual({ w: 360, h: 360 })
-    expect(CHILD_SIZES['todo-edit']).toEqual({ w: 400, h: 430 })
-    expect(CHILD_SIZES['template-new']).toEqual({ w: 360, h: 360 })
-    expect(CHILD_SIZES['template-edit']).toEqual({ w: 360, h: 380 })
-    expect(CHILD_SIZES.detail).toEqual({ w: 360, h: 430 })
-    expect(CHILD_SIZES.history).toEqual({ w: 560, h: 540 })
-    expect(CHILD_SIZES.settings).toEqual({ w: 400, h: 470 })
+  it('7 类基准尺寸（8.2-3 用户定稿：整体 +15%；回收站已移除）', () => {
+    expect(CHILD_SIZES['todo-new']).toEqual({ w: 410, h: 410 })
+    expect(CHILD_SIZES['todo-edit']).toEqual({ w: 460, h: 490 })
+    expect(CHILD_SIZES['template-new']).toEqual({ w: 410, h: 410 })
+    expect(CHILD_SIZES['template-edit']).toEqual({ w: 410, h: 435 })
+    expect(CHILD_SIZES.detail).toEqual({ w: 415, h: 490 })
+    expect(CHILD_SIZES.history).toEqual({ w: 645, h: 620 })
+    expect(CHILD_SIZES.settings).toEqual({ w: 460, h: 540 })
     expect(Object.keys(CHILD_SIZES)).toHaveLength(7)
     expect('recycle' in CHILD_SIZES).toBe(false)
   })
@@ -55,30 +55,30 @@ describe('childWindowOptions', () => {
   })
 
   it('正常屏幕下高度不放大（工作区半屏 ≥ 窗口基准高）', () => {
-    // 历史窗基准高 540，需半屏 ≥ 540 的屏幕（可用高 ≥1080）
-    const tall = { x: 0, y: 40, width: 1920, height: 1200 }
+    // 历史窗基准高 620，需半屏 ≥ 620 的屏幕（可用高 ≥1240）
+    const tall = { x: 0, y: 40, width: 1920, height: 1280 }
     const o = childWindowOptions('history', tall, 0)
     expect(o.height).toBe(CHILD_SIZES['history'].h)
   })
 
   it('B3 组缩放：尺寸 = round(基准 × 组缩放)，屏幕放不下按 -24 钳制（照原型）', () => {
     const o = childWindowOptions('todo-new', WA, 0, 1.2)
-    expect(o.width).toBe(Math.round(360 * 1.2))
-    expect(o.height).toBe(Math.round(360 * 1.2))
+    expect(o.width).toBe(Math.round(410 * 1.2))
+    expect(o.height).toBe(Math.round(410 * 1.2))
 
     const small = { x: 0, y: 0, width: 700, height: 600 }
     const o2 = childWindowOptions('todo-new', small, 0, 2)
-    expect(o2.width).toBe(676) // min(720, 700-24)
-    expect(o2.height).toBe(576) // min(720, 600-24)
+    expect(o2.width).toBe(676) // min(820, 700-24)
+    expect(o2.height).toBe(576) // min(820, 600-24)
   })
 
   it('B3 组缩放缺省为 1（既有调用兼容；矮屏按 -24 钳制）', () => {
-    const tall = { x: 0, y: 40, width: 1920, height: 1200 }
+    const tall = { x: 0, y: 40, width: 1920, height: 1280 }
     const o = childWindowOptions('history', tall, 0)
-    expect(o.width).toBe(560)
-    expect(o.height).toBe(540)
+    expect(o.width).toBe(645)
+    expect(o.height).toBe(620)
 
     const oShort = childWindowOptions('history', WA, 0)
-    expect(oShort.height).toBe(540) // min(540, 1040-24) → 不钳
+    expect(oShort.height).toBe(620) // min(620, 1040-24) → 不钳
   })
 })
