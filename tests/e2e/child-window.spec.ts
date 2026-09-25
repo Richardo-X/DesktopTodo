@@ -34,10 +34,12 @@ test('已完成窗滚动条不挤压行：溢出/不溢出两种状态行宽一�
   const overflow = await measure(12) // 溢出：滚动条出现
   const fit = await measure(1) // 不溢出：无滚动条
 
-  // 两种状态下行宽完全一致（gutter=左2+右14 恒定；悬浮滑块只绘制在右缘 14px 专用带内，不接触行）
-  expect(overflow.gutter).toBe(16)
-  expect(fit.gutter).toBe(16)
+  // 核心（二轮反馈）：行宽不因滚动条出现/消失而变化（无挤压无覆盖）；
+  // 两种状态下 gutter（列表右缘到窗口边框的专用带）与行宽必须各自一致。
+  // 滚动条渲染宽度因系统/模式（Win11 悬浮 vs 经典）而异，故不写死数值。
+  expect(overflow.gutter).toBe(fit.gutter)
   expect(overflow.rowW).toBe(fit.rowW)
+  expect(overflow.gutter).toBeGreaterThan(0) // 专用带存在：列表与窗口边框之间留出间隙
 })
 
 
