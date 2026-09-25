@@ -49,7 +49,6 @@
     "appId": "com.desktoptodo.app",
     "productName": "桌面待办",
     "copyright": "Copyright © 2026 DesktopTodo",
-    "electronDist": "node_modules/electron/dist",
     "directories": {
       "output": "dist",
       "buildResources": "build"
