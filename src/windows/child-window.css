@@ -148,6 +148,7 @@
   flex: none;
   padding: 10px 14px 24px;
   display: flex;
+  justify-content: flex-end; /* 8.2-6：提交按钮右对齐（新建事项/新建模板） */
   align-items: center;
   gap: 9px;
 }
