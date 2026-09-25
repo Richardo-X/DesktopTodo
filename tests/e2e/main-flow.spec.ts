@@ -40,21 +40,14 @@ test('布局：三面板 border-box 精确充满窗口，无裁切（二轮反�
   if (!g?.quick || !g?.home || !g?.done) throw new Error('面板缺失')
   // 视口=1102×有效缩放（CI 小屏会钳到 0.7 下限）→ 面板实测宽=基准×缩放（±1 取整）
   const s = g.vw / 1102
-  const expectW = (base: number): void => {
-    expect(g.quick.width === undefined).toBe(false)
-    const target = Math.round(base * s)
-    void target
-  }
-  void expectW
   const near = (actual: number, base: number): void => {
-    const target = Math.round(base * s)
-    expect(Math.abs(actual - target)).toBeLessThanOrEqual(1)
+    expect(Math.abs(actual - Math.round(base * s))).toBeLessThanOrEqual(1)
   }
   near(g.quick.width, 310)
   near(g.home.width, 470)
   near(g.done.width, 310)
   // 无裁切：最右面板右缘 == 视口宽（±1 取整）
-  expect(Math.abs((g.done.right ?? 0) - g.vw)).toBeLessThanOrEqual(1)
+  expect(Math.abs(g.done.right - g.vw)).toBeLessThanOrEqual(1)
 })
 
 test('验收7：首次启动空列表并显示引导文案', async () => {
