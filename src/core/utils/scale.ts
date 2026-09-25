@@ -23,8 +23,3 @@ export function clampClusterScale(target: number, base: BaseBounds, wa: Area, mi
   const upper = Math.max(minScale, Math.min(maxByHeight, maxByWidth))
   return Math.min(upper, Math.max(minScale, target))
 }
-
-/** 子窗口分组等比缩放：同一钳制规则（T40） */
-export function clampChildScale(target: number, baseWidth: number, baseHeight: number, wa: Area, minScale = MIN_SCALE): number {
-  return clampClusterScale(target, { width: baseWidth, height: baseHeight }, wa, minScale)
-}

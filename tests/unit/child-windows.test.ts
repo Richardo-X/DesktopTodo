@@ -69,7 +69,7 @@ describe('childWindowOptions', () => {
     const small = { x: 0, y: 0, width: 700, height: 600 }
     const o2 = childWindowOptions('todo-new', small, 0, 2)
     expect(o2.width).toBe(676) // min(720, 700-24)
-    expect(o2.height).toBe(360) // min(720, 600-24)
+    expect(o2.height).toBe(576) // min(720, 600-24)
   })
 
   it('B3 组缩放缺省为 1（既有调用兼容；矮屏按 -24 钳制）', () => {
@@ -79,6 +79,6 @@ describe('childWindowOptions', () => {
     expect(o.height).toBe(540)
 
     const oShort = childWindowOptions('history', WA, 0)
-    expect(oShort.height).toBe(516) // min(540, 1040-24)
+    expect(oShort.height).toBe(540) // min(540, 1040-24) → 不钳
   })
 })

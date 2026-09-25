@@ -6,7 +6,7 @@ import { SystemClock } from '../../src/core/interfaces/clock'
 import { OffsetClock } from './clock'
 import type { IClock } from '../../src/core/interfaces/clock'
 import { AppContext } from './context'
-import { anchoredMainX, clusterBounds, defaultWindowOptions, effectiveClusterScale, initialPos, type PanelVisibility } from './layout'
+import { clusterBounds, defaultWindowOptions, effectiveClusterScale, initialPos } from './layout'
 import { acquireSingleInstanceLock } from './single-instance'
 import { buildTrayContextMenu, exitConfirmMessage } from './tray-menu'
 import { trayIconPng } from './icon'
@@ -69,16 +69,11 @@ async function bootstrap(): Promise<void> {
   watchDisplayChanges()
 }
 
-function panelVisibility(): PanelVisibility {
-  const d = ctx.current()
-  return { quickVisible: d.uiState.quickVisible, doneVisible: d.uiState.doneVisible }
-}
-
 function createWindow(data: ReturnType<AppContext['current']>): void {
   const wa = screen.getPrimaryDisplay().workArea
   // 决策#23：初始缩放按所在屏钳制（高度≤半屏、宽度≤屏宽），窗口与渲染层 zoom 1:1
-  const scale = effectiveClusterScale(data.uiState.clusterScale, panelVisibility(), wa)
-  const bounds = clusterBounds(scale, panelVisibility())
+  const scale = effectiveClusterScale(data.uiState.clusterScale, wa)
+  const bounds = clusterBounds(scale)
   const pos =
     data.uiState.pos !== null
       ? clampPosToWorkArea(data.uiState.pos, bounds, wa)
@@ -96,7 +91,6 @@ function createWindow(data: ReturnType<AppContext['current']>): void {
   win = win_
   visible = true
   currentPos = pos
-  lastPanelVis = panelVisibility()
 
   win_.on('ready-to-show', () => win_!.show())
   win_.on('moved', () => {
@@ -200,25 +194,17 @@ function quitNow(): void {
 
 const childWindows = new Set<BrowserWindow>()
 
-let lastPanelVis: PanelVisibility | null = null
-
-/** 按 uiState（缩放/面板开关/缩进）同步主窗口尺寸（T38/T39/T43）；
- * 缩放经决策#23 钳制；面板开关时以待办主窗为锚（第二轮反馈：向两边展开，主窗原地不动） */
+/** 按 uiState（缩放/缩进）同步主窗口尺寸（T38/T39/T43）；
+ * 缩放经决策#23 钳制；面板开关在恒定槽位内显隐，不改变窗口几何（二轮反馈：主窗居中零残影） */
 function syncMainBounds(): void {
   const w = safeWin()
   if (!w || !ctx) return
   const d = ctx.current()
-  const vis = panelVisibility()
-  const scale = effectiveClusterScale(d.uiState.clusterScale, vis, screen.getPrimaryDisplay().workArea)
-  const b = clusterBounds(scale, vis)
+  const scale = effectiveClusterScale(d.uiState.clusterScale, screen.getPrimaryDisplay().workArea)
+  const b = clusterBounds(scale)
   const height = tucked ? TUCK_BAR_HEIGHT : b.height
   const pos = currentPos ?? w.getBounds()
-  const wa = screen.getPrimaryDisplay().workArea
-  let x = lastPanelVis ? anchoredMainX(pos.x, lastPanelVis, vis, scale) : pos.x
-  x = Math.max(wa.x, Math.min(x, wa.x + wa.width - b.width))
-  lastPanelVis = vis
-  if (x !== pos.x) currentPos = { x, y: pos.y }
-  w.setBounds({ x, y: pos.y, width: b.width, height })
+  w.setBounds({ x: pos.x, y: pos.y, width: b.width, height })
 }
 
 /** 吸附检测：窗口顶边接近工作区顶（阈值见附录 A8）→ 通知渲染层状态机 */
@@ -304,15 +290,14 @@ function registerIpc(): void {
     BrowserWindow.fromWebContents(e.sender)?.close()
   })
 
-  // 决策#7/#24：子窗口缩放=真窗口尺寸变化（渲染层 zoom 同步，主进程钳制屏宽/半屏高）。
-  // Windows 限制：resizable=false 时 setSize 缩小不生效（Electron 已知问题）→ 临时解除；
-  // 无框窗口用户本就无法系统调整大小，用户体验不受影响。
+  // 决策#7/#24→二轮反馈照原型：子窗口缩放=真窗口尺寸变化（内容流式 reflow 无 zoom）；
+  // 尺寸钳制同原型（屏幕放不下按 -24）。Windows 限制：resizable=false 时 setSize 缩小不生效 → 临时解除
   ipcMain.handle(IPC.resizeSelf, (e, p: { width: number; height: number }) => {
     const w = BrowserWindow.fromWebContents(e.sender)
     if (!w || w.isDestroyed()) return
     const wa = screen.getPrimaryDisplay().workArea
-    const width = Math.min(Math.round(p.width), wa.width - 20)
-    const height = Math.max(120, Math.min(Math.round(p.height), Math.floor(wa.height / 2)))
+    const width = Math.min(Math.round(p.width), wa.width - 24)
+    const height = Math.max(120, Math.min(Math.round(p.height), wa.height - 24))
     const wasResizable = w.isResizable()
     if (!wasResizable) w.setResizable(true)
     w.setSize(width, height)
@@ -422,7 +407,7 @@ function watchDisplayChanges(): void {
   const reposition = (): void => {
     const w = safeWin()
     if (!w || !ctx) return
-    const bounds = clusterBounds(ctx.current().uiState.clusterScale, panelVisibility())
+    const bounds = clusterBounds(effectiveClusterScale(ctx.current().uiState.clusterScale, screen.getPrimaryDisplay().workArea))
     const displays = screen.getAllDisplays().map((d) => d.workArea)
     const next = ensureOnSomeDisplay(currentPos ?? { x: 0, y: 0 }, bounds, displays)
     w.setPosition(next.x, next.y)

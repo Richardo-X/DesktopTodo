@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useAppStore } from '../stores/app'
-import { CHILD_SIZES, GROUP_MAX, GROUP_OF } from '../../electron/main/child-windows'
-import { clampChildScale } from '../core/utils/scale'
+import { CHILD_SIZES, GROUP_OF } from '../../electron/main/child-windows'
+import { clampChildGroupScale } from '../core/utils/cluster-layout'
 import { getApi } from '../services/api'
 import TodoNewWindow from './TodoNewWindow.vue'
 import TodoEditWindow from './TodoEditWindow.vue'
@@ -24,13 +24,6 @@ onMounted(() => {
 /** 缩放分组：单一来源 electron/main/child-windows（B3） */
 const group = computed(() => GROUP_OF[props.kind] ?? 'todo')
 const scale = computed(() => store.uiState.childScales[group.value] ?? 1)
-
-/** zoom 容器尺寸=内容基准÷缩放（+2px 透明余量防取整裁切圆角）：zoom×尺寸=真窗口尺寸（决策#7/#24） */
-const rootStyle = computed(() => {
-  const s = scale.value
-  const base = CHILD_SIZES[props.kind]
-  return { zoom: String(s), width: `calc(${base.w}px / ${s} + 2px)`, height: `calc(${base.h}px / ${s} + 2px)` }
-})
 
 function rendererWorkArea(): { x: number; y: number; width: number; height: number } {
   const s = window.screen as unknown as {
@@ -57,13 +50,12 @@ function onGripDown(e: PointerEvent): void {
 
 function onGripMove(e: PointerEvent): void {
   if (gripStart === null) return
-  const dx = e.clientX - gripStart.x
-  const max = GROUP_MAX[group.value]
-  // 组缩放按组内最大基准钳制（保证组内任一窗口都不越界）
-  const next = clampChildScale(gripStart.scale + dx / 500, max.w, max.h, rendererWorkArea())
-  void store.setChildScale(group.value, next)
-  // 决策#7/#24：真窗口尺寸变化 = 本窗口基准 × 组缩放（渲染层 zoom 与窗口 1:1）
+  // 照原型 bindGroupResize/setGroupScale：比例缩放；上限 1.6/屏幕-24/下限 0.7/步进 0.05
   const base = CHILD_SIZES[props.kind]
+  const next = clampChildGroupScale(gripStart.scale + (e.clientX - gripStart.x) / 500, base.w, base.h, rendererWorkArea())
+  if (next === scale.value) return
+  void store.setChildScale(group.value, next)
+  // 真窗口尺寸变化 = 基准 × 组缩放（内容流式 reflow，无 zoom）
   void getApi().resizeSelf({ width: Math.round(base.w * next), height: Math.round(base.h * next) })
 }
 
@@ -102,7 +94,6 @@ const page = computed(() => {
     class="child-root"
     data-testid="child-root"
     :data-theme="store.uiState.theme"
-    :style="rootStyle"
   >
     <component :is="page" :item-id="id" />
     <span class="child-grip" title="拖动缩放（同组窗口共享大小设置）" @pointerdown.stop.prevent="onGripDown" />
@@ -110,11 +101,11 @@ const page = computed(() => {
 </template>
 
 <style scoped>
-/* 缩放角（决策#16：与窗口圆角同弧度的弧线）；容器尺寸由 rootStyle 内联绑定 */
+/* 缩放角（决策#16：与窗口圆角同弧度的弧线，内缩 2px 不贴边——二轮反馈） */
 .child-grip {
   position: fixed;
-  right: 1px;
-  bottom: 1px;
+  right: 2px;
+  bottom: 2px;
   width: 16px;
   height: 16px;
   cursor: nwse-resize;
@@ -129,7 +120,7 @@ const page = computed(() => {
   inset: 0;
   border-right: 2px solid var(--muted);
   border-bottom: 2px solid var(--muted);
-  border-bottom-right-radius: 10px;
+  border-bottom-right-radius: 8px; /* 与窗口 10px 圆角同心（内缩 2px） */
 }
 
 .child-grip:hover {

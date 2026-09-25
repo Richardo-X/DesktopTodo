@@ -80,10 +80,13 @@ describe('clampChildGroupScale 原型组缩放规则', () => {
     expect(clampChildGroupScale(1.8, 400, 430, big)).toBe(1.6)
   })
 
-  it('屏幕放不下时按 (屏-24)/基准 钳制', () => {
+  it('屏幕放不下时按 (屏-24)/基准 钳制（1.6 硬上限优先，随后 0.05 步进归整）', () => {
+    // (1040-24)/430 = 2.362 > 1.6 → 1.6 硬上限生效 → 步进 1.6
     const wa = { x: 0, y: 0, width: 1000, height: 1040 }
-    // (1000-24)/400 = 2.44；(1040-24)/430 = 2.362 → 高度是有效上限
-    expect(clampChildGroupScale(2.5, 400, 430, wa)).toBeCloseTo((1040 - 24) / 430, 6)
+    expect(clampChildGroupScale(2.5, 400, 430, wa)).toBe(1.6)
+    // 更小屏幕：(560-24)/400 = 1.34 < 1.6 → 按屏幕钳制；步进 1.153→1.15
+    const small = { x: 0, y: 0, width: 560, height: 520 }
+    expect(clampChildGroupScale(2.5, 400, 430, small)).toBe(1.15)
   })
 
   it('下限 0.7 兜底', () => {

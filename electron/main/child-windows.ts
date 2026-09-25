@@ -26,14 +26,6 @@ export const GROUP_OF: Record<ChildKind, ChildGroup> = {
   settings: 'settings'
 }
 
-/** 组内最大基准窗口（组缩放按其钳制，保证组内任一窗口都不越出屏幕） */
-export const GROUP_MAX: Record<ChildGroup, { w: number; h: number }> = {
-  todo: { w: 400, h: 430 },
-  template: { w: 360, h: 380 },
-  history: { w: 560, h: 540 },
-  settings: { w: 400, h: 470 }
-}
-
 export interface WorkArea {
   x: number
   y: number
@@ -50,7 +42,7 @@ export interface ChildWindowPlacement {
 
 /**
  * 子窗口创建参数（纯函数）：
- * - 尺寸 = round(基准 × 组缩放)，再钳制到屏宽与半屏高（决策#5/#24：缩放=真实窗口尺寸变化）
+ * - 尺寸 = round(基准 × 组缩放)，屏幕放不下按 (屏-24) 钳制（照原型，二轮反馈）
  * - 位置居中，并按打开序号向右下级联偏移（位置不记忆）
  */
 export function childWindowOptions(
@@ -60,8 +52,8 @@ export function childWindowOptions(
   groupScale = 1
 ): ChildWindowPlacement {
   const def = CHILD_SIZES[kind]
-  const width = Math.min(Math.round(def.w * groupScale), wa.width - 20)
-  const height = Math.min(Math.round(def.h * groupScale), Math.floor(wa.height / 2))
+  const width = Math.min(Math.round(def.w * groupScale), wa.width - 24)
+  const height = Math.min(Math.round(def.h * groupScale), wa.height - 24)
   const cascade = (openIndex % 8) * 26
   const x = wa.x + Math.round((wa.width - width) / 2) + cascade
   const y = wa.y + Math.round((wa.height - height) / 2) + cascade

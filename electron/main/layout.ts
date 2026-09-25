@@ -9,9 +9,7 @@ export {
   clusterBaseWidth,
   clusterBounds,
   effectiveClusterScale,
-  anchoredMainX,
-  type PanelVisibility,
-  type Bounds,
+  clampChildGroupScale,
   type WorkArea
 } from '../../src/core/utils/cluster-layout'
 export { MIN_SCALE, HALF_HEIGHT_MAX_RATIO } from '../../src/core/constants'

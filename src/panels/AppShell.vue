@@ -31,16 +31,13 @@ function rendererWorkArea(): { x: number; y: number; width: number; height: numb
 }
 
 /** 簇缩放：与主进程 syncMainBounds 同一钳制口径（决策#23），zoom 与窗口 bounds 1:1（决策#7） */
-const clusterScale = computed(() =>
-  effectiveClusterScale(store.uiState.clusterScale, store.uiState, rendererWorkArea())
-)
+const clusterScale = computed(() => effectiveClusterScale(store.uiState.clusterScale, rendererWorkArea()))
 
 /** zoom 容器尺寸=内容基准÷缩放（+2px 透明余量防取整裁切圆角）：
  * zoom 会把布局尺寸再乘一次，容器按内容基准定尺寸后 zoom×尺寸=真窗口尺寸，无溢出无裁切 */
 const clusterStyle = computed(() => {
   const s = clusterScale.value
-  const baseW = clusterBaseWidth(store.uiState)
-  return { zoom: String(s), width: `calc(${baseW}px / ${s} + 2px)`, height: `calc(${BASE_PANEL.height}px / ${s} + 2px)` }
+  return { zoom: String(s), width: `calc(${clusterBaseWidth()}px / ${s} + 2px)`, height: `calc(${BASE_PANEL.height}px / ${s} + 2px)` }
 })
 
 onMounted(() => {
@@ -64,9 +61,10 @@ onUnmounted(() => {
     @mouseenter="ui.mouseEnter"
   >
     <div v-if="!tucked" class="cluster" :style="clusterStyle">
-      <QuickPanel v-if="store.uiState.quickVisible" data-testid="quick-panel" />
+      <!-- 二轮反馈：恒定三段槽位，面板开关仅显隐（v-show 保留占位），主窗与窗口几何不动 -->
+      <QuickPanel v-show="store.uiState.quickVisible" data-testid="quick-panel" />
       <HomePanel />
-      <DonePanel v-if="store.uiState.doneVisible" data-testid="done-panel" />
+      <DonePanel v-show="store.uiState.doneVisible" data-testid="done-panel" />
     </div>
     <div v-else class="tuck-bar" :style="{ height: TUCK_BAR_HEIGHT + 'px' }" />
     <ConfirmDialog />

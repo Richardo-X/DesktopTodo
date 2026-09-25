@@ -90,7 +90,7 @@ function rendererWorkArea(): { x: number; y: number; width: number; height: numb
 function onGripDown(e: PointerEvent): void {
   ui.dispatchTuck({ type: 'resize-start' })
   const scale = store.uiState.clusterScale
-  scaleStart = { x: e.clientX, scale, baseWidth: clusterBaseWidth(store.uiState) * scale }
+  scaleStart = { x: e.clientX, scale, baseWidth: clusterBaseWidth() * scale }
   window.addEventListener('pointermove', onGripMove)
   window.addEventListener('pointerup', onGripUp)
 }
@@ -102,7 +102,7 @@ function onGripMove(e: PointerEvent): void {
   const next = scaleStart.scale * ((scaleStart.baseWidth + dx) / scaleStart.baseWidth)
   const clamped = clampClusterScale(
     next,
-    { width: clusterBaseWidth(store.uiState), height: BASE_PANEL.height },
+    { width: clusterBaseWidth(), height: BASE_PANEL.height },
     rendererWorkArea()
   )
   void store.updateUiState({ clusterScale: clamped })
@@ -466,11 +466,11 @@ async function onComplete(id: string): Promise<void> {
   color: var(--faint);
 }
 
-/* ===== 缩放角（决策#16：与窗口圆角同弧度的弧线） ===== */
+/* ===== 缩放角（决策#16 + 二轮反馈：与窗口圆角同弧度的弧线，内缩 2px 不贴边） ===== */
 .resize-grip {
   position: absolute;
-  right: 1px;
-  bottom: 1px;
+  right: 2px;
+  bottom: 2px;
   width: 16px;
   height: 16px;
   cursor: nwse-resize;
@@ -485,7 +485,7 @@ async function onComplete(id: string): Promise<void> {
   inset: 0;
   border-right: 2px solid var(--muted);
   border-bottom: 2px solid var(--muted);
-  border-bottom-right-radius: 10px;
+  border-bottom-right-radius: 8px; /* 与窗口 10px 圆角同心 */
 }
 
 .resize-grip:hover {
