@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onUnmounted, ref, watch } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 
@@ -13,8 +14,35 @@ const allIds = (): string[] => {
   return store.todos.map((t) => t.id)
 }
 
+// 8.2-6：未选中删除不弹确认框，批量条内红字提示（选中变化/3 秒后清除）
+const hint = ref('')
+let hintTimer: ReturnType<typeof setTimeout> | undefined
+
+function showHint(msg: string): void {
+  hint.value = msg
+  if (hintTimer !== undefined) clearTimeout(hintTimer)
+  hintTimer = setTimeout(() => {
+    hint.value = ''
+  }, 3000)
+}
+
+watch(
+  () => ui.selectedIds.length,
+  () => {
+    hint.value = ''
+  }
+)
+
+onUnmounted(() => {
+  if (hintTimer !== undefined) clearTimeout(hintTimer)
+})
+
 async function onDelete(): Promise<void> {
   const count = ui.selectedIds.length
+  if (count === 0) {
+    showHint('没有选择要删除的事项')
+    return
+  }
   const ok = await ui.confirm(`确定删除所选的 ${count} 项吗？删除后无法恢复。`)
   if (!ok) return
   if (props.target === 'templates') await store.batchDeleteTemplates([...ui.selectedIds])
@@ -27,6 +55,7 @@ async function onDelete(): Promise<void> {
 <template>
   <div class="batch-bar" data-testid="batch-bar">
     <span class="count" data-testid="batch-count">已选 {{ ui.selectedIds.length }} 项</span>
+    <span v-if="hint" class="hint" data-testid="batch-hint">{{ hint }}</span>
     <button class="b" data-testid="batch-select-all" @click="ui.selectAll(allIds())">全选</button>
     <button class="b" data-testid="batch-cancel" @click="ui.exitBatch()">取消</button>
     <button class="b danger" data-testid="batch-delete" @click="onDelete">删除所选</button>
@@ -51,6 +80,11 @@ async function onDelete(): Promise<void> {
 .count {
   flex: 1;
   text-align: left;
+}
+
+.hint {
+  color: var(--danger, #c42b1c);
+  font-weight: 600;
 }
 
 .b {
