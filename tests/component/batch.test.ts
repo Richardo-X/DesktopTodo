@@ -92,4 +92,24 @@ describe('T25 批量删除模式', () => {
     expect(store.todos).toHaveLength(count) // 未触发完成移入已完成
     expect(store.completed).toHaveLength(0)
   })
+
+  it('未选中点「删除所选」：不弹确认框，批量条内提示「没有选择要删除的事项」（8.2-6）', async () => {
+    const { wrapper, store } = await mountWithStore(AppShell, seedTodos())
+    await wrapper.find('[data-testid="op-batch"]').trigger('click')
+
+    await wrapper.find('[data-testid="batch-delete"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="confirm-dialog"]').exists()).toBe(false) // 不弹删除确认
+    expect(wrapper.find('[data-testid="batch-hint"]').text()).toBe('没有选择要删除的事项')
+    expect(store.todos).toHaveLength(3) // 未删除
+
+    // 选中后提示消失，恢复正常确认流程
+    await wrapper.findAll('[data-testid="todo-row"]')[0].trigger('click')
+    expect(wrapper.find('[data-testid="batch-hint"]').exists()).toBe(false)
+    await wrapper.find('[data-testid="batch-delete"]').trigger('click')
+    expect(wrapper.find('[data-testid="confirm-dialog"]').exists()).toBe(true)
+    await wrapper.find('[data-testid="confirm-cancel"]').trigger('click')
+    await flushPromises()
+    expect(store.todos).toHaveLength(3)
+  })
 })
