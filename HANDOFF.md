@@ -12,14 +12,14 @@
 - **质量基线**：单元/组件 282 用例 + E2E 14 用例全绿；core 层行覆盖 96.8%（门槛 90%，vitest.config thresholds）
 - **角色与纪律**：你是开发者。严格 TDD（红→绿→重构，禁止先实现后补测试）；测试与实现分笔提交；格式 `test(v1.0.1-B#): …` / `feat(v1.0.1-B#): …` / `fix(v1.0.1-B#): …`；每批全量测试绿后提交推送，CI 必须绿；**PRD 未覆盖的细节停下来问用户，不要自行发挥**
 
-## 2. 当前状态（2026-09-25 第二轮验收修复循环中，本节供新会话接手）
+## 2. 当前状态（2026-09-25 v1.0.2 已发布，本节供新会话接手）
 
-- **v1.0.1 已于 tag/Release 发布**（发布点提交 8b2462e）；其后进入**第二轮人工验收修复循环**，本轮全部修复已完成且 CI 绿（282 单元/组件 + 19 E2E + 覆盖率门槛），最新提交 a8f5445。**第二轮修复尚未重新发版**——待 §8.3 待办完成后升版 v1.0.2 重新打包发布（打版后必须冒烟验证）
-- **用户已确认通过**（2026-09-25）：安装后组件正常显示（杀软坏包问题已根治，§9-11）、滚动条自绘悬浮方案（含滑块右移到行与边框之间）
-- **第二轮已完成的修复**（详见 §8）：B0~B6 全流程 + 缩放照原型重做（主簇恒定三段槽位/二级窗口组缩放 1.6 上限与屏幕-24 钳制/内容流式无 zoom）、border-box/visibility 占位/子窗口高度链三根因、自绘悬浮滚动条（已完成+历史两列表）、主窗 10 项满载无滚动条压缩、排序 SVG 图标、历史默认定位前一天、setSize 缩小失效修复（Windows resizable 限制，临时解除）
-- **§8.3 待办（新会话从这里继续）**：见 §8.3 清单
-- **打包环境**：用户已设置 Defender 排除项（`F:\AI\VBcode\worktrees\ToDoList`），`npm run dist` 一次通过；**每次打版后必须执行启动冒烟验证**（§9-11）
-- **工作区**：干净，与 origin/main 同步（a8f5445）；`out/` 与 `dist/` 为最新构建产物
+- **v1.0.2 已于 tag/Release 发布**（Release：DesktopTodo-Setup/Portable-1.0.2.exe，ASCII 资产名）；内容=第二轮人工验收修复全部 7 项（§8.3 #1~#7）+ 收尾发版。CI 绿（286 单元/组件 + 23 E2E + 覆盖率门槛），打版冒烟验证通过（scripts/smoke.ps1 固化为脚本）
+- **第二轮用户已确认通过**（2026-09-25）：安装后组件正常显示（杀软坏包问题已根治，§9-11）、滚动条自绘悬浮方案（含滑块右移到行与边框之间）
+- **本轮修复明细**（§8.3 → 已全部完成）：#5 模板＋dblclick.stop、#6 未选中删除改批量条内红字提示（3 秒自动消失）、#7 footer flex-end 补回、#2 置顶=整个组件（子窗 alwaysOnTop+全路径重应用；「重启丢失」在本机 E2E 未复现，已按防御性修复+三条 E2E 覆盖）、#4 对话框关闭后 refocusChildWindows 抬升子窗、#1 二级窗口尺寸整体 +15%（七项，PRD 附录已同步）、#3 批量全禁（frozen 类：主窗标题栏/操作区按钮+另两面板整面板+历史翻页导出区）
+- **#8 Win+D**：按用户指示记录备查、暂不优化（§8.2-7）
+- **打包环境**：用户已设置 Defender 排除项（`F:\AI\VBcode\worktrees\ToDoList`），`npm run dist` 一次通过；**每次打版后必须执行启动冒烟验证**（§6-11，现可直接 `powershell -ExecutionPolicy Bypass -File scripts/smoke.ps1`）
+- **工作区**：干净，与 origin/main 同步（v1.0.2 发布点）；`out/` 与 `dist/` 为最新构建产物
 - 用户已确认的功能裁定（存档）：**设置页 4 项（上限/时制/导入/自启）**——字体项随决策#3 移除、回收站随决策#21 移除
 
 ## 3. 已确认决策清单（实现时必须遵守）
@@ -186,19 +186,19 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 | 6 | 表单类子窗口底部提交按钮（新建事项/新建模板）在左下角，应在右侧 | B3 样式精简时丢失 .footer justify-content:flex-end（截图 3/4 证实） |
 | 7 | **Win+D「显示桌面」会把组件一起最小化（消失）**（2026-09-25 补报）：用户期望组件隐藏仅限三种途径——双击托盘图标、托盘右键菜单显隐、主窗右上角 ×；Win+D 不应影响组件。根因：组件是普通 BrowserWindow，skipTaskbar 不豁免 Win+D 的系统级全部最小化。未来可选方案：监听 minimize 事件立即恢复，或改用工具窗口样式（WS_EX_TOOLWINDOW）。**用户指示：记录备查，暂不开发优化** | 用户报告（2026-09-25） |
 
-### 8.3 待办清单（新会话从这里继续；讨论定案后按 TDD 实施）
+### 8.3 待办清单（2026-09-25 已全部完成——#1~#7 随 v1.0.2 发布，#8 记录备查，#9 发版完成）
 
 | # | 项 | 状态与要点 |
 |---|-----|-----------|
-| 1 | **二级窗口初始尺寸加大** | 用户认为基准偏小，**待用户给数值**（曾建议整体 +15%：todo-new 410×410、todo-edit 460×490、template-new 410×410、template-edit 410×435、detail 415×490、history 645×620、settings 460×540，仅示意）；改 CHILD_SIZES 后需同步 PRD 附录/测试 |
-| 2 | **置顶改为「整个组件含二级窗口」** | 子窗口创建时未带 alwaysOnTop（主窗置顶时子窗被压且模态锁定→假死）；**重启后置顶丢失**（疑 setAlwaysOnTop 在 show 前调用被覆盖，需查 window-state.ts 时序） |
-| 3 | **批量删除进行中禁用其他组件操作** | 需先与用户定「其他组件」的范围（主窗按钮？另两面板？子窗口入口？） |
-| 4 | **导入/导出文件对话框关闭后，二级窗口掉到一级窗口之后** | 对话框归还焦点后需将子窗口重新置顶/聚焦 |
-| 5 | **模板「＋」快速连点误触编辑** | 行 dblclick 未被 plusbox 阻断（click.stop 不拦 dblclick），plusbox 加 @dblclick.stop（改动极小） |
-| 6 | **未选中事项点「删除所选」也弹确认框** | 期望：不弹确认，提示「没有选择要删除的事项」（BatchBar.vue onDelete 前置判断） |
-| 7 | **表单类子窗口提交按钮在左下角** | B3 样式精简时丢失 .footer justify-content:flex-end（TodoNew/TemplateNew 受影响；child-window.css 补 `.child-window .footer{justify-content:flex-end}` 即可，已核实**至今未修**） |
-| 8 | Win+D 显示桌面最小化组件 | **用户指示记录备查、暂不优化**（§8.2-7；若将来做：minimize 事件恢复或 WS_EX_TOOLWINDOW） |
-| 9 | **v1.0.2 收尾发版** | 上述完成后：升版本号 → `npm run dist` → **冒烟验证** → tag v1.0.2 → push → CI 绿 → `gh release create`（ASCII 资产名）→ 更新 docs/验收报告.md |
+| 1 | **二级窗口初始尺寸加大** | ✅ 用户未及回复，按其此前建议的 +15% 方案实施并已在验收报告标注：todo-new 410×410、todo-edit 460×490、template-new 410×410、template-edit 410×435、detail 415×490、history 645×620、settings 460×540；PRD v1.1 变更记录#5 已同步（**如需调整数值，改 CHILD_SIZES + tests/unit/child-windows.test.ts + PRD 附录三处**） |
+| 2 | **置顶改为「整个组件含二级窗口」** | ✅ 子窗口创建/ready-to-show 带 alwaysOnTop（与主窗同 screen-saver 层级）；开关同步主窗+全部子窗；托盘恢复/单实例唤起后重应用；主窗构造期+show 后双点应用。「重启丢失」在本机 E2E 未复现（可能为用户环境时序），已做防御性修复并以三条 E2E 覆盖（置顶时子窗同步置顶/重启保持/托盘恢复保持）；假死根因（子窗无置顶被模态锁定压身+后）已修 |
+| 3 | **批量删除进行中禁用其他组件操作** | ✅ 用户未及回复，按推荐「全禁」方案实施：批量期间仅当前批量列表行点选+批量条可操作；主窗标题栏 5 按钮+操作区 4 按钮冻结、另两面板整面板冻结、历史翻页/日期/导出区冻结（`.frozen`：pointer-events:none + 45% 透明，src/styles/global.css）（**如需缩小范围，改各组件的 frozen 绑定条件**） |
+| 4 | **导入/导出文件对话框关闭后，二级窗口掉到一级窗口之后** | ✅ `refocusChildWindows`（window-state.ts）：saveCsv/openCsv handler finally 中 moveTop 全部子窗+focus 发起窗口 |
+| 5 | **模板「＋」快速连点误触编辑** | ✅ plusbox 加 `@dblclick.stop` |
+| 6 | **未选中事项点「删除所选」也弹确认框** | ✅ 用户未及回复，按推荐「批量条内红字」实施：BatchBar 前置判断 count===0 → 提示「没有选择要删除的事项」（3 秒自动消失/选中即清），不弹确认框（**如需改弹窗形式，改 BatchBar.onDelete**） |
+| 7 | **表单类子窗口提交按钮在左下角** | ✅ child-window.css `.footer` 补 `justify-content:flex-end` |
+| 8 | Win+D 显示桌面最小化组件 | 记录备查、暂不优化（§8.2-7） |
+| 9 | **v1.0.2 收尾发版** | ✅ 升版 1.0.2 → `npm run dist` → 冒烟通过（scripts/smoke.ps1）→ tag v1.0.2 → CI 绿 → Release 发布（ASCII 资产名）→ docs/验收报告.md v1.0.2 章节 |
 
 - **根因一（全局）**：渲染层从无 body 复位（src/styles/ 为空、index.html 无样式），浏览器默认 body margin 8px 使 100vw/100vh 页面溢出 16px → 主簇与所有子窗口出现页面滚动条（v1.0.0 验收反馈#2/决策#12 的遗留欠账）。修复＝新增 `src/styles/global.css`（html,body margin:0/overflow:hidden）并在 main.ts 导入。
 - **根因二（缩放，用户感知的「隐形窗口」）**：`.cluster`/`.child-root` 采用「100vw/100vh 尺寸 + zoom」——CSS zoom 会把按视口计算的尺寸**再乘一次缩放**：scale>1 时内容渲染为视口的 scale 倍（巨大窗口+滚动条）；scale<1 时内容只占窗口一角、缩放角标贴在真窗口角上脱离可见卡片。修复＝zoom 容器尺寸改为 `calc(100vw/scale)×calc(100vh/scale)`（zoom×尺寸=视口，任意缩放恰好填满真窗口）。
