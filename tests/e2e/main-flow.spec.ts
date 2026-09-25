@@ -22,6 +22,29 @@ test.afterEach(async () => {
   await h.close()
 })
 
+test('布局：三面板 border-box 精确充满窗口，无裁切（二轮反馈#3）', async () => {
+  const g = await h.main.evaluate(() => {
+    const r = (sel: string) => {
+      const el = document.querySelector(sel)
+      if (!el) return null
+      const b = el.getBoundingClientRect()
+      return { left: Math.round(b.left), right: Math.round(b.right), width: Math.round(b.width) }
+    }
+    return {
+      vw: window.innerWidth,
+      quick: r('[data-testid="quick-panel"]'),
+      home: r('[data-testid="home-panel"]'),
+      done: r('[data-testid="done-panel"]')
+    }
+  })
+  // border-box：面板宽=基准（310/470），边框不再外扩
+  expect(g?.quick?.width).toBe(310)
+  expect(g?.home?.width).toBe(470)
+  expect(g?.done?.width).toBe(310)
+  // 无裁切：最右面板右缘 == 视口宽
+  expect(g?.done?.right).toBe(g?.vw)
+})
+
 test('验收7：首次启动空列表并显示引导文案', async () => {
   await expect(h.main.locator('[data-testid="empty-state"]')).toContainText('今日做点什么好呢')
 })

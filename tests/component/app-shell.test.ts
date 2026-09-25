@@ -32,16 +32,17 @@ describe('T21 AppShell 三面板簇', () => {
     expect(style).toMatch(/zoom: [\d.]+; width: calc\(1102px \/ [\d.]+ \+ 2px\); height: calc\(640px \/ [\d.]+ \+ 2px\)/)
   })
 
-  it('面板开关：槽位内显隐（占位保留，面板仍在 DOM 且不可见），窗口几何不随开关变化', async () => {
+  it('面板开关：visibility 占位隐藏（槽位不塌陷，主窗零移动），状态持久化', async () => {
     const { wrapper, store, api } = await mountWithStore(AppShell)
+    const homeBefore = wrapper.find('[data-testid="home-panel"]').attributes('style') ?? ''
     const styleBefore = wrapper.find('.cluster').attributes('style')
 
     await store.updateUiState({ quickVisible: false })
     const quick = wrapper.find('[data-testid="quick-panel"]')
-    expect(quick.exists()).toBe(true) // 槽位保留（v-show）
-    expect(quick.attributes('style')).toContain('display: none') // 但不可见
-    expect(wrapper.find('[data-testid="done-panel"]').exists()).toBe(true)
+    expect(quick.exists()).toBe(true) // 槽位保留
+    expect(quick.classes()).toContain('slot-hidden') // visibility:hidden 占位隐藏（不用 display:none 塌陷）
     expect(wrapper.find('.cluster').attributes('style')).toBe(styleBefore) // 窗口几何恒定
+    expect(wrapper.find('[data-testid="home-panel"]').attributes('style') ?? '').toBe(homeBefore) // 主窗零移动
     expect(api.snapshot().uiState.quickVisible).toBe(false)
   })
 
