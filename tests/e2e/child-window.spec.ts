@@ -16,7 +16,7 @@ function doneItems(n: number) {
 
 /** 二轮反馈：滚动条=系统悬浮式（不占行宽）+ 9px 简约样式——溢出时可滚动、行宽零形变 */
 test('已完成窗滚动条：溢出可滚动、行宽零形变、自绘滑块按需出现', async () => {
-  const measure = async (n: number): Promise<{ scrollH: number; clientH: number; gutter: number; rowW: number; thumbShown: boolean | null }> => {
+  const measure = async (n: number): Promise<{ scrollH: number; clientH: number; gutter: number; rowW: number; thumbShown: boolean | null; rowRight: number; thumbLeft: number }> => {
     const h = await launchApp({ seed: { completed: doneItems(n) } })
     await h.main.waitForSelector('[data-testid="done-row"]', { timeout: 10_000 })
     await h.main.waitForTimeout(300) // 布局稳定
