@@ -260,7 +260,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 2px 14px 2px 2px; /* 右侧专用带：滚动条不接触行 */
+  padding: 2px;
 }
 
 .tpl-row {

@@ -194,7 +194,7 @@ async function doExport(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 6px 14px 6px 6px; /* 右侧专用带：滚动条不接触行 */
+  padding: 6px;
   border: 1px solid var(--card-border);
   border-radius: 8px;
 }

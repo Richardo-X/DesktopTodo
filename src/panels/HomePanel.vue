@@ -442,7 +442,7 @@ async function onComplete(id: string): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding: 2px 14px 2px 2px;
+  padding: 2px;
 }
 
 .empty {

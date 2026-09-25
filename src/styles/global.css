@@ -19,19 +19,5 @@ body {
   height: 100%;
 }
 
-/* 简约细滚动条（照原型）：贴列表右缘、不挤压行样式 */
-::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.4);
-  border-radius: 99px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* 滚动条：不加自定义样式，使用系统悬浮式——贴窗口右缘、滚动时短暂出现后自动隐藏，
+ * 不占列表布局宽度（用户裁定：不改列表样式，滚动条靠边框） */
