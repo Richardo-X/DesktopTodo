@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, type AppHandle } from './helpers'
+import { createTodoItem } from '../../src/core/models'
 
 /** T45 主流程（验收 6/7/8/10/12/14/19/28/29） */
 let h: AppHandle
@@ -52,6 +53,22 @@ test('布局：三面板 border-box 精确充满窗口，无裁切（二轮反�
 
 test('验收7：首次启动空列表并显示引导文案', async () => {
   await expect(h.main.locator('[data-testid="empty-state"]')).toContainText('今日做点什么好呢')
+})
+
+test('二轮反馈：10 项满载列表无滚动溢出（主窗）', async () => {
+  const todos = Array.from({ length: 10 }, (_, i) =>
+    createTodoItem({ content: `事项${i + 1}`, now: new Date(), id: `t${i}` })
+  )
+  const h2 = await launchApp({ seed: { todos } })
+  const m = await h2.main.evaluate(() => {
+    const el = document.querySelector('[data-testid="home-panel"] .scroll')
+    if (!el) return null
+    return { scrollH: el.scrollHeight, clientH: el.clientHeight }
+  })
+  expect(m).not.toBeNull()
+  // 满载 10 项：列表内容不得超出可视区（无滚动条）
+  expect(m!.scrollH).toBeLessThanOrEqual(m!.clientH)
+  await h2.close()
 })
 
 test('主流程：新建→编辑→完成→反选→批量删除（B1.5：直接删除，无回收站）', async ({ }) => {

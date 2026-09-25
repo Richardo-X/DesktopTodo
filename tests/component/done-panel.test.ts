@@ -42,6 +42,19 @@ describe('T31 已完成面板', () => {
     expect(store.settings.doneSort).toBe('desc')
   })
 
+  it('排序按钮为原型 SVG 图标（无文字），title 反映当前方向', async () => {
+    const { wrapper } = await mountWithStore(DonePanel, {
+      completed: [doneToday('a', '早', 8), doneToday('b', '晚', 10)]
+    })
+    const btn = wrapper.find('[data-testid="done-sort"]')
+    expect(btn.find('svg').exists()).toBe(true) // 原型图标
+    expect(btn.text().trim()).toBe('') // 无文字
+    expect(btn.attributes('title')).toContain('正序')
+
+    await btn.trigger('click')
+    expect(btn.attributes('title')).toContain('倒序')
+  })
+
   it('勾选框反选退回待办', async () => {
     const { wrapper, store } = await mountWithStore(DonePanel, { completed: [doneToday('a', '喝水', 8)] })
     await wrapper.find('[data-testid="done-check"]').trigger('click')
