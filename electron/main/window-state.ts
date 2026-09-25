@@ -9,6 +9,11 @@ export function applyTopMost(win: AlwaysOnTopWindow, enabled: boolean): void {
   win.setAlwaysOnTop(enabled, 'screen-saver')
 }
 
+/** 置顶=整个组件（8.2-2）：主窗与全部二级窗口同层级应用 */
+export function applyTopMostAll(wins: Iterable<AlwaysOnTopWindow>, enabled: boolean): void {
+  for (const w of wins) w.setAlwaysOnTop(enabled, 'screen-saver')
+}
+
 export interface UiStateFlags {
   topMost: boolean
   tuckLock: boolean

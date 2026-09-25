@@ -83,6 +83,7 @@ function createWindow(data: ReturnType<AppContext['current']>): void {
     ...defaultWindowOptions(bounds),
     x: pos.x,
     y: pos.y,
+    alwaysOnTop: data.uiState.topMost, // 8.2-2：构造期即带置顶（Windows 上 show 前的 setAlwaysOnTop 可能被覆盖，双保险）
     webPreferences: {
       ...defaultWindowOptions(bounds).webPreferences,
       preload: join(__dirname, '../preload/index.js')
@@ -92,7 +93,11 @@ function createWindow(data: ReturnType<AppContext['current']>): void {
   visible = true
   currentPos = pos
 
-  win_.on('ready-to-show', () => win_!.show())
+  win_.on('ready-to-show', () => {
+    win_!.show()
+    // 8.2-2：show 之后再应用置顶（构造期 setAlwaysOnTop 在部分场景会被 show 重置）
+    applyTopMost(win_!, data.uiState.topMost)
+  })
   win_.on('moved', () => {
     const b = win_!.getBounds()
     currentPos = { x: b.x, y: b.y }
@@ -108,8 +113,6 @@ function createWindow(data: ReturnType<AppContext['current']>): void {
       hideToTray()
     }
   })
-
-  applyTopMost(win_, data.uiState.topMost)
 
   if (process.env.ELECTRON_RENDERER_URL) {
     void win_.loadURL(process.env.ELECTRON_RENDERER_URL)
@@ -146,7 +149,20 @@ function showWindow(): void {
   for (const c of childWindows) {
     if (!c.isDestroyed()) c.show()
   }
+  // 8.2-2：恢复后重新应用置顶（Windows hide/show 可能重置 z-order）
+  reaplyTopMostAll()
   refreshTrayMenu()
+}
+
+/** 置顶=整个组件（8.2-2）：主窗+全部二级窗口统一应用当前 uiState.topMost */
+function reaplyTopMostAll(): void {
+  if (!ctx) return
+  const enabled = ctx.current().uiState.topMost
+  const w = safeWin()
+  if (w) applyTopMost(w, enabled)
+  for (const c of childWindows) {
+    if (!c.isDestroyed()) applyTopMost(c, enabled)
+  }
 }
 
 function hideToTray(): void {
@@ -236,10 +252,12 @@ function lockNonChildWindows(lock: boolean): void {
   }
 }
 
-/** 打开子窗口：屏内居中级联、位置不记忆、高度≤半屏（速查 #7）；尺寸按组缩放（决策#5/#24） */
+/** 打开子窗口：屏内居中级联、位置不记忆、高度≤半屏（速查 #7）；尺寸按组缩放（决策#5/#24）；
+ * 置顶=整个组件（8.2-2）：主窗置顶时子窗口必须同层级，否则被模态锁定压在身后假死 */
 function openChildWindow(kind: ChildKind, id?: string): void {
   const wa = screen.getPrimaryDisplay().workArea
   const groupScale = ctx.current().uiState.childScales[GROUP_OF[kind]] ?? 1
+  const topMost = ctx.current().uiState.topMost
   const placement = childWindowOptions(kind, wa, childWindows.size, groupScale)
   const child = new BrowserWindow({
     width: placement.width,
@@ -252,12 +270,16 @@ function openChildWindow(kind: ChildKind, id?: string): void {
     resizable: false,
     hasShadow: false,
     show: false,
+    alwaysOnTop: topMost,
     webPreferences: childWebPreferences()
   })
   childWindows.add(child)
   lockNonChildWindows(true)
 
-  child.on('ready-to-show', () => child.show())
+  child.on('ready-to-show', () => {
+    child.show()
+    applyTopMost(child, topMost)
+  })
   child.on('moved', () => {
     const b = child.getBounds()
     const clamped = clampPosToWorkArea({ x: b.x, y: b.y }, { width: b.width, height: b.height }, wa)
@@ -323,8 +345,12 @@ function registerIpc(): void {
   ipcMain.handle(IPC.flush, () => ctx.flush())
 
   ipcMain.handle(IPC.setTopMost, (_e, enabled: boolean) => {
+    // 8.2-2：置顶=整个组件（主窗+全部二级窗口）；渲染层已先 commit
     const w = safeWin()
     if (w) applyTopMost(w, enabled)
+    for (const c of childWindows) {
+      if (!c.isDestroyed()) applyTopMost(c, enabled)
+    }
   })
 
   ipcMain.handle(IPC.setVisibility, (_e, v: boolean) => {
