@@ -433,7 +433,8 @@ async function onComplete(id: string): Promise<void> {
   background: var(--btn-hover);
 }
 
-/* ===== 列表（行距/间隙压缩：保证 10 项满载无滚动条，二轮反馈） ===== */
+/* ===== 列表（行距/间隙压缩：保证 10 项满载无滚动条，二轮反馈）；
+ * 右侧 14px 专用带：滚动条不接触行 ===== */
 .scroll {
   flex: 1;
   min-height: 0;
@@ -441,7 +442,7 @@ async function onComplete(id: string): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding: 2px;
+  padding: 2px 14px 2px 2px;
 }
 
 .empty {

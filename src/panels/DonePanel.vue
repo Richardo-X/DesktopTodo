@@ -226,7 +226,7 @@ function fmtDone(iso: string | null): string {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 2px;
+  padding: 2px 14px 2px 2px; /* 右侧 14px 专用带：滚动条出现在列表与窗口边框之间，不接触行 */
 }
 
 .todo-row {

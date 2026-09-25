@@ -32,9 +32,9 @@ test('已完成窗滚动条不挤压行：溢出/不溢出两种状态行宽一�
   const overflow = await measure(12) // 溢出：滚动条出现
   const fit = await measure(1) // 不溢出：无滚动条
 
-  // 两种状态下行宽完全一致 → 滚动条只在专用带内出现，不影响行
-  expect(overflow.gutter).toBe(12)
-  expect(fit.gutter).toBe(12)
+  // 两种状态下行宽完全一致 → 滚动条只在右缘专用带内出现，不影响行（gutter=左2+右14）
+  expect(overflow.gutter).toBe(16)
+  expect(fit.gutter).toBe(16)
   expect(overflow.rowW).toBe(fit.rowW)
 })
 
