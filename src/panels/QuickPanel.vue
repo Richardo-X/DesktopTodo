@@ -123,7 +123,7 @@ onUnmounted(() => {
           />
           <span class="content ellipsis" data-testid="tpl-content">{{ t.content }}</span>
           <!-- 决策#25：批量时右端「＋」换为同款勾选框选中示意 -->
-          <span v-if="!ui.batchMode" class="plusbox" data-testid="tpl-add" title="添加到待办列表" @click.stop="quickAdd(t.id)">＋</span>
+          <span v-if="!ui.batchMode" class="plusbox" data-testid="tpl-add" title="添加到待办列表" @click.stop="quickAdd(t.id)" @dblclick.stop>＋</span>
           <button v-else type="button" class="checkbox" :class="{ checked: ui.selectedIds.includes(t.id) }" @click.stop="ui.toggleSelect(t.id)" @dblclick.stop>
             <svg viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5" /></svg>
           </button>
