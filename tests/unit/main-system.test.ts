@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { acquireSingleInstanceLock } from '../../electron/main/single-instance'
 import { setAutoStart, getAutoStart, loginItemSettingsFor } from '../../electron/main/auto-start'
-import { applyTopMost, applyTopMostAll, withTopMost, withTuckLock, withTheme } from '../../electron/main/window-state'
+import { applyTopMost, applyTopMostAll, refocusChildWindows, withTopMost, withTuckLock, withTheme } from '../../electron/main/window-state'
 
 /** T16 单实例锁 */
 vi.mock('electron', () => {
@@ -84,6 +84,25 @@ describe('T17 window-state 应用', () => {
     applyTopMostAll([a as never, b as never], false)
     expect(a.setAlwaysOnTop).toHaveBeenCalledWith(false, 'screen-saver')
     expect(b.setAlwaysOnTop).toHaveBeenCalledWith(false, 'screen-saver')
+  })
+
+  it('refocusChildWindows（8.2-4）：文件对话框归还焦点后，重新抬升全部子窗口并聚焦发起窗口', () => {
+    const a = { moveTop: vi.fn(), isDestroyed: vi.fn(() => false), focus: vi.fn() }
+    const b = { moveTop: vi.fn(), isDestroyed: vi.fn(() => false), focus: vi.fn() }
+    refocusChildWindows([a as never, b as never], a as never)
+    expect(a.moveTop).toHaveBeenCalled()
+    expect(b.moveTop).toHaveBeenCalled()
+    expect(a.focus).toHaveBeenCalled() // 发起对话框的窗口（如设置窗）拿回焦点
+    expect(b.focus).not.toHaveBeenCalled()
+  })
+
+  it('refocusChildWindows：已销毁窗口跳过；无发起窗口时只抬升不聚焦', () => {
+    const dead = { moveTop: vi.fn(), isDestroyed: vi.fn(() => true), focus: vi.fn() }
+    const alive = { moveTop: vi.fn(), isDestroyed: vi.fn(() => false), focus: vi.fn() }
+    refocusChildWindows([dead as never, alive as never], undefined)
+    expect(dead.moveTop).not.toHaveBeenCalled()
+    expect(alive.moveTop).toHaveBeenCalled()
+    expect(alive.focus).not.toHaveBeenCalled()
   })
 
   it('uiState 反映置顶/缩进锁/主题变更', () => {
