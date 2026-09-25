@@ -2,15 +2,15 @@ import type { ChildKind } from '../../src/ipc/contract'
 
 export type { ChildKind }
 
-/** 二级窗口基准尺寸（DIP；决策#5/#14，原型 v3.1.2；速查 #7：高度 ≤ 半屏、宽度 ≤ 屏宽） */
+/** 二级窗口基准尺寸（DIP；8.2-3 用户定稿：原 v3.1.2 基准整体 +15%；速查 #7：高度 ≤ 半屏、宽度 ≤ 屏宽） */
 export const CHILD_SIZES: Record<ChildKind, { w: number; h: number }> = {
-  'todo-new': { w: 360, h: 360 },
-  'todo-edit': { w: 400, h: 430 },
-  'template-new': { w: 360, h: 360 },
-  'template-edit': { w: 360, h: 380 },
-  detail: { w: 360, h: 430 },
-  history: { w: 560, h: 540 },
-  settings: { w: 400, h: 470 }
+  'todo-new': { w: 410, h: 410 },
+  'todo-edit': { w: 460, h: 490 },
+  'template-new': { w: 410, h: 410 },
+  'template-edit': { w: 410, h: 435 },
+  detail: { w: 415, h: 490 },
+  history: { w: 645, h: 620 },
+  settings: { w: 460, h: 540 }
 }
 
 /** 缩放分组（PRD §二：事项类/模板类/历史/设置；detail 归事项组；主进程与渲染层单一来源） */
