@@ -93,21 +93,24 @@ describe('T25 批量删除模式', () => {
     expect(store.completed).toHaveLength(0)
   })
 
-  it('未选中点「删除所选」：不弹确认框，批量条内提示「没有选择要删除的事项」（8.2-6）', async () => {
+  it('未选中时「删除所选」置灰禁点（用户定稿 8.2-6）：不弹确认、不删除；选中一项后才可点', async () => {
     const { wrapper, store } = await mountWithStore(AppShell, seedTodos())
     await wrapper.find('[data-testid="op-batch"]').trigger('click')
 
-    await wrapper.find('[data-testid="batch-delete"]').trigger('click')
+    const del = wrapper.find('[data-testid="batch-delete"]')
+    expect(del.attributes('disabled')).toBeDefined() // 一行未选 → 按钮禁用
+
+    await del.trigger('click')
     await flushPromises()
     expect(wrapper.find('[data-testid="confirm-dialog"]').exists()).toBe(false) // 不弹删除确认
-    expect(wrapper.find('[data-testid="batch-hint"]').text()).toBe('没有选择要删除的事项')
     expect(store.todos).toHaveLength(3) // 未删除
 
-    // 选中后提示消失，恢复正常确认流程
+    // 选中一项后按钮启用，恢复正常确认流程
     await wrapper.findAll('[data-testid="todo-row"]')[0].trigger('click')
-    expect(wrapper.find('[data-testid="batch-hint"]').exists()).toBe(false)
-    await wrapper.find('[data-testid="batch-delete"]').trigger('click')
+    expect(del.attributes('disabled')).toBeUndefined()
+    await del.trigger('click')
     expect(wrapper.find('[data-testid="confirm-dialog"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="confirm-message"]').text()).toContain('1')
     await wrapper.find('[data-testid="confirm-cancel"]').trigger('click')
     await flushPromises()
     expect(store.todos).toHaveLength(3)
