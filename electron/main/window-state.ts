@@ -14,6 +14,22 @@ export function applyTopMostAll(wins: Iterable<AlwaysOnTopWindow>, enabled: bool
   for (const w of wins) w.setAlwaysOnTop(enabled, 'screen-saver')
 }
 
+interface FocusableChildWindow {
+  isDestroyed(): boolean
+  moveTop(): void
+  focus(): void
+}
+
+/** 系统文件对话框以主窗为 parent，关闭后焦点归还主窗、子窗口掉到其后（8.2-4）：
+ * 抬升全部子窗口；发起对话框的窗口（如设置窗）拿回焦点 */
+export function refocusChildWindows(wins: Iterable<FocusableChildWindow>, preferred?: FocusableChildWindow): void {
+  for (const w of wins) {
+    if (w.isDestroyed()) continue
+    w.moveTop()
+  }
+  if (preferred && !preferred.isDestroyed()) preferred.focus()
+}
+
 export interface UiStateFlags {
   topMost: boolean
   tuckLock: boolean

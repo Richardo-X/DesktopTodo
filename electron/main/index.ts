@@ -10,7 +10,7 @@ import { clusterBounds, defaultWindowOptions, effectiveClusterScale, initialPos 
 import { acquireSingleInstanceLock } from './single-instance'
 import { buildTrayContextMenu, exitConfirmMessage } from './tray-menu'
 import { trayIconPng } from './icon'
-import { applyTopMost } from './window-state'
+import { applyTopMost, refocusChildWindows } from './window-state'
 import { setAutoStart } from './auto-start'
 import { ensureOnSomeDisplay, clampPosToWorkArea } from '../../src/core/utils/screen-clamp'
 import { localDateKey } from '../../src/core/utils/date'
@@ -365,37 +365,47 @@ function registerIpc(): void {
 
   ipcMain.handle(IPC.minimizeToTray, () => hideToTray())
 
-  ipcMain.handle(IPC.saveCsv, async (_e, p: { fileName: string; content: string }) => {
-    // E2E：跳过系统对话框，直接写入指定目录（T47）
-    if (process.env.DTODO_TEST_EXPORT_DIR) {
-      const target = join(process.env.DTODO_TEST_EXPORT_DIR, p.fileName)
-      await writeFile(target, p.content, 'utf8')
-      return target
+  ipcMain.handle(IPC.saveCsv, async (e, p: { fileName: string; content: string }) => {
+    try {
+      // E2E：跳过系统对话框，直接写入指定目录（T47）
+      if (process.env.DTODO_TEST_EXPORT_DIR) {
+        const target = join(process.env.DTODO_TEST_EXPORT_DIR, p.fileName)
+        await writeFile(target, p.content, 'utf8')
+        return target
+      }
+      const w0 = safeWin()
+      if (!w0) return null
+      const r = await dialog.showSaveDialog(w0, {
+        defaultPath: p.fileName,
+        filters: [{ name: 'CSV', extensions: ['csv'] }]
+      })
+      if (r.canceled || !r.filePath) return null
+      await writeFile(r.filePath, p.content, 'utf8')
+      return r.filePath
+    } finally {
+      // 8.2-4：对话框归还焦点到主窗后，抬升子窗口并聚焦发起窗口
+      refocusChildWindows(childWindows, BrowserWindow.fromWebContents(e.sender) ?? undefined)
     }
-    const w0 = safeWin()
-    if (!w0) return null
-    const r = await dialog.showSaveDialog(w0, {
-      defaultPath: p.fileName,
-      filters: [{ name: 'CSV', extensions: ['csv'] }]
-    })
-    if (r.canceled || !r.filePath) return null
-    await writeFile(r.filePath, p.content, 'utf8')
-    return r.filePath
   })
 
-  ipcMain.handle(IPC.openCsv, async () => {
-    // E2E：跳过系统对话框，读取指定文件（T47）
-    if (process.env.DTODO_TEST_IMPORT_FILE) {
-      return readFile(process.env.DTODO_TEST_IMPORT_FILE, 'utf8')
+  ipcMain.handle(IPC.openCsv, async (e) => {
+    try {
+      // E2E：跳过系统对话框，读取指定文件（T47）
+      if (process.env.DTODO_TEST_IMPORT_FILE) {
+        return readFile(process.env.DTODO_TEST_IMPORT_FILE, 'utf8')
+      }
+      const w1 = safeWin()
+      if (!w1) return null
+      const r = await dialog.showOpenDialog(w1, {
+        properties: ['openFile'],
+        filters: [{ name: 'CSV', extensions: ['csv'] }]
+      })
+      if (r.canceled || r.filePaths.length === 0) return null
+      return readFile(r.filePaths[0], 'utf8')
+    } finally {
+      // 8.2-4：对话框归还焦点到主窗后，抬升子窗口并聚焦发起窗口
+      refocusChildWindows(childWindows, BrowserWindow.fromWebContents(e.sender) ?? undefined)
     }
-    const w1 = safeWin()
-    if (!w1) return null
-    const r = await dialog.showOpenDialog(w1, {
-      properties: ['openFile'],
-      filters: [{ name: 'CSV', extensions: ['csv'] }]
-    })
-    if (r.canceled || r.filePaths.length === 0) return null
-    return readFile(r.filePaths[0], 'utf8')
   })
 
   // 渲染层标记是否存在未保存的编辑输入（退出确认提示用，速查 #3）
