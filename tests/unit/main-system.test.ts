@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { acquireSingleInstanceLock } from '../../electron/main/single-instance'
 import { setAutoStart, getAutoStart, loginItemSettingsFor } from '../../electron/main/auto-start'
-import { applyTopMost, withTopMost, withTuckLock, withTheme } from '../../electron/main/window-state'
+import { applyTopMost, applyTopMostAll, withTopMost, withTuckLock, withTheme } from '../../electron/main/window-state'
 
 /** T16 单实例锁 */
 vi.mock('electron', () => {
@@ -73,6 +73,17 @@ describe('T17 window-state 应用', () => {
     expect(win.setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver')
     applyTopMost(win as never, false)
     expect(win.setAlwaysOnTop).toHaveBeenCalledWith(false, 'screen-saver')
+  })
+
+  it('applyTopMostAll（8.2-2）：置顶=整个组件，主窗与全部二级窗口同层级', () => {
+    const a = { setAlwaysOnTop: vi.fn() }
+    const b = { setAlwaysOnTop: vi.fn() }
+    applyTopMostAll([a as never, b as never], true)
+    expect(a.setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver')
+    expect(b.setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver')
+    applyTopMostAll([a as never, b as never], false)
+    expect(a.setAlwaysOnTop).toHaveBeenCalledWith(false, 'screen-saver')
+    expect(b.setAlwaysOnTop).toHaveBeenCalledWith(false, 'screen-saver')
   })
 
   it('uiState 反映置顶/缩进锁/主题变更', () => {

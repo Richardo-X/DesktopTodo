@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import { spawn } from 'node:child_process'
 import { resolve } from 'node:path'
 import { launchApp, type AppHandle } from './helpers'
+import { defaultAppData } from '../../src/core/models'
 
 /** T51 系统级验收（验收 4/39/44 的自动化部分） */
 
@@ -59,5 +60,72 @@ test('验收44：开机自启开关写入系统登录项', async () => {
   await settings.waitForTimeout(500)
   const disabled = await h.app.evaluate((electron) => electron.app.getLoginItemSettings().openAtLogin)
   expect(disabled).toBe(false)
+  await h.close()
+})
+
+/** 8.2-2：置顶=整个组件（含二级窗口）——主窗置顶时打开子窗口必须同层级，否则被模态锁定假死 */
+test('8.2-2：置顶时打开的子窗口同步置顶', async () => {
+  const h = await launchApp()
+  await h.main.click('[data-testid="tb-topmost"]')
+  await h.main.waitForTimeout(400)
+
+  const sp = h.app.waitForEvent('window')
+  await h.main.click('[data-testid="tb-settings"]')
+  const settings = await sp
+  await settings.waitForSelector('[data-testid="set-max"]')
+  await h.main.waitForTimeout(300)
+
+  const flags = await h.app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .filter((w) => !w.isDestroyed())
+      .map((w) => w.isAlwaysOnTop())
+      .sort()
+  )
+  expect(flags).toEqual([true, true])
+  await h.close()
+})
+
+/** 8.2-2：重启后置顶保持——seed topMost=true 启动后主窗必须仍是置顶 */
+test('8.2-2：重启后置顶状态保持', async () => {
+  const seeded = defaultAppData()
+  seeded.uiState.topMost = true
+  const h = await launchApp({ seed: seeded })
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+  await h.main.waitForTimeout(400)
+
+  const flag = await h.app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed()).every((w) => w.isAlwaysOnTop())
+  )
+  expect(flag).toBe(true)
+  await h.close()
+})
+
+/** 8.2-2：托盘隐藏→恢复后置顶保持（Windows 上 hide/show 可能重置 z-order，用户报"重启后丢失"的最可能路径） */
+test('8.2-2：托盘隐藏再恢复后置顶保持', async () => {
+  const seeded = defaultAppData()
+  seeded.uiState.topMost = true
+  const h = await launchApp({ seed: seeded })
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+
+  await h.main.click('[data-testid="tb-minimize"]')
+  const visibles = async (): Promise<boolean[]> =>
+    (await h.app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed()).map((w) => w.isVisible())
+    )).sort()
+  await expect.poll(visibles, { timeout: 10_000 }).toEqual([false])
+
+  // 单实例二次唤起（等价托盘"显示"路径）
+  const second = spawn(ELECTRON_EXE, [APP_MAIN], {
+    env: { ...process.env, DTODO_USER_DATA: h.userData, DTODO_TEST: '1' },
+    stdio: 'ignore'
+  })
+  await expect.poll(visibles, { timeout: 20_000 }).toEqual([true])
+  second.kill()
+  await h.main.waitForTimeout(400)
+
+  const flag = await h.app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed()).every((w) => w.isAlwaysOnTop())
+  )
+  expect(flag).toBe(true)
   await h.close()
 })
