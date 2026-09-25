@@ -438,7 +438,7 @@ async function onComplete(id: string): Promise<void> {
 .scroll {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: scroll; /* 恒定预留滚动条槽位：行宽不因出现/消失变化（二轮反馈） */
   display: flex;
   flex-direction: column;
   gap: 5px;

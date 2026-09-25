@@ -18,6 +18,8 @@ function doneItems(n: number) {
 test('已完成窗滚动条不挤压行：溢出/不溢出两种状态行宽一致', async () => {
   const measure = async (n: number): Promise<{ gutter: number; rowW: number }> => {
     const h = await launchApp({ seed: { completed: doneItems(n) } })
+    await h.main.waitForSelector('[data-testid="done-row"]', { timeout: 10_000 })
+    await h.main.waitForTimeout(300) // 布局稳定
     const m = await h.main.evaluate(() => {
       const list = document.querySelector('[data-testid="done-panel"] .scroll')
       const row = document.querySelector('[data-testid="done-row"]')
@@ -32,7 +34,7 @@ test('已完成窗滚动条不挤压行：溢出/不溢出两种状态行宽一�
   const overflow = await measure(12) // 溢出：滚动条出现
   const fit = await measure(1) // 不溢出：无滚动条
 
-  // 两种状态下行宽完全一致 → 滚动条只在右缘专用带内出现，不影响行（gutter=左2+右14）
+  // 两种状态下行宽完全一致（gutter=左2+右14 恒定；悬浮滑块只绘制在右缘 14px 专用带内，不接触行）
   expect(overflow.gutter).toBe(16)
   expect(fit.gutter).toBe(16)
   expect(overflow.rowW).toBe(fit.rowW)

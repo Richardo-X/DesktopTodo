@@ -190,7 +190,7 @@ async function doExport(): Promise<void> {
 .list {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: scroll; /* 恒定预留槽位（二轮反馈） */
   display: flex;
   flex-direction: column;
   gap: 6px;
