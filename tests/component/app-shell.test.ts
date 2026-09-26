@@ -4,6 +4,13 @@ import AppShell from '../../src/panels/AppShell.vue'
 import { mountWithStore } from '../helpers/mount'
 import { useUiStore } from '../../src/stores/ui'
 
+
+async function mountWithStoreGetUi() {
+  const r = await mountWithStore(AppShell)
+  const ui = useUiStore()
+  return { ...r, ui }
+}
+
 beforeEach(() => {
   document.body.innerHTML = ''
 })
@@ -106,6 +113,20 @@ describe('T21 标题栏工具栏五按钮', () => {
     // 悬停胶囊 → 弹出（旧实现 mouseenter 绑在 document/stage 上，胶囊无绑定 → 红）
     await bar.trigger('mouseenter')
     expect(ui.tuck.tucked).toBe(false)
+  })
+
+  it('三轮CI：dispatchTuck 仅在 tucked 变化时同步主进程（事件乱序不回弹窗口）', async () => {
+    const { api, ui } = await mountWithStoreGetUi()
+    const before = api.tuckedCalls.length
+    ui.dispatchTuck({ type: 'window-move', now: Date.now() })
+    expect(api.tuckedCalls.length).toBe(before) // tucked 未变化 → 不发送
+    ui.dispatchTuck({ type: 'snap' })
+    ui.dispatchTuck({ type: 'window-move', now: Date.now() })
+    expect(api.tuckedCalls.length).toBe(before) // 仍为 false → 不发送
+    ui.dispatchTuck({ type: 'mouse-leave', now: Date.now() })
+    ui.dispatchTuck({ type: 'tick', now: Date.now() + 500 })
+    expect(api.tuckedCalls.length).toBe(before + 1) // false→true：一次
+    expect(api.tuckedCalls).toContain(true)
   })
 
   it('三轮8.2-1：胶囊只在缩进态出现；弹出后 cluster 恢复', async () => {

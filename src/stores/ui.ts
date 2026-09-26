@@ -17,8 +17,10 @@ export const useUiStore = defineStore('ui', () => {
   let tickTimer: ReturnType<typeof setInterval> | null = null
 
   function dispatchTuck(e: TuckEvent): void {
+    const prevTucked = tuck.value.tucked
     tuck.value = reduceTuck(tuck.value, e)
-    void getApi().setTucked(tuck.value.tucked)
+    // 仅在 tucked 实际变化时同步主进程：事件乱序时旧状态不得回弹窗口（CI 反馈环根因）
+    if (tuck.value.tucked !== prevTucked) void getApi().setTucked(tuck.value.tucked)
     if (tuck.value.leaveAt !== null && tickTimer === null) {
       tickTimer = setInterval(() => {
         dispatchTuck({ type: 'tick', now: Date.now() })

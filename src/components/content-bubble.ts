@@ -20,6 +20,11 @@ export function isTruncatedWider(innerW: number, visibleW: number, reserve: numb
   return innerW > visibleW - reserve
 }
 
+/** 气泡宽度上限：min(300, 行左侧可用空间)，下限 120——保证「行左侧+不遮列表」在窄余量下也成立 */
+export function bubbleMaxWidth(availableLeft: number): number {
+  return Math.max(120, Math.min(300, availableLeft))
+}
+
 /** 行左侧定位：右缘距行左缘 14px、垂直居中、8px 屏边距钳制、箭头指向行中心。
  * （行左只会越出屏幕左缘，右侧天然不溢出，故无需视口宽度参数） */
 export function placeBubbleLeft(row: RowRect, bw: number, bh: number, vh: number): BubbleGeometry {
@@ -100,6 +105,7 @@ async function showNow(): Promise<void> {
   if (!row) return
   const el = document.querySelector<HTMLElement>('[data-testid="content-bubble"]')
   const rr = row.getBoundingClientRect()
+  if (el) el.style.maxWidth = `${bubbleMaxWidth(rr.left - 14 - 8)}px`
   const g = placeBubbleLeft(
     { left: rr.left, top: rr.top, height: rr.height },
     el?.offsetWidth ?? 0,

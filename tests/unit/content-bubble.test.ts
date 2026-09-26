@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isTruncatedWider, placeBubbleLeft } from '../../src/components/content-bubble'
+import { isTruncatedWider, placeBubbleLeft, bubbleMaxWidth } from '../../src/components/content-bubble'
 
 /** 三轮反馈（8.2-4）：气泡照原型 #gbubble 重做——只有确实截断才弹、位置固定在行左侧不遮列表 */
 
@@ -44,5 +44,21 @@ describe('placeBubbleLeft 行左侧定位（用户定稿：只弹行左侧，不
   it('行贴近屏幕底部：气泡底缘不越屏', () => {
     const g = placeBubbleLeft({ left: 400, top: 1040, height: 36 }, 200, 60, 1080)
     expect(g.y).toBe(1080 - 60 - 8)
+  })
+})
+
+describe('bubbleMaxWidth（CI 反馈：左侧空间不足时收缩气泡宽度，保证不遮列表）', () => {
+  it('可用空间充足 → 上限 300px', () => {
+    expect(bubbleMaxWidth(400)).toBe(300)
+    expect(bubbleMaxWidth(322)).toBe(300)
+  })
+
+  it('可用空间不足 → 收缩为可用宽度（行左缘-14 间距-8 屏边距）', () => {
+    expect(bubbleMaxWidth(211)).toBe(211)
+    expect(bubbleMaxWidth(150)).toBe(150)
+  })
+
+  it('极窄时下限 120px（过度收缩不可读）', () => {
+    expect(bubbleMaxWidth(60)).toBe(120)
   })
 })
