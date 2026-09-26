@@ -171,34 +171,64 @@ async function onComplete(id: string): Promise<void> {
 
 <template>
   <section class="panel home-panel" data-testid="home-panel">
-    <!-- 决策#8：标题栏拖动窗口；按钮区 no-drag；8.2-7：批量进行中禁用 -->
+    <!-- 三轮8.2-6：照原型重做——左侧品牌区（勾图标+桌面待办），右侧一组5按钮（SVG 线性图标）；
+         决策#8：标题栏拖动窗口；8.2-7：批量进行中冻结 -->
     <header class="titlebar">
+      <div class="tb-left">
+        <span class="tb-brand" data-testid="tb-brand">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12.5l4.5 4.5L19 7.5" />
+          </svg>
+        </span>
+        <span class="tb-title" data-testid="tb-title">桌面待办</span>
+      </div>
       <div class="win-actions">
-        <button data-testid="tb-theme" class="wbtn" :class="{ frozen: ui.batchMode }" title="日/夜主题切换" @click="toggleTheme">
-          {{ store.uiState.theme === 'day' ? '☾' : '☀' }}
+        <button data-testid="tb-theme" class="wbtn" :class="{ frozen: ui.batchMode }" :title="store.uiState.theme === 'day' ? '切换到夜晚模式' : '切换到白天模式'" @click="toggleTheme">
+          <!-- 原型同款：白天显月亮（点击切夜），夜晚显太阳 -->
+          <svg v-if="store.uiState.theme === 'day'" data-icon="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+          <svg v-else data-icon="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+          </svg>
         </button>
-        <button data-testid="tb-settings" class="wbtn" :class="{ frozen: ui.batchMode }" title="设置" @click="ui.openChild('settings')">⚙</button>
+        <button data-testid="tb-settings" class="wbtn" :class="{ frozen: ui.batchMode }" title="设置" @click="ui.openChild('settings')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
         <button
           data-testid="tb-tucklock"
           class="wbtn"
           :class="{ on: store.uiState.tuckLock, frozen: ui.batchMode }"
-          title="缩进锁定"
+          :title="store.uiState.tuckLock ? '缩进锁定已开启：吸附边缘但不缩进' : '缩进锁定已关闭：吸附边缘后自动缩进'"
           @click="toggleTuckLock"
         >
-          ⇤
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 4h18" />
+            <rect x="7" y="11.5" width="10" height="8" rx="1.6" />
+            <path d="M9.6 11.5V9a2.4 2.4 0 0 1 4.8 0v2.5" />
+          </svg>
         </button>
         <button
           data-testid="tb-topmost"
           class="wbtn"
           :class="{ on: store.uiState.topMost, frozen: ui.batchMode }"
-          title="窗口置顶"
+          title="窗口置顶开关"
           @click="toggleTopMost"
         >
-          ↑
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 17v5" />
+            <path d="M9 3h6l1 7 3 3H5l3-3 1-7z" />
+          </svg>
         </button>
-      </div>
-      <div class="win-actions right">
-        <button data-testid="tb-minimize" class="wbtn" :class="{ frozen: ui.batchMode }" title="缩小到通知栏" @click="getApi().minimizeToTray()">×</button>
+        <button data-testid="tb-minimize" class="wbtn close" :class="{ frozen: ui.batchMode }" title="缩小到通知栏" @click="getApi().minimizeToTray()">
+          <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" fill="none">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
       </div>
     </header>
 
@@ -267,29 +297,52 @@ async function onComplete(id: string): Promise<void> {
   height: 100%;
 }
 
-/* ===== 标题栏（36px，整条拖动；决策#8） ===== */
+/* ===== 标题栏（36px，整条拖动；三轮8.2-6 照原型：左侧品牌区+右侧单组5按钮） ===== */
 .titlebar {
   height: 36px;
   flex: none;
   display: flex;
   align-items: center;
-  padding-left: 8px;
+  padding-left: 12px;
   user-select: none;
   -webkit-app-region: drag;
 }
 
+/* 品牌区：主题色圆角方块勾图标 + 应用名（原型 .tb-left/.tb-icon） */
+.tb-left {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--muted, #666);
+  pointer-events: none;
+}
+
+.tb-brand {
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  background: var(--accent, #0a63b8);
+  color: var(--accent-fg, #ffffff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tb-brand svg {
+  width: 10px;
+  height: 10px;
+}
+
 .win-actions {
+  margin-left: auto;
   display: flex;
   height: 100%;
   -webkit-app-region: no-drag;
 }
 
-.win-actions.right {
-  margin-left: auto;
-}
-
 .wbtn {
-  width: 38px;
+  width: 42px;
   height: 100%;
   border: none;
   background: transparent;
@@ -299,7 +352,11 @@ async function onComplete(id: string): Promise<void> {
   justify-content: center;
   cursor: pointer;
   padding: 0;
-  font-size: 13px;
+}
+
+.wbtn svg {
+  width: 13px;
+  height: 13px;
 }
 
 .wbtn:hover {
@@ -310,7 +367,8 @@ async function onComplete(id: string): Promise<void> {
   color: var(--accent);
 }
 
-.win-actions.right .wbtn:hover {
+/* 原型 .wbtn.close:hover：红底白字 */
+.wbtn.close:hover {
   background: var(--danger);
   color: #fff;
 }
