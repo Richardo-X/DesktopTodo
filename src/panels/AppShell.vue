@@ -108,8 +108,6 @@ onUnmounted(() => {
   --danger: #c42b1c;
   --overdue: #d13438;
   --cb-border: #8a8a8a;
-  --shadow-main: 0 18px 60px rgba(5, 15, 35, 0.5);
-  --shadow-side: 0 4px 12px rgba(5, 15, 35, 0.22); /* 决策#19：两侧小阴影，不盖中间主窗 */
 
   color: var(--text);
   font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
@@ -144,20 +142,15 @@ onUnmounted(() => {
   gap: 6px; /* 决策#20 */
 }
 
-/* ===== 面板外观（原型 .win） ===== */
+/* ===== 面板外观（原型 .win）=====
+ * 三轮反馈（8.2-5/8.2-7）：无投影（用户要求去除窗口阴影；投影还会把面板间隙填成整块深色）；
+ * 无 backdrop-filter（透明窗口上的模糊合成是夜晚黑块根因之一，半透明底色仍透出壁纸） */
 .stage :deep(.panel) {
   background: var(--win-bg);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 10px;
-  box-shadow: var(--shadow-main);
   color: var(--text);
   overflow: hidden;
-  backdrop-filter: blur(30px) saturate(1.2);
-}
-
-/* 决策#19：两侧面板小阴影 */
-.stage :deep(.side-panel) {
-  box-shadow: var(--shadow-side);
 }
 
 /* 面板基准尺寸（决策#4/#18/#20，cluster-layout 同源） */
@@ -183,7 +176,6 @@ onUnmounted(() => {
   width: 200px;
   border-radius: 8px;
   background: var(--win-bg);
-  box-shadow: var(--shadow-side);
   margin: 0 auto;
 }
 </style>
