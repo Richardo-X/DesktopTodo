@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import AppShell from '../../src/panels/AppShell.vue'
 import { mountWithStore } from '../helpers/mount'
+import { useUiStore } from '../../src/stores/ui'
 import { createTodoItem } from '../../src/core/models'
 
 function seedTodos() {
@@ -131,3 +132,15 @@ describe('T25 批量删除模式', () => {
     expect(wrapper.find('[data-testid="tb-theme"]').classes()).not.toContain('frozen')
   })
 })
+
+  it('四轮1：模板批量进行中待办主窗整面板冻结，行点选不影响批量选择（全禁补对称）', async () => {
+    const { wrapper } = await mountWithStore(AppShell, seedTodos())
+    const ui = useUiStore()
+    await wrapper.find('[data-testid="quick-batch"]').trigger('click')
+    expect(ui.batchTarget).toBe('templates')
+    expect(wrapper.find('[data-testid="home-panel"]').classes()).toContain('frozen')
+
+    // 待办行点击/勾选不再切换批量选中（模板批量的选择集不受污染）
+    await wrapper.findAll('[data-testid="todo-row"]')[0].trigger('click')
+    expect(ui.selectedIds).toHaveLength(0)
+  })
