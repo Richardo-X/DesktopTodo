@@ -6,7 +6,7 @@ import { SystemClock } from '../../src/core/interfaces/clock'
 import { OffsetClock } from './clock'
 import type { IClock } from '../../src/core/interfaces/clock'
 import { AppContext } from './context'
-import { clusterBounds, defaultWindowOptions, effectiveClusterScale, initialPos } from './layout'
+import { defaultWindowOptions, effectiveClusterScale, initialPos } from './layout'
 import { acquireSingleInstanceLock } from './single-instance'
 import { buildTrayContextMenu, exitConfirmMessage } from './tray-menu'
 import { trayIconPng } from './icon'
@@ -16,8 +16,37 @@ import { ensureOnSomeDisplay, clampPosToWorkArea } from '../../src/core/utils/sc
 import { localDateKey } from '../../src/core/utils/date'
 import { IPC, type ChildKind } from '../../src/ipc/contract'
 import { GROUP_OF, childWindowOptions } from './child-windows'
-import { tuckBarBounds } from '../../src/core/utils/cluster-layout'
+import {
+  tuckBarBounds,
+  windowBoundsForAnchor,
+  anchorForWindowX,
+  visibleClusterBounds
+} from '../../src/core/utils/cluster-layout'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
+
+/** 四轮定稿 B：锚点语义的屏幕钳制——锚点换算成窗口 bounds，钳制后换回锚点 */
+function clampAnchorToWorkArea(
+  anchor: { x: number; y: number },
+  scale: number,
+  quickVisible: boolean,
+  doneVisible: boolean,
+  wa: { x: number; y: number; width: number; height: number }
+): { x: number; y: number } {
+  const wb = windowBoundsForAnchor(anchor, scale, quickVisible, doneVisible)
+  const c = clampPosToWorkArea({ x: wb.x, y: wb.y }, { width: wb.width, height: wb.height }, wa)
+  return { x: anchorForWindowX(c.x, scale, quickVisible), y: c.y }
+}
+
+/** 首次启动锚点：沿用 initialPos 口径（窗口右缘距屏右 24、距顶 48），换算为待办左上角锚点 */
+function initialAnchor(
+  wa: { x: number; y: number; width: number; height: number },
+  scale: number,
+  quickVisible: boolean,
+  doneVisible: boolean
+): { x: number; y: number } {
+  const wb = initialPos(wa, visibleClusterBounds(scale, quickVisible, doneVisible))
+  return { x: anchorForWindowX(wb.x, scale, quickVisible), y: wb.y }
+}
 
 let win: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -75,18 +104,22 @@ async function bootstrap(): Promise<void> {
 
 function createWindow(data: ReturnType<AppContext['current']>): void {
   const wa = screen.getPrimaryDisplay().workArea
-  // 决策#23：初始缩放按所在屏钳制（高度≤半屏、宽度≤屏宽），窗口与渲染层 zoom 1:1
-  const scale = effectiveClusterScale(data.uiState.clusterScale, wa)
-  const bounds = clusterBounds(scale)
-  const pos =
+  const q = data.uiState.quickVisible
+  const d = data.uiState.doneVisible
+  // 决策#23：初始缩放按所在屏钳制（高度≤半屏、宽度≤屏宽），窗口与渲染层 zoom 1:1；
+  // 四轮定稿 B：钳制基准=可见面板并集（隐藏面板不占位）
+  const scale = effectiveClusterScale(data.uiState.clusterScale, wa, q, d)
+  // 四轮定稿 B：pos=待办左上角锚点；窗口 bounds 由锚点推导（快捷可见时窗口左缘在锚点左侧）
+  const anchor =
     data.uiState.pos !== null
-      ? clampPosToWorkArea(data.uiState.pos, bounds, wa)
-      : initialPos(wa, bounds)
+      ? clampAnchorToWorkArea(data.uiState.pos, scale, q, d, wa)
+      : initialAnchor(wa, scale, q, d)
+  const bounds = windowBoundsForAnchor(anchor, scale, q, d)
 
   const win_ = new BrowserWindow({
     ...defaultWindowOptions(bounds),
-    x: pos.x,
-    y: pos.y,
+    x: bounds.x,
+    y: bounds.y,
     alwaysOnTop: data.uiState.topMost, // 8.2-2：构造期即带置顶（Windows 上 show 前的 setAlwaysOnTop 可能被覆盖，双保险）
     webPreferences: {
       ...defaultWindowOptions(bounds).webPreferences,
@@ -95,7 +128,7 @@ function createWindow(data: ReturnType<AppContext['current']>): void {
   })
   win = win_
   visible = true
-  currentPos = pos
+  currentPos = anchor
 
   win_.on('ready-to-show', () => {
     win_!.show()
@@ -116,7 +149,14 @@ function createWindow(data: ReturnType<AppContext['current']>): void {
     // 三轮8.2-1：缩进态 setBounds 会改 x——不得污染位置记忆，也不做吸附判定
     if (tucked) return
     const b = win_!.getBounds()
-    currentPos = { x: b.x, y: b.y }
+    // 四轮定稿 B：pos=待办左上角锚点（快捷可见时窗口左缘在锚点左侧）
+    if (!ctx) {
+      currentPos = { x: b.x, y: b.y }
+    } else {
+      const ui = ctx.current().uiState
+      const scale = effectiveClusterScale(ui.clusterScale, screen.getPrimaryDisplay().workArea, ui.quickVisible, ui.doneVisible)
+      currentPos = { x: anchorForWindowX(b.x, scale, ui.quickVisible), y: b.y }
+    }
     detectSnap()
   })
   win_.on('closed', () => {
@@ -232,15 +272,18 @@ function syncMainBounds(): void {
   const w = safeWin()
   if (!w || !ctx) return
   const d = ctx.current()
-  const scale = effectiveClusterScale(d.uiState.clusterScale, screen.getPrimaryDisplay().workArea)
-  const b = clusterBounds(scale)
-  const pos = currentPos ?? w.getBounds()
+  const wa = screen.getPrimaryDisplay().workArea
+  const q = d.uiState.quickVisible
+  const done = d.uiState.doneVisible
+  // 四轮定稿 B：钳制基准=可见面板并集；pos=待办左上角锚点
+  const scale = effectiveClusterScale(d.uiState.clusterScale, wa, q, done)
+  const wb = windowBoundsForAnchor(currentPos ?? { x: 0, y: 0 }, scale, q, done)
   if (tucked) {
-    // 三轮8.2-1：缩进=胶囊窗口（宽 160、水平居中于原簇、贴顶）——感应区=胶囊本身
-    w.setBounds(tuckBarBounds({ x: pos.x, y: pos.y }, b.width))
+    // 三轮8.2-1：缩进=胶囊窗口（宽 160、水平居中于可见簇、贴顶）——感应区=胶囊本身
+    w.setBounds(tuckBarBounds({ x: wb.x, y: wb.y }, wb.width))
     return
   }
-  w.setBounds({ x: pos.x, y: pos.y, width: b.width, height: b.height })
+  w.setBounds(wb)
 }
 
 /** 吸附检测（三轮8.2-1：SNAP_THRESHOLD=0——顶边真正触碰屏幕上边缘才吸附）：
@@ -467,11 +510,17 @@ function watchDisplayChanges(): void {
   const reposition = (): void => {
     const w = safeWin()
     if (!w || !ctx) return
-    const bounds = clusterBounds(effectiveClusterScale(ctx.current().uiState.clusterScale, screen.getPrimaryDisplay().workArea))
-    const displays = screen.getAllDisplays().map((d) => d.workArea)
-    const next = ensureOnSomeDisplay(currentPos ?? { x: 0, y: 0 }, bounds, displays)
+    const d = ctx.current()
+    const wa = screen.getPrimaryDisplay().workArea
+    const q = d.uiState.quickVisible
+    const done = d.uiState.doneVisible
+    // 四轮定稿 B：锚点语义——按窗口 bounds 跨屏钳制，再换算回锚点
+    const scale = effectiveClusterScale(d.uiState.clusterScale, wa, q, done)
+    const wb = windowBoundsForAnchor(currentPos ?? { x: 0, y: 0 }, scale, q, done)
+    const displays = screen.getAllDisplays().map((disp) => disp.workArea)
+    const next = ensureOnSomeDisplay({ x: wb.x, y: wb.y }, { width: wb.width, height: wb.height }, displays)
     w.setPosition(next.x, next.y)
-    currentPos = next
+    currentPos = { x: anchorForWindowX(next.x, scale, q), y: next.y }
   }
   screen.on('display-removed', reposition)
   screen.on('display-metrics-changed', reposition)

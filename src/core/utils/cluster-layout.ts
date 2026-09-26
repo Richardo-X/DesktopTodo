@@ -10,8 +10,8 @@ export interface Bounds {
 /**
  * 组件簇布局基准（B2 单一来源：主进程窗口 bounds 与渲染层 cluster zoom 共用，决策#7 1:1 同步）。
  * 尺寸基准 = 原型 v3.1.2（决策#4/#18/#20）。
- * 二轮反馈裁定：恒定三段槽位——快捷添加(-316)/待办主窗(0,0)/已完成(+476)，
- * 面板开关只在槽位内显隐，**不改变窗口几何**（主窗屏幕位置恒定，零残影）。
+ * 四轮定稿 B（动态窗口）：隐藏面板不再占位——窗口 bounds=可见面板并集；
+ * pos 语义=待办窗口左上角锚点（缩放/开关面板的唯一不动点，替代二轮恒定槽位方案）。
  */
 
 /** 基准（scale=1）面板尺寸（DIP）：主窗 470、快捷添加/已完成 310（决策#18）、簇高 640 */
@@ -30,7 +30,7 @@ export function clusterBaseWidth(): number {
   return BASE_PANEL.quick + BASE_GAP + BASE_PANEL.main + BASE_GAP + BASE_PANEL.done
 }
 
-/** 簇总尺寸：随等比缩放变化（渲染层按基准尺寸 + zoom 呈现，窗口按此改 bounds） */
+/** 簇总尺寸（全开，兼容保留）：随等比缩放变化 */
 export function clusterBounds(scale: number): Bounds {
   return {
     width: Math.round(clusterBaseWidth() * scale),
@@ -38,12 +38,55 @@ export function clusterBounds(scale: number): Bounds {
   }
 }
 
+/** 可见簇基准宽（scale=1）：主窗 + 可见侧面板（各含 6px 缝隙）——隐藏面板不占位（四轮 B） */
+export function visibleClusterWidth(quickVisible: boolean, doneVisible: boolean): number {
+  return (
+    BASE_PANEL.main +
+    (quickVisible ? BASE_PANEL.quick + BASE_GAP : 0) +
+    (doneVisible ? BASE_PANEL.done + BASE_GAP : 0)
+  )
+}
+
+/** 可见簇总尺寸（随等比缩放变化，窗口 bounds 与渲染层 cluster 宽度共用） */
+export function visibleClusterBounds(scale: number, quickVisible: boolean, doneVisible: boolean): Bounds {
+  return {
+    width: Math.round(visibleClusterWidth(quickVisible, doneVisible) * scale),
+    height: Math.round(BASE_PANEL.height * scale)
+  }
+}
+
+/** 快捷可见时：窗口左缘 → 待办左缘的真实像素偏移（含缩放）；隐藏时待办即最左，偏移 0 */
+export function quickOffsetPx(scale: number, quickVisible: boolean): number {
+  return quickVisible ? Math.round((BASE_PANEL.quick + BASE_GAP) * scale) : 0
+}
+
+/** 锚点（待办窗口左上角）→ OS 窗口 bounds（主进程 syncMainBounds/createWindow 单一来源） */
+export function windowBoundsForAnchor(
+  anchor: { x: number; y: number },
+  scale: number,
+  quickVisible: boolean,
+  doneVisible: boolean
+): Bounds & { x: number; y: number } {
+  const b = visibleClusterBounds(scale, quickVisible, doneVisible)
+  return { x: anchor.x - quickOffsetPx(scale, quickVisible), y: anchor.y, width: b.width, height: b.height }
+}
+
+/** OS 窗口左缘 → 锚点 x（moved/drag 回写 pos 用；与 windowBoundsForAnchor 往返一致） */
+export function anchorForWindowX(windowX: number, scale: number, quickVisible: boolean): number {
+  return windowX + quickOffsetPx(scale, quickVisible)
+}
+
 /**
  * 有效簇缩放（决策#23）：启动/恢复/同步窗口尺寸时，存值按所在屏钳制——
  * 高度 ≤ 屏幕工作区一半、宽度 ≤ 屏宽、下限 MIN_SCALE（内容完整可见）。
  */
-export function effectiveClusterScale(stored: number, wa: WorkArea): number {
-  return clampClusterScale(stored, { width: clusterBaseWidth(), height: BASE_PANEL.height }, wa)
+export function effectiveClusterScale(
+  stored: number,
+  wa: WorkArea,
+  quickVisible = true,
+  doneVisible = true
+): number {
+  return clampClusterScale(stored, { width: visibleClusterWidth(quickVisible, doneVisible), height: BASE_PANEL.height }, wa)
 }
 
 /**

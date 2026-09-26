@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import { TUCK_BAR_HEIGHT, TUCK_BAR_WIDTH } from '../core/constants'
-import { BASE_PANEL, clusterBaseWidth, effectiveClusterScale } from '../core/utils/cluster-layout'
+import { BASE_PANEL, visibleClusterWidth, effectiveClusterScale } from '../core/utils/cluster-layout'
 import HomePanel from './HomePanel.vue'
 import QuickPanel from './QuickPanel.vue'
 import DonePanel from './DonePanel.vue'
@@ -32,13 +32,17 @@ function rendererWorkArea(): { x: number; y: number; width: number; height: numb
 }
 
 /** 簇缩放：与主进程 syncMainBounds 同一钳制口径（决策#23），zoom 与窗口 bounds 1:1（决策#7） */
-const clusterScale = computed(() => effectiveClusterScale(store.uiState.clusterScale, rendererWorkArea()))
+const clusterScale = computed(() =>
+  effectiveClusterScale(store.uiState.clusterScale, rendererWorkArea(), store.uiState.quickVisible, store.uiState.doneVisible)
+)
 
-/** zoom 容器尺寸=内容基准÷缩放（+2px 透明余量防取整裁切圆角）：
- * zoom 会把布局尺寸再乘一次，容器按内容基准定尺寸后 zoom×尺寸=真窗口尺寸，无溢出无裁切 */
+/** zoom 容器尺寸=可见内容基准÷缩放（+2px 透明余量防取整裁切圆角）：
+ * zoom 会把布局尺寸再乘一次，容器按内容基准定尺寸后 zoom×尺寸=真窗口尺寸，无溢出无裁切。
+ * 四轮定稿 B：动态窗口——宽度只含可见面板（隐藏面板 v-if 移出，不再占位） */
 const clusterStyle = computed(() => {
   const s = clusterScale.value
-  return { zoom: String(s), width: `calc(${clusterBaseWidth()}px / ${s} + 2px)`, height: `calc(${BASE_PANEL.height}px / ${s} + 2px)` }
+  const baseW = visibleClusterWidth(store.uiState.quickVisible, store.uiState.doneVisible)
+  return { zoom: String(s), width: `calc(${baseW}px / ${s} + 2px)`, height: `calc(${BASE_PANEL.height}px / ${s} + 2px)` }
 })
 
 onMounted(() => {
@@ -61,10 +65,10 @@ onUnmounted(() => {
     :class="{ tucked }"
   >
     <div v-if="!tucked" class="cluster" :style="clusterStyle">
-      <!-- 二轮反馈：恒定三段槽位，面板开关用 visibility 占位隐藏（display:none 会塌陷槽位挤动主窗） -->
-      <QuickPanel data-testid="quick-panel" :class="{ 'slot-hidden': !store.uiState.quickVisible }" />
+      <!-- 四轮定稿 B：动态窗口——隐藏面板 v-if 移出（不再 visibility 占位），窗口 bounds=可见面板并集 -->
+      <QuickPanel v-if="store.uiState.quickVisible" data-testid="quick-panel" />
       <HomePanel />
-      <DonePanel data-testid="done-panel" :class="{ 'slot-hidden': !store.uiState.doneVisible }" />
+      <DonePanel v-if="store.uiState.doneVisible" data-testid="done-panel" />
     </div>
     <!-- 三轮8.2-1：缩进胶囊（160×6 可见 + 12px 热区）；感应区=胶囊本身（窗口已收窄至胶囊矩形） -->
     <div
@@ -171,11 +175,6 @@ onUnmounted(() => {
   width: 310px;
   height: 640px;
   flex: none;
-}
-
-/* 面板开关：visibility 占位隐藏（槽位不塌陷），不可见亦不可交互 */
-.stage :deep(.slot-hidden) {
-  visibility: hidden;
 }
 
 /* ===== 缩进胶囊（三轮8.2-1 用户定稿：160×6 半透明圆角胶囊，无阴影；12px 热区随窗口） ===== */

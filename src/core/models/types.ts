@@ -38,8 +38,11 @@ export type Theme = 'day' | 'night'
 
 /** 窗口/界面记忆项（开发计划 §2.3 uiState） */
 export interface UiState {
-  /** 组件簇位置（DIP 逻辑坐标）；null = 首次启动默认位置（屏幕右侧偏上） */
+  /** 组件簇位置（DIP 逻辑坐标）；null = 首次启动默认位置（屏幕右侧偏上）。
+   * 四轮定稿 B：语义=待办窗口左上角锚点（缩放/开关面板的不动点） */
   pos: { x: number; y: number } | null
+  /** pos 语义标记：true=待办左上角锚点（动态窗口）；false/缺省=旧档的窗口左上角（迁移用） */
+  posIsTodoAnchor: boolean
   /** 三面板簇整体等比缩放 */
   clusterScale: number
   /** 子窗口按类别分组缩放：事项类/模板类/设置/历史 */

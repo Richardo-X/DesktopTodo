@@ -4,9 +4,24 @@ import { defaultAppData } from '../../src/core/models'
 
 /** 四轮定稿 B：动态窗口——锚点=待办窗口左上角（缩放/开关面板不动）；
  * 隐藏面板不再占位（窗口宽度=可见面板并集） */
+
+/** 等待主窗真正 show（ready-to-show 晚于 DOM ready；isVisible 才可信） */
+async function waitMainVisible(h: { app: import('@playwright/test').ElectronApplication }): Promise<void> {
+  await expect
+    .poll(
+      async () =>
+        h.app.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows().some((w) => !w.isDestroyed() && w.isVisible())
+        ),
+      { timeout: 10_000 }
+    )
+    .toBe(true)
+}
+
 test('开关面板：待办窗口屏幕锚点不动，窗口宽随可见面板收缩', async () => {
   const h = await launchApp()
   await h.main.waitForSelector('[data-testid="home-panel"]')
+  await waitMainVisible(h)
 
   const snapshot = async (): Promise<{ anchorProbe: number; quickInDom: boolean }> =>
     h.main.evaluate(() => {
@@ -54,9 +69,10 @@ test('开关面板：待办窗口屏幕锚点不动，窗口宽随可见面板�
 
 test('重启恢复：pos 语义=待办左上角锚点（待办窗口屏幕位置=存档值）', async () => {
   const seed = defaultAppData()
-  seed.uiState.pos = { x: 300, y: 200 }
+  seed.uiState.pos = { x: 500, y: 200 } // 锚点=待办左上角；取屏内值避免钳制改写
   const h = await launchApp({ seed })
   await h.main.waitForSelector('[data-testid="home-panel"]')
+  await waitMainVisible(h)
   await h.main.waitForTimeout(300)
 
   const [b, probeX, probeY] = await Promise.all([
@@ -68,7 +84,7 @@ test('重启恢复：pos 语义=待办左上角锚点（待办窗口屏幕位置
     h.main.evaluate(() => Math.round((document.querySelector('[data-testid="home-panel"]') as HTMLElement).getBoundingClientRect().left)),
     h.main.evaluate(() => Math.round((document.querySelector('[data-testid="home-panel"]') as HTMLElement).getBoundingClientRect().top))
   ])
-  expect(Math.abs(b.x + probeX - 300)).toBeLessThanOrEqual(2)
+  expect(Math.abs(b.x + probeX - 500)).toBeLessThanOrEqual(2)
   expect(Math.abs(b.y + probeY - 200)).toBeLessThanOrEqual(2)
   await h.close()
 })

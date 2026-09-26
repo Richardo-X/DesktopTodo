@@ -89,6 +89,7 @@ describe('默认值与归一化（首次空列表 / 旧档补齐）', () => {
   it('defaultUiState：面板全开、白天主题、不置顶、不锁缩进、未结算过、缩放 1', () => {
     expect(defaultUiState()).toEqual({
       pos: null,
+      posIsTodoAnchor: true,
       clusterScale: 1,
       childScales: {},
       quickVisible: true,

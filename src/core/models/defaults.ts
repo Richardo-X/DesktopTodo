@@ -1,4 +1,5 @@
 import type { AppData, AppSettings, UiState } from './types'
+import { BASE_PANEL, BASE_GAP } from '../utils/cluster-layout'
 
 /** 设置默认值（PRD §5.6：上限 10 / 24 小时制 / 不自启 / 正序） */
 export function defaultSettings(): AppSettings {
@@ -14,6 +15,7 @@ export function defaultSettings(): AppSettings {
 export function defaultUiState(): UiState {
   return {
     pos: null,
+    posIsTodoAnchor: true,
     clusterScale: 1,
     childScales: {},
     quickVisible: true,
@@ -55,24 +57,34 @@ export function normalizeSettings(raw: Partial<AppSettings> | undefined | null):
   }
 }
 
-/** uiState 归一化（旧档补齐，G4） */
+/** uiState 归一化（旧档补齐，G4）。
+ * 四轮定稿 B：pos 语义迁移——旧档 pos=窗口左上角 → 新档 pos=待办左上角锚点（一次性、幂等：
+ * 旧档无 posIsTodoAnchor 标记时按快捷可见性右移偏移量并打标；已标记档案原样保留） */
 export function normalizeUiState(raw: Partial<UiState> | undefined | null): UiState {
   const d = defaultUiState()
   if (!raw || typeof raw !== 'object') return d
+  const posValid = raw.pos && typeof raw.pos.x === 'number' && typeof raw.pos.y === 'number'
+  const quickVisible = typeof raw.quickVisible === 'boolean' ? raw.quickVisible : d.quickVisible
+  const doneVisible = typeof raw.doneVisible === 'boolean' ? raw.doneVisible : d.doneVisible
+  const clusterScale = typeof raw.clusterScale === 'number' && raw.clusterScale > 0 ? raw.clusterScale : d.clusterScale
+  const posIsTodoAnchor = raw.posIsTodoAnchor === true
+  let pos = posValid ? { x: raw.pos!.x, y: raw.pos!.y } : d.pos
+  if (pos !== null && !posIsTodoAnchor && quickVisible) {
+    // 旧档迁移：窗口左上角 → 待办左上角（快捷面板宽+缝隙，按缩放取整）
+    pos = { x: pos.x + Math.round((BASE_PANEL.quick + BASE_GAP) * clusterScale), y: pos.y }
+  }
   return {
-    pos:
-      raw.pos && typeof raw.pos.x === 'number' && typeof raw.pos.y === 'number'
-        ? { x: raw.pos.x, y: raw.pos.y }
-        : d.pos,
-    clusterScale: typeof raw.clusterScale === 'number' && raw.clusterScale > 0 ? raw.clusterScale : d.clusterScale,
+    pos,
+    posIsTodoAnchor: pos === null ? d.posIsTodoAnchor : true,
+    clusterScale,
     childScales:
       raw.childScales && typeof raw.childScales === 'object'
         ? Object.fromEntries(
             Object.entries(raw.childScales).filter(([, v]) => typeof v === 'number' && v > 0)
           )
         : d.childScales,
-    quickVisible: typeof raw.quickVisible === 'boolean' ? raw.quickVisible : d.quickVisible,
-    doneVisible: typeof raw.doneVisible === 'boolean' ? raw.doneVisible : d.doneVisible,
+    quickVisible,
+    doneVisible,
     theme: raw.theme === 'night' ? 'night' : raw.theme === 'day' ? 'day' : d.theme,
     topMost: typeof raw.topMost === 'boolean' ? raw.topMost : d.topMost,
     tuckLock: typeof raw.tuckLock === 'boolean' ? raw.tuckLock : d.tuckLock,

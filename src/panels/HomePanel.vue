@@ -5,7 +5,7 @@ import { useUiStore } from '../stores/ui'
 import TodoRow from '../components/TodoRow.vue'
 import BatchBar from '../components/BatchBar.vue'
 import { createDragSort } from '../components/useDragSort'
-import { BASE_PANEL, clusterBaseWidth } from '../core/utils/cluster-layout'
+import { BASE_PANEL, visibleClusterWidth } from '../core/utils/cluster-layout'
 import { clampClusterScale } from '../core/utils/scale'
 import { fmtTime, fmtDateCN } from '../core/utils/date'
 import { getApi } from '../services/api'
@@ -90,19 +90,24 @@ function rendererWorkArea(): { x: number; y: number; width: number; height: numb
 function onGripDown(e: PointerEvent): void {
   ui.dispatchTuck({ type: 'resize-start' })
   const scale = store.uiState.clusterScale
-  scaleStart = { x: e.clientX, scale, baseWidth: clusterBaseWidth() * scale }
+  // 四轮定稿 B：拖拽比例基于可见簇宽（隐藏面板不占位，与主进程钳制口径一致）
+  scaleStart = {
+    x: e.clientX,
+    scale,
+    baseWidth: visibleClusterWidth(store.uiState.quickVisible, store.uiState.doneVisible) * scale
+  }
   window.addEventListener('pointermove', onGripMove)
   window.addEventListener('pointerup', onGripUp)
 }
 
 function onGripMove(e: PointerEvent): void {
   if (scaleStart === null) return
-  // 比例跟随（原型 applyPanelScale）：s0 × (w0+dx)/w0，再按工作区钳制（决策#23）
+  // 比例跟随（原型 applyPanelScale）：s0 × (w0+dx)/w0，再按工作区钳制（决策#23；基准=可见簇宽）
   const dx = e.clientX - scaleStart.x
   const next = scaleStart.scale * ((scaleStart.baseWidth + dx) / scaleStart.baseWidth)
   const clamped = clampClusterScale(
     next,
-    { width: clusterBaseWidth(), height: BASE_PANEL.height },
+    { width: visibleClusterWidth(store.uiState.quickVisible, store.uiState.doneVisible), height: BASE_PANEL.height },
     rendererWorkArea()
   )
   void store.updateUiState({ clusterScale: clamped })
