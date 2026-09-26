@@ -196,7 +196,10 @@ export const useAppStore = defineStore('app', () => {
   async function updateSettings(patch: Partial<AppSettings>): Promise<PatchResult> {
     const next = applySettings(data.value.settings, patch)
     await apply((d) => ({ ...d, settings: next }))
-    if (patch.autoStart !== undefined) await getApi().setAutoStart(patch.autoStart)
+    if (patch.autoStart !== undefined) {
+      const autoStartApplied = await getApi().setAutoStart(patch.autoStart)
+      return { ok: true, settings: next, autoStartApplied }
+    }
     return { ok: true, settings: next }
   }
 

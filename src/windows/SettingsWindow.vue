@@ -43,8 +43,15 @@ async function importCsv(mode: 'cover' | 'merge'): Promise<void> {
 }
 
 // —— 4. 开机自启（switch） ——
+const autoStartError = ref('')
+
 async function toggleAutoStart(): Promise<void> {
-  await store.updateSettings({ autoStart: !store.settings.autoStart })
+  autoStartError.value = ''
+  const r = await store.updateSettings({ autoStart: !store.settings.autoStart })
+  // 三轮：系统登录项写入未生效（如被任务管理器禁用/策略拦截）→ 明确提示
+  if (r.ok && r.autoStartApplied === false) {
+    autoStartError.value = '开机自启设置未生效，请检查任务管理器「启动应用」中「桌面待办」是否被禁用'
+  }
 }
 
 // 决策#6：设置=表单类，标题栏左「←」直接关闭
@@ -113,6 +120,7 @@ async function onBack(): Promise<void> {
           <span class="knob" />
         </button>
       </div>
+      <p v-if="autoStartError" class="error" data-testid="set-autostart-error">{{ autoStartError }}</p>
 
       <p class="meta-line">所有设置即时生效并保留。</p>
     </div>

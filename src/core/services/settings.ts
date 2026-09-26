@@ -14,7 +14,7 @@ const DONE_SORTS: readonly DoneSort[] = ['asc', 'desc']
 
 /** 单字段校验后的补丁结果 */
 export type PatchResult =
-  | { ok: true; settings: AppSettings }
+  | { ok: true; settings: AppSettings; autoStartApplied?: boolean }
   | { ok: false; field: keyof AppSettings }
 
 function isInt(v: unknown): v is number {

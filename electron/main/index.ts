@@ -11,7 +11,7 @@ import { acquireSingleInstanceLock } from './single-instance'
 import { buildTrayContextMenu, exitConfirmMessage } from './tray-menu'
 import { trayIconPng } from './icon'
 import { applyTopMost, refocusChildWindows } from './window-state'
-import { setAutoStart } from './auto-start'
+import { setAutoStart, syncAutoStartOnBoot } from './auto-start'
 import { ensureOnSomeDisplay, clampPosToWorkArea } from '../../src/core/utils/screen-clamp'
 import { localDateKey } from '../../src/core/utils/date'
 import { IPC, type ChildKind } from '../../src/ipc/contract'
@@ -62,6 +62,9 @@ async function bootstrap(): Promise<void> {
   ctx = new AppContext(repo, makeClock())
   const data = await ctx.boot()
   currentPos = data.uiState.pos
+
+  // 三轮：自启加固——开关为开时重写登录项（路径始终指向当前 exe）
+  syncAutoStartOnBoot(data.settings.autoStart)
 
   createWindow(data)
   createTray()
@@ -380,10 +383,7 @@ function registerIpc(): void {
     else hideToTray()
   })
 
-  ipcMain.handle(IPC.setAutoStart, (_e, enabled: boolean) => {
-    setAutoStart(enabled)
-    return true
-  })
+  ipcMain.handle(IPC.setAutoStart, (_e, enabled: boolean) => setAutoStart(enabled))
 
   ipcMain.handle(IPC.minimizeToTray, () => hideToTray())
 
