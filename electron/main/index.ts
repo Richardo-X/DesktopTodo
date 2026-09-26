@@ -15,8 +15,9 @@ import { setAutoStart } from './auto-start'
 import { ensureOnSomeDisplay, clampPosToWorkArea } from '../../src/core/utils/screen-clamp'
 import { localDateKey } from '../../src/core/utils/date'
 import { IPC, type ChildKind } from '../../src/ipc/contract'
-import { SNAP_THRESHOLD, TUCK_BAR_HEIGHT } from '../../src/core/constants'
 import { GROUP_OF, childWindowOptions } from './child-windows'
+import { tuckBarBounds } from '../../src/core/utils/cluster-layout'
+import { SNAP_THRESHOLD } from '../../src/core/constants'
 
 let win: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -98,7 +99,17 @@ function createWindow(data: ReturnType<AppContext['current']>): void {
     // 8.2-2：show 之后再应用置顶（构造期 setAlwaysOnTop 在部分场景会被 show 重置）
     applyTopMost(win_!, data.uiState.topMost)
   })
+  // 三轮8.2-1：窗口移动期间节流通知渲染层（moving 抑制自动缩进，修拖动中伪 leave 误缩回）
+  let lastMoveSent = 0
+  win_.on('move', () => {
+    const now = Date.now()
+    if (now - lastMoveSent < 150) return
+    lastMoveSent = now
+    win_?.webContents.send(IPC.windowMoving, now)
+  })
   win_.on('moved', () => {
+    // 三轮8.2-1：缩进态 setBounds 会改 x——不得污染位置记忆，也不做吸附判定
+    if (tucked) return
     const b = win_!.getBounds()
     currentPos = { x: b.x, y: b.y }
     detectSnap()
@@ -218,18 +229,29 @@ function syncMainBounds(): void {
   const d = ctx.current()
   const scale = effectiveClusterScale(d.uiState.clusterScale, screen.getPrimaryDisplay().workArea)
   const b = clusterBounds(scale)
-  const height = tucked ? TUCK_BAR_HEIGHT : b.height
   const pos = currentPos ?? w.getBounds()
-  w.setBounds({ x: pos.x, y: pos.y, width: b.width, height })
+  if (tucked) {
+    // 三轮8.2-1：缩进=胶囊窗口（宽 160、水平居中于原簇、贴顶）——感应区=胶囊本身
+    w.setBounds(tuckBarBounds({ x: pos.x, y: pos.y }, b.width))
+    return
+  }
+  w.setBounds({ x: pos.x, y: pos.y, width: b.width, height: b.height })
 }
 
-/** 吸附检测：窗口顶边接近工作区顶（阈值见附录 A8）→ 通知渲染层状态机 */
+/** 吸附检测（三轮8.2-1：SNAP_THRESHOLD=0——顶边真正触碰屏幕上边缘才吸附）：
+ * 判定成立时把窗口贴齐 y=工作区顶（不再悬空），并通知渲染层状态机 */
 function detectSnap(): void {
   const w = safeWin()
   if (!w) return
   const wa = screen.getPrimaryDisplay().workArea
   const b = w.getBounds()
   const now = b.y - wa.y <= SNAP_THRESHOLD
+  if (now && b.y !== wa.y) {
+    // 吸附成立：贴齐屏顶
+    w.setPosition(b.x, wa.y)
+    currentPos = { x: b.x, y: wa.y }
+    return
+  }
   if (now !== snapped) {
     snapped = now
     w.webContents.send(IPC.snapChanged, snapped)

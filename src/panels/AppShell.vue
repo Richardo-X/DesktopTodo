@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
-import { TUCK_BAR_HEIGHT } from '../core/constants'
+import { TUCK_BAR_HEIGHT, TUCK_BAR_WIDTH } from '../core/constants'
 import { BASE_PANEL, clusterBaseWidth, effectiveClusterScale } from '../core/utils/cluster-layout'
 import HomePanel from './HomePanel.vue'
 import QuickPanel from './QuickPanel.vue'
@@ -44,13 +44,13 @@ const clusterStyle = computed(() => {
 onMounted(() => {
   void store.init()
   ui.initSystemEvents()
+  // 三轮8.2-1：弹出触发收窄为胶囊短条本身（document 级 mouseenter 移除——
+  // 缩进时 OS 窗口已收窄为胶囊矩形，此处 mouseleave 用于弹出后移开自动缩回）
   document.addEventListener('mouseleave', ui.mouseLeave)
-  document.addEventListener('mouseenter', ui.mouseEnter)
 })
 
 onUnmounted(() => {
   document.removeEventListener('mouseleave', ui.mouseLeave)
-  document.removeEventListener('mouseenter', ui.mouseEnter)
 })
 </script>
 
@@ -59,7 +59,6 @@ onUnmounted(() => {
     class="stage"
     :data-theme="store.uiState.theme"
     :class="{ tucked }"
-    @mouseenter="ui.mouseEnter"
   >
     <div v-if="!tucked" class="cluster" :style="clusterStyle">
       <!-- 二轮反馈：恒定三段槽位，面板开关用 visibility 占位隐藏（display:none 会塌陷槽位挤动主窗） -->
@@ -67,7 +66,15 @@ onUnmounted(() => {
       <HomePanel />
       <DonePanel data-testid="done-panel" :class="{ 'slot-hidden': !store.uiState.doneVisible }" />
     </div>
-    <div v-else class="tuck-bar" :style="{ height: TUCK_BAR_HEIGHT + 'px' }" />
+    <!-- 三轮8.2-1：缩进胶囊（160×6 可见 + 12px 热区）；感应区=胶囊本身（窗口已收窄至胶囊矩形） -->
+    <div
+      v-else
+      class="tuck-bar"
+      :style="{ height: TUCK_BAR_HEIGHT + 'px', width: TUCK_BAR_WIDTH + 'px' }"
+      title="鼠标移到此条上弹出组件"
+      @mouseenter="ui.mouseEnter"
+      @mouseleave="ui.mouseLeave"
+    />
     <ConfirmDialog />
 
     <!-- 8.2-4：全局悬停气泡（Teleport 出 zoom 容器外，fixed 真实坐标不受缩放二次缩放） -->
@@ -171,11 +178,30 @@ onUnmounted(() => {
   visibility: hidden;
 }
 
-/* ===== 缩进小条（约 12px，划过弹出） ===== */
+/* ===== 缩进胶囊（三轮8.2-1 用户定稿：160×6 半透明圆角胶囊，无阴影；12px 热区随窗口） ===== */
 .tuck-bar {
-  width: 200px;
-  border-radius: 8px;
-  background: var(--win-bg);
+  border-radius: 99px;
   margin: 0 auto;
+  cursor: pointer;
+}
+
+/* 可见胶囊：热区中央 6px 高细条，随主题淡化 */
+.tuck-bar::after {
+  content: '';
+  display: block;
+  height: 6px;
+  margin-top: 3px;
+  border-radius: 99px;
+  background: var(--tuck-bar-bg, rgba(255, 255, 255, 0.55));
+  transition: background 0.15s;
+}
+
+.tuck-bar:hover::after {
+  background: var(--tuck-bar-hover, rgba(255, 255, 255, 0.85));
+}
+
+.stage[data-theme='night'] .tuck-bar {
+  --tuck-bar-bg: rgba(255, 255, 255, 0.28);
+  --tuck-bar-hover: rgba(255, 255, 255, 0.5);
 }
 </style>

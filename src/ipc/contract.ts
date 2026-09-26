@@ -20,6 +20,7 @@ export const IPC = {
   resizeSelf: 'window:resize-self',
   setTucked: 'window:set-tucked',
   snapChanged: 'app:snap-state',
+  windowMoving: 'window:moving',
   childClosed: 'app:child-closed',
   requestExit: 'app:request-exit',
   minimizeToTray: 'window:minimize-to-tray'
@@ -67,6 +68,7 @@ export interface DesktopTodoApi {
   resizeSelf(params: { width: number; height: number }): Promise<void>
   /** 贴边缩进状态：主进程按小条/整簇调整窗口高度 */
   setTucked(tucked: boolean): Promise<void>
+  onWindowMoving(cb: (now: number) => void): () => void
   /** 主进程吸附状态变化（窗口移动到/离开上边缘） */
   onSnapChanged(cb: (snapped: boolean) => void): () => void
   /** 任一子窗口关闭（缩进状态机 child-closed） */

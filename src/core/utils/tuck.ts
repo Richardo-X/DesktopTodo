@@ -1,4 +1,4 @@
-import { TUCK_DELAY_MS } from '../constants'
+import { TUCK_DELAY_MS, TUCK_MOVE_IDLE_MS } from '../constants'
 
 /**
  * 贴边缩进状态机（§5-I，纯函数）：
@@ -17,6 +17,10 @@ export interface TuckState {
   childOpen: boolean
   /** 缩放进行中：保持弹出 */
   resizing: boolean
+  /** 窗口移动中（三轮8.2-1）：拖动会触发伪 mouse-leave，移动期间禁止自动缩进 */
+  moving: boolean
+  /** 最近一次窗口移动时刻（ms）；null=已停止移动超过空闲阈值 */
+  moveAt: number | null
   /** 鼠标离开时刻（ms 时间戳）；null=鼠标在组件上 */
   leaveAt: number | null
 }
@@ -31,14 +35,24 @@ export type TuckEvent =
   | { type: 'child-closed' }
   | { type: 'resize-start' }
   | { type: 'resize-end' }
+  | { type: 'window-move'; now: number }
   | { type: 'tick'; now: number }
 
 export function initialTuckState(): TuckState {
-  return { snapped: false, tucked: false, locked: false, childOpen: false, resizing: false, leaveAt: null }
+  return {
+    snapped: false,
+    tucked: false,
+    locked: false,
+    childOpen: false,
+    resizing: false,
+    moving: false,
+    moveAt: null,
+    leaveAt: null
+  }
 }
 
 function canTuck(s: TuckState): boolean {
-  return s.snapped && !s.locked && !s.childOpen && !s.resizing
+  return s.snapped && !s.locked && !s.childOpen && !s.resizing && !s.moving
 }
 
 /** 纯归约：返回新状态，不产生副作用（定时由宿主 tick 驱动） */
@@ -58,8 +72,10 @@ export function reduceTuck(state: TuckState, event: TuckEvent, delayMs: number =
       return s
 
     case 'mouse-leave':
-      // I6：未吸附/锁定/子窗口/缩放中 → 永不 tucked
-      s.leaveAt = canTuck(s) && !s.tucked ? event.now : null
+      // I6：未吸附/锁定/子窗口/缩放中 → 永不 tucked；
+      // 三轮8.2-1：移动中（moving）也记录 leaveAt（拖动的伪 leave 与真实 leave 都可能发生在移动期间），
+      // 但 tick 的 canTuck 门保证移动中不缩进
+      s.leaveAt = (canTuck(s) || s.moving) && !s.tucked ? event.now : null
       return s
 
     case 'mouse-enter':
@@ -98,12 +114,25 @@ export function reduceTuck(state: TuckState, event: TuckEvent, delayMs: number =
       s.resizing = false
       return s
 
-    case 'tick':
+    case 'window-move':
+      // 三轮8.2-1：窗口移动中禁止自动缩进；取消伪 mouse-leave（拖动开始时系统接管鼠标引发）
+      s.moving = true
+      s.moveAt = event.now
+      s.leaveAt = null
+      return s
+
+    case 'tick': {
+      // 三轮8.2-1：移动停止超过空闲阈值 → moving 解除
+      if (s.moving && s.moveAt !== null && event.now - s.moveAt >= TUCK_MOVE_IDLE_MS) {
+        s.moving = false
+        s.moveAt = null
+      }
       // I1：离开超过延时 → tucked
       if (s.leaveAt !== null && canTuck(s) && event.now - s.leaveAt >= delayMs) {
         s.tucked = true
         s.leaveAt = null
       }
       return s
+    }
   }
 }

@@ -108,6 +108,7 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     resizeSelf: async (params: { width: number; height: number }) => {
       resizeSelfCalls.push(params)
     },
+    onWindowMoving: (_cb: (now: number) => void) => () => {},
     setTucked: async (tucked: boolean) => {
       tuckedCalls.push(tucked)
     },

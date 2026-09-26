@@ -1,4 +1,4 @@
-import { MIN_SCALE } from '../constants'
+import { MIN_SCALE, TUCK_BAR_WIDTH, TUCK_BAR_HEIGHT } from '../constants'
 import { clampClusterScale } from './scale'
 import type { Area as WorkArea } from './scale'
 
@@ -56,6 +56,17 @@ export function clampChildGroupScale(v: number, baseWidth: number, baseHeight: n
   const cap = Math.min(1.6, (wa.width - 24) / baseWidth, (wa.height - 24) / baseHeight)
   if (v > cap) v = cap
   return Math.round(Math.max(MIN_SCALE, v) * 20) / 20
+}
+
+/** 缩进胶囊窗口 bounds（三轮8.2-1）：宽=胶囊、水平居中于原簇、y 不变（贴顶）。
+ * 主进程 syncMainBounds 与恢复逻辑单一来源；弹出时调用方用原 pos 重算全宽 bounds */
+export function tuckBarBounds(pos: { x: number; y: number }, clusterWidth: number): Bounds & { x: number; y: number } {
+  return {
+    x: pos.x + Math.round((clusterWidth - TUCK_BAR_WIDTH) / 2),
+    y: pos.y,
+    width: TUCK_BAR_WIDTH,
+    height: TUCK_BAR_HEIGHT
+  }
 }
 
 export type { WorkArea }
