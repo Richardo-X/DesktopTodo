@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import QuickPanel from '../../src/panels/QuickPanel.vue'
 import AppShell from '../../src/panels/AppShell.vue'
 import { mountWithStore } from '../helpers/mount'
 import { useUiStore } from '../../src/stores/ui'
 import { createTemplateItem, createTodoItem } from '../../src/core/models'
+import { contentBubble } from '../../src/components/content-bubble'
 
 function tpl(id: string, content: string) {
   return createTemplateItem({ content, now: new Date(2026, 8, 20, 9), id })
@@ -72,6 +73,32 @@ describe('T29 快捷添加面板', () => {
     await wrapper.find('[data-testid="tpl-add"]').trigger('dblclick')
     await flushPromises()
     expect(api.openChildCalls).toHaveLength(0)
+  })
+
+  it('模板行内容截断时悬停 1 秒弹气泡（8.2-4：PRD §五模板行截断气泡补齐）', async () => {
+    vi.useFakeTimers()
+    try {
+      const long = tpl('a', '运'.repeat(80))
+      const { wrapper } = await mountWithStore(QuickPanel, { templates: [long] })
+      const contentEl = wrapper.find('[data-testid="tpl-content"]').element
+      const inn = contentEl.querySelector('.tt-in') as HTMLElement
+      Object.defineProperty(inn, 'offsetWidth', { value: 500, configurable: true })
+      Object.defineProperty(contentEl, 'clientWidth', { value: 220, configurable: true })
+      Object.defineProperty(wrapper.find('[data-testid="tpl-row"]').element, 'getBoundingClientRect', {
+        value: () => ({ left: 300, top: 100, right: 560, bottom: 136, width: 260, height: 36, x: 300, y: 100, toJSON: () => ({}) }),
+        configurable: true
+      })
+
+      await wrapper.find('[data-testid="tpl-content"]').trigger('mouseenter')
+      expect(contentBubble.visible).toBe(false)
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(contentBubble.visible).toBe(true)
+      expect(contentBubble.text).toBe(long.content)
+      await wrapper.find('[data-testid="tpl-content"]').trigger('mouseleave')
+      expect(contentBubble.visible).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('批量删除：进多选、选择、删除所选直接删除（B1.5）', async () => {

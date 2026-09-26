@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import TodoRow from '../../src/components/TodoRow.vue'
+import { contentBubble } from '../../src/components/content-bubble'
 import { createTodoItem } from '../../src/core/models'
 
 function makeRow(overrides = {}) {
@@ -28,32 +29,51 @@ describe('T23 TodoRow', () => {
     expect(off.find('[data-testid="row-overdue-tag"]').exists()).toBe(false)
   })
 
-  it('内容超长 → 截断样式；悬停 1 秒后气泡显示全文；提前移开不出现', async () => {
+  it('内容截断时悬停内容 1 秒 → 气泡状态显示全文（行左侧）；移开消失（8.2-4 重做）', async () => {
     vi.useFakeTimers()
     try {
       const long = makeRow({ content: '很'.repeat(80) })
-      const w = mount(TodoRow, { props: { item: long }, attachTo: document.body })
+      const w = mount(TodoRow, { props: { item: long } })
       expect(w.find('[data-testid="row-content"]').classes().join(' ')).toContain('ellipsis')
 
-      await w.find('[data-testid="todo-row"]').trigger('mouseenter')
-      expect(w.find('[data-testid="row-bubble"]').exists()).toBe(false)
-      await vi.advanceTimersByTimeAsync(999)
-      expect(w.find('[data-testid="row-bubble"]').exists()).toBe(false)
-      await vi.advanceTimersByTimeAsync(2)
-      expect(w.find('[data-testid="row-bubble"]').exists()).toBe(true)
-      expect(w.find('[data-testid="row-bubble"]').text()).toBe(long.content)
+      // happy-dom 无布局引擎：注入截断测量所需的宽度
+      const contentEl = w.find('[data-testid="row-content"]').element
+      const inn = contentEl.querySelector('.tt-in') as HTMLElement
+      Object.defineProperty(inn, 'offsetWidth', { value: 500, configurable: true })
+      Object.defineProperty(contentEl, 'clientWidth', { value: 220, configurable: true })
+      Object.defineProperty(w.find('[data-testid="todo-row"]').element, 'getBoundingClientRect', {
+        value: () => ({ left: 300, top: 100, right: 560, bottom: 136, width: 260, height: 36, x: 300, y: 100, toJSON: () => ({}) }),
+        configurable: true
+      })
 
-      // 移开关闭气泡
-      await w.find('[data-testid="todo-row"]').trigger('mouseleave')
-      await vi.advanceTimersByTimeAsync(1200)
-      expect(w.find('[data-testid="row-bubble"]').exists()).toBe(false)
+      await w.find('[data-testid="row-content"]').trigger('mouseenter')
+      expect(contentBubble.visible).toBe(false) // 未满 1 秒不显示
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(contentBubble.visible).toBe(true)
+      expect(contentBubble.text).toBe(long.content)
+      expect(contentBubble.x).toBeLessThanOrEqual(300) // 行左侧，不遮列表
+      expect(contentBubble.y).toBe(118) // 垂直居中对齐行
 
-      // 未满 1 秒移开 → 气泡永不出现
-      await w.find('[data-testid="todo-row"]').trigger('mouseenter')
-      await vi.advanceTimersByTimeAsync(500)
-      await w.find('[data-testid="todo-row"]').trigger('mouseleave')
+      await w.find('[data-testid="row-content"]').trigger('mouseleave')
+      expect(contentBubble.visible).toBe(false)
+      w.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('未截断的内容悬停超过 1 秒也不弹气泡（8.2-4：只有确实截断才弹）', async () => {
+    vi.useFakeTimers()
+    try {
+      const w = mount(TodoRow, { props: { item: makeRow() } })
+      const contentEl = w.find('[data-testid="row-content"]').element
+      const inn = contentEl.querySelector('.tt-in') as HTMLElement
+      Object.defineProperty(inn, 'offsetWidth', { value: 60, configurable: true })
+      Object.defineProperty(contentEl, 'clientWidth', { value: 220, configurable: true })
+
+      await w.find('[data-testid="row-content"]').trigger('mouseenter')
       await vi.advanceTimersByTimeAsync(1200)
-      expect(w.find('[data-testid="row-bubble"]').exists()).toBe(false)
+      expect(contentBubble.visible).toBe(false)
       w.unmount()
     } finally {
       vi.useRealTimers()
