@@ -105,8 +105,9 @@ onUnmounted(() => {
     <div class="win-body">
       <div class="panel-head">
         <span class="panel-title" data-testid="quick-title">{{ title }}</span>
-        <button class="btn sm" data-testid="quick-batch" @click="enterBatch">批量删除</button>
-        <button class="icon-btn accent" data-testid="quick-new" title="新建模板" @click="ui.openChild('template-new')">＋</button>
+        <!-- 四轮3：自身批量进行中头部两按钮冻结（批量条「取消」可退出） -->
+        <button class="btn sm" data-testid="quick-batch" :class="{ frozen: ui.batchMode }" @click="enterBatch">批量删除</button>
+        <button class="icon-btn accent" data-testid="quick-new" :class="{ frozen: ui.batchMode }" title="新建模板" @click="ui.openChild('template-new')">＋</button>
       </div>
 
       <p v-if="error" class="error" data-testid="quick-error">{{ error }}</p>

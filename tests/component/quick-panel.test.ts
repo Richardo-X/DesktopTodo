@@ -55,6 +55,20 @@ describe('T29 快捷添加面板', () => {
     expect(api.openChildCalls).toContainEqual({ kind: 'template-new' })
   })
 
+  it('四轮3：自身批量进行中「批量删除」「＋」两枚头部按钮冻结（取消可退出）', async () => {
+    const { wrapper } = await mountWithStore(QuickPanel, { templates: [tpl('a', '喝水')] })
+    await wrapper.find('[data-testid="quick-batch"]').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="quick-batch"]').classes()).toContain('frozen')
+    expect(wrapper.find('[data-testid="quick-new"]').classes()).toContain('frozen')
+
+    // 取消后恢复
+    await wrapper.find('[data-testid="batch-cancel"]').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="quick-batch"]').classes()).not.toContain('frozen')
+    expect(wrapper.find('[data-testid="quick-new"]').classes()).not.toContain('frozen')
+  })
+
   it('其他列表批量进行中：快捷添加面板整面板冻结（8.2-7 全禁）；自身批量时不冻结', async () => {
     const { wrapper } = await mountWithStore(QuickPanel, { templates: [tpl('a', '喝水')] })
     const ui = useUiStore()
