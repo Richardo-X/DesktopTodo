@@ -83,6 +83,14 @@ describe('T23 TodoRow', () => {
     expect(w.emitted('edit')).toBeUndefined()
   })
 
+  it('连点保护窗（8.2-9）：勾选框点击后 450ms 内行双击不触发编辑（第二击偏出按钮落到行上的场景）', async () => {
+    const w = mount(TodoRow, { props: { item: makeRow() } })
+    await w.find('[data-testid="row-checkbox"]').trigger('click')
+    await w.find('[data-testid="todo-row"]').trigger('dblclick')
+    expect(w.emitted('toggle')).toHaveLength(1)
+    expect(w.emitted('edit')).toBeUndefined()
+  })
+
   it('批量模式（决策#25）：勾选框原位变为选中示意——点勾选框/点行均切换选中，不触发完成', async () => {
     const w = mount(TodoRow, { props: { item: makeRow(), batchMode: true, selected: false } })
     expect(w.find('[data-testid="row-select-circle"]').exists()).toBe(false) // 选择圈方案已否决

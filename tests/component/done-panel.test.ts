@@ -89,6 +89,16 @@ describe('T31 已完成面板', () => {
     expect(api.openChildCalls).toContainEqual({ kind: 'history' })
   })
 
+  it('连点保护窗（8.2-9）：反选框点击后立即双击行不打开详情（第二击偏出按钮落到行上的场景）', async () => {
+    const { wrapper, api } = await mountWithStore(DonePanel, { completed: [doneToday('a', '喝水', 8)] })
+    // 不 await click：模拟第二击在退回生效（行卸载）前落到同一行上
+    void wrapper.find('[data-testid="done-check"]').trigger('click')
+    await wrapper.find('[data-testid="done-row"]').trigger('dblclick')
+    expect(api.openChildCalls).not.toContainEqual({ kind: 'detail', id: 'a' })
+    await flushPromises()
+    expect(api.openChildCalls).not.toContainEqual({ kind: 'detail', id: 'a' })
+  })
+
   it('空提示"今天也要继续加油"（决策#18）', async () => {
     const { wrapper } = await mountWithStore(DonePanel)
     expect(wrapper.find('[data-testid="done-empty"]').text()).toBe('今天也要继续加油')
