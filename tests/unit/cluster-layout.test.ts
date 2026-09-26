@@ -5,7 +5,8 @@ import {
   clusterBaseWidth,
   clusterBounds,
   effectiveClusterScale,
-  clampChildGroupScale
+  clampChildGroupScale,
+  tuckBarBounds
 } from '../../src/core/utils/cluster-layout'
 import { MIN_SCALE } from '../../src/core/constants'
 
@@ -97,5 +98,23 @@ describe('clampChildGroupScale 原型组缩放规则', () => {
   it('步进 0.05（原型 round(v*20)/20）', () => {
     const wa = { x: 0, y: 0, width: 1920, height: 1040 }
     expect(clampChildGroupScale(1.132, 400, 430, wa)).toBe(1.15)
+  })
+})
+
+/** 三轮8.2-1：缩进胶囊窗口 bounds——在原簇水平中心、贴顶、160×12 热区 */
+describe('tuckBarBounds', () => {
+  it('缩进时窗口收窄为胶囊：水平居中于原簇，y 不变（贴顶）', () => {
+    const b = tuckBarBounds({ x: 500, y: 0 }, 1102)
+    expect(b.width).toBe(160)
+    expect(b.height).toBe(12)
+    expect(b.x).toBe(500 + Math.round((1102 - 160) / 2)) // 971
+    expect(b.y).toBe(0)
+  })
+
+  it('弹出时恢复：传回原簇左缘即还原全宽 bounds（restore 语义由调用方用原 pos）', () => {
+    // 胶囊中心 = 簇中心：反解簇左缘 = 胶囊x - (clusterW-160)/2
+    const pos = { x: 123, y: 40 }
+    const b = tuckBarBounds(pos, 1102)
+    expect(b.x - pos.x).toBe(Math.round((1102 - 160) / 2))
   })
 })

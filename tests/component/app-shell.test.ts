@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import AppShell from '../../src/panels/AppShell.vue'
 import { mountWithStore } from '../helpers/mount'
+import { useUiStore } from '../../src/stores/ui'
 
 beforeEach(() => {
   document.body.innerHTML = ''
@@ -88,6 +89,37 @@ describe('T21 标题栏工具栏五按钮', () => {
     expect(groups).toHaveLength(1)
     const order = groups[0].findAll('.wbtn').map((b) => b.attributes('data-testid'))
     expect(order).toEqual(['tb-theme', 'tb-settings', 'tb-tucklock', 'tb-topmost', 'tb-minimize'])
+  })
+
+  it('三轮8.2-1：缩进态渲染胶囊短条；悬停胶囊弹出（感应区=胶囊本身）', async () => {
+    const { wrapper } = await mountWithStore(AppShell)
+    const ui = useUiStore()
+    ui.dispatchTuck({ type: 'snap' })
+    ui.dispatchTuck({ type: 'mouse-leave', now: Date.now() })
+    ui.dispatchTuck({ type: 'tick', now: Date.now() + 500 })
+    await wrapper.vm.$nextTick()
+    expect(ui.tuck.tucked).toBe(true)
+
+    const bar = wrapper.find('.tuck-bar')
+    expect(bar.exists()).toBe(true)
+
+    // 悬停胶囊 → 弹出（旧实现 mouseenter 绑在 document/stage 上，胶囊无绑定 → 红）
+    await bar.trigger('mouseenter')
+    expect(ui.tuck.tucked).toBe(false)
+  })
+
+  it('三轮8.2-1：胶囊只在缩进态出现；弹出后 cluster 恢复', async () => {
+    const { wrapper } = await mountWithStore(AppShell)
+    const ui = useUiStore()
+    expect(wrapper.find('.tuck-bar').exists()).toBe(false)
+    expect(wrapper.find('.cluster').exists()).toBe(true)
+
+    ui.dispatchTuck({ type: 'snap' })
+    ui.dispatchTuck({ type: 'mouse-leave', now: Date.now() })
+    ui.dispatchTuck({ type: 'tick', now: Date.now() + 500 })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.tuck-bar').exists()).toBe(true)
+    expect(wrapper.find('.cluster').exists()).toBe(false)
   })
 
   it('三轮8.2-6：五按钮全部为原型同款 SVG 线性图标；白天显月亮、夜晚显太阳', async () => {

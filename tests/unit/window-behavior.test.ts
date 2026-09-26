@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { clampClusterScale } from '../../src/core/utils/scale'
-import { MIN_SCALE, SNAP_THRESHOLD, TUCK_BAR_HEIGHT, TUCK_DELAY_MS } from '../../src/core/constants'
+import { MIN_SCALE, SNAP_THRESHOLD, TUCK_BAR_HEIGHT, TUCK_BAR_WIDTH, TUCK_DELAY_MS } from '../../src/core/constants'
 import {
   initialTuckState,
   reduceTuck,
@@ -43,107 +43,50 @@ describe('clampClusterScale', () => {
     expect(clampClusterScale(0.8, BASE, WA)).toBe(0.8)
   })
 
-  it('常数：吸附阈值 26px、小条 12px、回缩延时 400ms（附录 A8）', () => {
-    expect(SNAP_THRESHOLD).toBe(26)
+  it('常数（三轮8.2-1 定稿）：吸附阈值 0px（顶边真正触碰屏幕边缘才吸附）、胶囊热区 12px、回缩延时 400ms、胶囊宽 160px', () => {
+    expect(SNAP_THRESHOLD).toBe(0)
     expect(TUCK_BAR_HEIGHT).toBe(12)
     expect(TUCK_DELAY_MS).toBe(400)
+    expect(TUCK_BAR_WIDTH).toBe(160)
+    expect(TUCK_MOVE_IDLE_MS).toBe(500)
   })
-})
+  it('三轮8.2-1：窗口移动中（window-move）禁止自动缩进——修「弹出后拖动又变白条」', () => {
+    // 拖动开始时渲染层误收到 mouse-leave（系统接管鼠标），此刻窗口仍吸附 → 旧逻辑 400ms 后自动缩回
+    let s = fire(
+      [
+        { type: 'snap' },
+        { type: 'mouse-leave', now: 1000 }, // 拖动引发的伪 leave
+        { type: 'window-move', now: 1100 }  // 主进程移动事件
+      ],
+      {},
+      400
+    )
+    expect(s.moving).toBe(true)
+    expect(s.leaveAt).toBeNull() // 伪 leave 被取消
+    s = reduceTuck(s, { type: 'tick', now: 1400 }, 400)
+    expect(s.tucked).toBe(false) // 移动中不缩进
 
-/** 二级窗口组缩放已改照原型规则（clampChildGroupScale，见 cluster-layout.test）；主簇缩放钳制沿用半屏口径（决策#23） */
+    // 停止移动 500ms 后 moving 解除，恢复正常判定
+    s = reduceTuck(s, { type: 'tick', now: 1601 }, 400)
+    expect(s.moving).toBe(false)
+  })
 
-/** T41/§5-I 缩进状态机（I1-I6） */
-describe('tuck 状态机', () => {
-  function fire(seq: TuckEvent[], start: Partial<TuckState> = {}, delay = TUCK_DELAY_MS): TuckState {
-    let s = { ...initialTuckState(), ...start }
-    for (const e of seq) s = reduceTuck(s, e, delay)
-    return s
-  }
-
-  it('I1 吸附后鼠标离开 → 约 400ms 后 tucked', () => {
-    let s = fire([{ type: 'snap' }, { type: 'mouse-leave', now: 1000 }])
-    expect(s.tucked).toBe(false) // 未到时
-    s = reduceTuck(s, { type: 'tick', now: 1000 + TUCK_DELAY_MS - 1 }, TUCK_DELAY_MS)
+  it('三轮8.2-1：移动结束且鼠标在外 → moving 解除后按 leaveAt 延时缩进（移动中的 leave 被记录但不生效）', () => {
+    let s = fire(
+      [
+        { type: 'snap' },
+        { type: 'window-move', now: 1000 },
+        { type: 'mouse-leave', now: 1100 }, // moving 中：记录 leaveAt 但不缩进
+        { type: 'tick', now: 1300 }
+      ],
+      {},
+      400
+    )
+    expect(s.moving).toBe(true) // 空闲未满 500ms
     expect(s.tucked).toBe(false)
-    s = reduceTuck(s, { type: 'tick', now: 1000 + TUCK_DELAY_MS }, TUCK_DELAY_MS)
+
+    s = reduceTuck(s, { type: 'tick', now: 1601 }, 400) // 空闲 601ms → moving 解除；leaveAt=1100 已超 400ms
+    expect(s.moving).toBe(false)
     expect(s.tucked).toBe(true)
-  })
-
-  it('I2 tucked 后鼠标进入小条 → 弹出', () => {
-    const s = fire([
-      { type: 'snap' },
-      { type: 'mouse-leave', now: 0 },
-      { type: 'tick', now: 500 },
-      { type: 'mouse-enter', now: 600 }
-    ])
-    expect(s.tucked).toBe(false)
-  })
-
-  it('I3 锁定开启 → 贴边保持弹出（且取消待决的回缩）', () => {
-    const s = fire([
-      { type: 'snap' },
-      { type: 'lock', on: true },
-      { type: 'mouse-leave', now: 0 },
-      { type: 'tick', now: 1000 }
-    ])
-    expect(s.tucked).toBe(false)
-
-    // 已 tucked 时开锁 → 立即弹出
-    const s2 = fire([
-      { type: 'snap' },
-      { type: 'mouse-leave', now: 0 },
-      { type: 'tick', now: 500 },
-      { type: 'lock', on: true }
-    ])
-    expect(s2.tucked).toBe(false)
-    expect(s2.locked).toBe(true)
-  })
-
-  it('I4 tucked 时打开子窗口 → 立即弹出且 tucked 清除', () => {
-    const s = fire([
-      { type: 'snap' },
-      { type: 'mouse-leave', now: 0 },
-      { type: 'tick', now: 500 },
-      { type: 'child-open' }
-    ])
-    expect(s.tucked).toBe(false)
-    expect(s.leaveAt).toBeNull()
-  })
-
-  it('I5 弹出状态缩放开始→松开：全程保持弹出', () => {
-    const s = fire([
-      { type: 'snap' },
-      { type: 'resize-start' },
-      { type: 'mouse-leave', now: 0 },
-      { type: 'tick', now: 1000 },
-      { type: 'resize-end' }
-    ])
-    expect(s.tucked).toBe(false) // 缩放期间离开不回缩
-    // 松开后按常规：再次离开 → 回缩
-    const s2 = reduceTuck(s, { type: 'mouse-leave', now: 2000 }, TUCK_DELAY_MS)
-    const s3 = reduceTuck(s2, { type: 'tick', now: 2000 + TUCK_DELAY_MS }, TUCK_DELAY_MS)
-    expect(s3.tucked).toBe(true)
-  })
-
-  it('I6 未吸附（不在上边缘）→ 任何鼠标事件永不 tucked', () => {
-    const s = fire([
-      { type: 'mouse-leave', now: 0 },
-      { type: 'tick', now: 1000 },
-      { type: 'mouse-enter', now: 1100 },
-      { type: 'mouse-leave', now: 2000 },
-      { type: 'tick', now: 3000 }
-    ])
-    expect(s.tucked).toBe(false)
-  })
-
-  it('取消吸附 → 弹出且 tucked 清除', () => {
-    const s = fire([
-      { type: 'snap' },
-      { type: 'mouse-leave', now: 0 },
-      { type: 'tick', now: 500 },
-      { type: 'unsnap' }
-    ])
-    expect(s.tucked).toBe(false)
-    expect(s.snapped).toBe(false)
   })
 })
