@@ -12,11 +12,11 @@
 - **质量基线**：单元/组件 282 用例 + E2E 14 用例全绿；core 层行覆盖 96.8%（门槛 90%，vitest.config thresholds）
 - **角色与纪律**：你是开发者。严格 TDD（红→绿→重构，禁止先实现后补测试）；测试与实现分笔提交；格式 `test(v1.0.1-B#): …` / `feat(v1.0.1-B#): …` / `fix(v1.0.1-B#): …`；每批全量测试绿后提交推送，CI 必须绿；**PRD 未覆盖的细节停下来问用户，不要自行发挥**
 
-## 2. 当前状态（2026-09-26 v1.0.4 开发完成待发版，本节供新会话接手）
+## 2. 当前状态（2026-09-26 v1.0.4 已发布，本节供新会话接手）
 
 - **v1.0.3 已发布**（#6 删除按钮禁用定稿补丁）；v1.0.2 为第二轮验收修复发版（尺寸 +15% 七项等 7 项，用户已确认尺寸无问题）
-- **第三轮验收修复已完成**（2026-09-26，8 项全部实施，详见 §8.5 与 docs/验收报告.md v1.0.4 章节）：触碰才吸附+贴齐、缩进胶囊 160×6+感应区=胶囊、拖动中抑制自动缩进（修拖动变白条）、勾选框连点 450ms 保护窗、气泡照原型重做（仅截断弹/行左侧/Teleport 单例/模板行补齐）、去窗口投影+去 backdrop-filter（夜晚黑块）、标题栏照原型重做（品牌区+单组5枚SVG图标）、开机自启加固（启动重写登录项+回读校验+未生效提示）
-- **质量基线**：316 单元/组件 + 27 E2E 全绿 + 覆盖率门槛
+- **v1.0.4 已于 tag/Release 发布**（DesktopTodo-Setup/Portable-1.0.4.exe；CI 绿、冒烟通过）。**第三轮验收修复已完成**（2026-09-26，8 项全部实施，详见 §8.5 与 docs/验收报告.md v1.0.4 章节）：触碰才吸附+贴齐、缩进胶囊 160×6+感应区=胶囊、拖动中抑制自动缩进（修拖动变白条）、勾选框连点 450ms 保护窗、气泡照原型重做（仅截断弹/行左侧/Teleport 单例/模板行补齐）、去窗口投影+去 backdrop-filter（夜晚黑块）、标题栏照原型重做（品牌区+单组5枚SVG图标）、开机自启加固（启动重写登录项+回读校验+未生效提示）
+- **质量基线**：320 单元/组件 + 26 E2E 全绿 + 覆盖率门槛（CI 反馈两修后最终态）
 - **黑块修复与自启加固需用户真机复验**（黑块为透明窗口合成问题本地无法自证；自启需重启电脑验证，若仍失效请用户查任务管理器→启动应用）
 - **打包环境**：Defender 排除项已设，`npm run dist` 一次通过；**打版后必须冒烟**（`powershell -ExecutionPolicy Bypass -File scripts/smoke.ps1`）
 - 用户已确认的功能裁定（存档）：**设置页 4 项（上限/时制/导入/自启）**；二级窗口尺寸 +15% 维持；批量禁用范围=全禁；#6=按钮禁用方案；Win+D 记录备查不优化；缩进条备用样式=200×12 淡化白条（更换时提醒用户）
@@ -140,7 +140,7 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 8. **E2E 稳定性**：playwright timeout 已设 240s；点击前注意子窗口关闭后的 disabled 解锁时序（child `close` 事件提前解锁）
 9. **发布**：Release 资产用 ASCII 文件名；gh 已登录（Richardo-X），`gh repo view` 可验
 10. **恢复环境**：`npm ci` → `npm run verify`；打包 `npm run dist`
-11. **打版与冒烟（必须）**：用户已设 Defender 排除项，`npm run dist` 正常一次通过；**严禁**再启用 electronDist 打包配置（会产生 GPU/渲染进程崩溃的坏包：进程活着但窗口永不显示）；**每次打版后必须冒烟**——启动 `dist/win-unpacked/桌面待办.exe`（DTODO_USER_DATA 指向临时目录），10 秒后 `MainWindowHandle` 非零才算交付；开发调试用 `DTODO_USER_DATA=<临时目录> npm run dev`（先 taskkill electron.exe 清单实例锁，避免被单实例顶掉）
+11. **打版与冒烟（必须）**：用户已设 Defender 排除项，`npm run dist` 正常一次通过；**若在项目 dist 目录报 EPERM rename win-unpacked.tmp（第三方杀软/目录监控占用，2026-09-26 实测连续复现）——备用方案：`npx electron-builder -c.directories.output=C:/Users/qq463/AppData/Local/Temp/dtodo-dist` 输出到工作区外再复制回 dist（冒烟脚本直接指向临时 win-unpacked 即可）**；**严禁**再启用 electronDist 打包配置（会产生 GPU/渲染进程崩溃的坏包：进程活着但窗口永不显示）；**每次打版后必须冒烟**——启动 `dist/win-unpacked/桌面待办.exe`（DTODO_USER_DATA 指向临时目录），10 秒后 `MainWindowHandle` 非零才算交付；开发调试用 `DTODO_USER_DATA=<临时目录> npm run dev`（先 taskkill electron.exe 清单实例锁，避免被单实例顶掉）
 
 ## 7. 人工验收状态（第一轮）
 
