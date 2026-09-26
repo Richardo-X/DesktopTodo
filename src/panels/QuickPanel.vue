@@ -4,6 +4,7 @@ import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import BatchBar from '../components/BatchBar.vue'
 import { createDragSort } from '../components/useDragSort'
+import { bubbleContentEnter, bubbleContentLeave } from '../components/content-bubble'
 import { TEMPLATE_LIMIT } from '../core/services/templates'
 
 const store = useAppStore()
@@ -64,6 +65,13 @@ function applyFlip(el: HTMLElement | null, before: Map<Element, number>): void {
 
 const error = ref('')
 
+// 8.2-4：模板行悬停气泡（PRD §五截断气泡，全局单例）
+function onContentEnter(e: MouseEvent): void {
+  const content = e.currentTarget as HTMLElement
+  const row = content.closest('.tpl-row') as HTMLElement | null
+  if (row) bubbleContentEnter(content, row)
+}
+
 async function quickAdd(id: string): Promise<void> {
   const r = await store.quickAdd(id)
   error.value = r.ok ? '' : r.reason === 'limit-reached' ? '待办数量已达上限' : '添加失败'
@@ -121,7 +129,9 @@ onUnmounted(() => {
             @pointerdown.stop="drag.handleDown(i, $event)"
             @dblclick.stop
           />
-          <span class="content ellipsis" data-testid="tpl-content">{{ t.content }}</span>
+          <span class="content ellipsis" data-testid="tpl-content" @mouseenter="onContentEnter" @mouseleave="bubbleContentLeave">
+            <span class="tt-in">{{ t.content }}</span>
+          </span>
           <!-- 决策#25：批量时右端「＋」换为同款勾选框选中示意 -->
           <span v-if="!ui.batchMode" class="plusbox" data-testid="tpl-add" title="添加到待办列表" @click.stop="quickAdd(t.id)" @dblclick.stop>＋</span>
           <button v-else type="button" class="checkbox" :class="{ checked: ui.selectedIds.includes(t.id) }" @click.stop="ui.toggleSelect(t.id)" @dblclick.stop>

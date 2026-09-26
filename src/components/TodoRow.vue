@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import type { TodoItem } from '../core/models/types'
 import { createDblClickGuard } from './useDblClickGuard'
+import { bubbleContentEnter, bubbleContentLeave, hideBubble } from './content-bubble'
 
 const props = defineProps<{
   item: TodoItem
@@ -20,20 +20,11 @@ const emit = defineEmits<{
 
 const dblGuard = createDblClickGuard()
 
-// 悬停 1 秒显示全文气泡（PRD §3）
-const bubbleVisible = ref(false)
-let hoverTimer: ReturnType<typeof setTimeout> | null = null
-
-function onEnter(): void {
-  hoverTimer = setTimeout(() => {
-    bubbleVisible.value = true
-  }, 1000)
-}
-
-function onLeave(): void {
-  if (hoverTimer !== null) clearTimeout(hoverTimer)
-  hoverTimer = null
-  bubbleVisible.value = false
+// 8.2-4：悬停内容 1 秒气泡（全局单例，仅截断内容触发）
+function onContentEnter(e: MouseEvent): void {
+  const content = e.currentTarget as HTMLElement
+  const row = content.closest('.todo-row') as HTMLElement | null
+  if (row) bubbleContentEnter(content, row)
 }
 
 function onRowClick(): void {
@@ -44,6 +35,7 @@ function onRowClick(): void {
 function onDblClick(): void {
   // 8.2-9 连点保护窗：勾选框刚被点击过，双击大概率是连点偏出的误合成
   if (props.batchMode || dblGuard.blocked()) return
+  hideBubble()
   emit('edit')
 }
 
@@ -60,8 +52,6 @@ function onCheckboxClick(): void {
     class="todo-row"
     data-testid="todo-row"
     :class="{ selrow: batchMode && selected, leaving, dragging }"
-    @mouseenter="onEnter"
-    @mouseleave="onLeave"
     @click="onRowClick"
     @dblclick="onDblClick"
   >
@@ -73,9 +63,10 @@ function onCheckboxClick(): void {
       @pointerdown.stop="emit('handle-down', $event)"
       @dblclick.stop
     />
-    <span class="content ellipsis" data-testid="row-content">{{ item.content }}</span>
+    <span class="content ellipsis" data-testid="row-content" @mouseenter="onContentEnter" @mouseleave="bubbleContentLeave">
+      <span class="tt-in">{{ item.content }}</span>
+    </span>
     <span v-if="item.overdue" class="tag overdue" data-testid="row-overdue-tag">逾期</span>
-    <span v-if="bubbleVisible" class="bubble" data-testid="row-bubble">{{ item.content }}</span>
     <!-- 决策#25：批量模式下同一勾选框原位变为选中示意（选中=accent 白勾） -->
     <button type="button" class="checkbox" :class="{ checked: batchMode && selected }" data-testid="row-checkbox" @click.stop="onCheckboxClick" @dblclick.stop>
       <svg viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5" /></svg>
@@ -144,6 +135,14 @@ function onCheckboxClick(): void {
   text-overflow: ellipsis;
 }
 
+/* 8.2-4：inline-block 内层才能测出文本真实宽度（块级容器 scrollWidth 恒等于容器宽）；
+ * 内层不裁剪（原型 .tt-in overflow:visible），截断省略号由外层 .ellipsis 完成 */
+.tt-in {
+  display: inline-block;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
 .tag {
   flex: none;
   font-size: 10px;
@@ -156,24 +155,6 @@ function onCheckboxClick(): void {
 
 .tag.overdue {
   color: var(--overdue, #d13438);
-}
-
-.bubble {
-  position: absolute;
-  top: 100%;
-  left: 24px;
-  z-index: 30;
-  max-width: 300px;
-  padding: 9px 12px;
-  border-radius: 8px;
-  background: var(--bubble-bg, #ffffff);
-  color: var(--bubble-fg, #222);
-  border: 1px solid var(--card-border, rgba(0, 0, 0, 0.09));
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
-  font-size: 12.5px;
-  line-height: 1.7;
-  white-space: normal;
-  pointer-events: none;
 }
 
 /* 勾选框（决策#25：批量模式下同款样式=选中示意） */

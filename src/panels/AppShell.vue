@@ -8,6 +8,7 @@ import HomePanel from './HomePanel.vue'
 import QuickPanel from './QuickPanel.vue'
 import DonePanel from './DonePanel.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { contentBubble } from '../components/content-bubble'
 
 const store = useAppStore()
 const ui = useUiStore()
@@ -68,6 +69,19 @@ onUnmounted(() => {
     </div>
     <div v-else class="tuck-bar" :style="{ height: TUCK_BAR_HEIGHT + 'px' }" />
     <ConfirmDialog />
+
+    <!-- 8.2-4：全局悬停气泡（Teleport 出 zoom 容器外，fixed 真实坐标不受缩放二次缩放） -->
+    <Teleport to="body">
+      <div
+        v-show="contentBubble.visible"
+        class="gbubble"
+        :class="[store.uiState.theme, { show: contentBubble.shown }]"
+        data-testid="content-bubble"
+        :style="{ left: contentBubble.x + 'px', top: contentBubble.y + 'px', '--arrow-top': contentBubble.arrowTop + 'px' }"
+      >
+        <span class="bubble-text">{{ contentBubble.text }}</span>
+      </div>
+    </Teleport>
   </div>
 </template>
 
