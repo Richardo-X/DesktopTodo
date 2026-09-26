@@ -21,6 +21,8 @@ export const useUiStore = defineStore('ui', () => {
 
   function dispatchTuck(e: TuckEvent): void {
     let event = e
+    // 四轮3：批量删除进行中（选择阶段）不自动缩回——tick 被吞掉，批量结束后由后续 tick 恢复
+    if (e.type === 'tick' && batchTarget.value !== null) return
     if (e.type === 'tick' && tuck.value.leaveAt !== null && lastPointerInsideAt >= tuck.value.leaveAt) {
       // 指针在伪离开后仍在窗内活动 → 视为在组件上，取消这次缩回
       event = { type: 'mouse-enter', now: e.now }
@@ -50,6 +52,10 @@ export const useUiStore = defineStore('ui', () => {
     window.addEventListener('pointermove', () => {
       lastPointerInsideAt = Date.now()
     })
+    // 四轮二修：缩进判定改主进程光标轮询权威驱动——DOM mouseenter/leave 不再驱动缩进
+    getApi().onCursorInside((inside) =>
+      dispatchTuck({ type: inside ? 'mouse-enter' : 'mouse-leave', now: Date.now() })
+    )
   }
 
   function mouseLeave(): void {

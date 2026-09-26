@@ -21,6 +21,7 @@ export interface TestApi extends DesktopTodoApi {
   openCsvCalls: number
   tuckedCalls: boolean[]
   snapListeners: Set<(snapped: boolean) => void>
+  cursorInsideListeners: Array<(inside: boolean) => void>
   childCloseListeners: Set<() => void>
 }
 
@@ -47,6 +48,7 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
   const unsavedCalls: boolean[] = []
   const tuckedCalls: boolean[] = []
   const snapListeners = new Set<(snapped: boolean) => void>()
+  const cursorInsideListeners = Array<(inside: boolean) => void>()
   const childCloseListeners = new Set<() => void>()
 
   const booted: Promise<unknown> = ctx.boot()
@@ -66,6 +68,7 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     topMostCalls,
     tuckedCalls,
     snapListeners,
+    cursorInsideListeners,
     childCloseListeners,
     get minimizeCalls() {
       return minimizeCalls
@@ -131,6 +134,10 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     },
     bubbleResize: async () => undefined,
     onBubblePayload: (_cb) => () => {},
+    onCursorInside: (cb) => {
+      cursorInsideListeners.push(cb)
+      return () => undefined
+    },
     setTucked: async (tucked: boolean) => {
       tuckedCalls.push(tucked)
     },

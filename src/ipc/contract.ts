@@ -25,6 +25,7 @@ export const IPC = {
   bubbleHide: 'bubble:hide',
   bubbleResize: 'bubble:resize',
   bubblePayload: 'bubble:payload',
+  cursorInside: 'app:cursor-inside',
   childClosed: 'app:child-closed',
   requestExit: 'app:request-exit',
   minimizeToTray: 'window:minimize-to-tray'
@@ -79,6 +80,8 @@ export interface DesktopTodoApi {
   bubbleHide(): Promise<void>
   bubbleResize(p: { w: number; h: number }): Promise<void>
   onBubblePayload(cb: (p: { text: string; theme: 'day' | 'night'; side: 'left' | 'right' }) => void): () => void
+  /** 四轮二修：主进程光标轮询权威判定（光标是否在可见窗口 bounds 内） */
+  onCursorInside(cb: (inside: boolean) => void): () => void
   /** 主进程吸附状态变化（窗口移动到/离开上边缘） */
   onSnapChanged(cb: (snapped: boolean) => void): () => void
   /** 任一子窗口关闭（缩进状态机 child-closed） */

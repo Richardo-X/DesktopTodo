@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import { TUCK_BAR_HEIGHT, TUCK_BAR_WIDTH } from '../core/constants'
@@ -47,13 +47,8 @@ const clusterStyle = computed(() => {
 onMounted(() => {
   void store.init()
   ui.initSystemEvents()
-  // 三轮8.2-1：弹出触发收窄为胶囊短条本身（document 级 mouseenter 移除——
-  // 缩进时 OS 窗口已收窄为胶囊矩形，此处 mouseleave 用于弹出后移开自动缩回）
-  document.addEventListener('mouseleave', ui.mouseLeave)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('mouseleave', ui.mouseLeave)
+  // 四轮二修：缩进弹出/缩回由主进程光标轮询权威驱动（onCursorInside）——
+  // DOM mouseenter/mouseleave 会因窗口尺寸变化产生伪事件（闪烁/提前缩回根源），不再绑定
 })
 </script>
 
@@ -69,14 +64,12 @@ onUnmounted(() => {
       <HomePanel />
       <DonePanel v-if="store.uiState.doneVisible" data-testid="done-panel" />
     </div>
-    <!-- 三轮8.2-1：缩进胶囊（160×6 可见 + 12px 热区）；感应区=胶囊本身（窗口已收窄至胶囊矩形） -->
+    <!-- 三轮8.2-1：缩进胶囊（160×6 可见 + 12px 热区）；悬停弹出由主进程光标轮询判定 -->
     <div
       v-else
       class="tuck-bar"
       :style="{ height: TUCK_BAR_HEIGHT + 'px', width: TUCK_BAR_WIDTH + 'px' }"
       title="鼠标移到此条上弹出组件"
-      @mouseenter="ui.mouseEnter"
-      @mouseleave="ui.mouseLeave"
     />
     <ConfirmDialog />
   </div>

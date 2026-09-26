@@ -41,6 +41,11 @@ const api = {
     ipcRenderer.on(IPC.bubblePayload, listener)
     return () => ipcRenderer.removeListener(IPC.bubblePayload, listener)
   },
+  onCursorInside: (cb: (inside: boolean) => void) => {
+    const listener = (_e: unknown, inside: boolean): void => cb(inside)
+    ipcRenderer.on(IPC.cursorInside, listener)
+    return () => ipcRenderer.removeListener(IPC.cursorInside, listener)
+  },
   onChildClosed: (cb: () => void) => {
     const listener = (): void => cb()
     ipcRenderer.on(IPC.childClosed, listener)

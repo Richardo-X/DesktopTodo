@@ -101,6 +101,24 @@ async function bootstrap(): Promise<void> {
   registerIpc()
   startSettleTimer()
   watchDisplayChanges()
+  startCursorPoll()
+}
+
+/** 四轮二修：光标轮询权威判定缩进——每 200ms 检查系统光标是否在主窗 bounds 内，
+ * 状态变化才推送渲染层。窗口尺寸变化引发的 DOM 伪 mouse-leave 不再影响缩进判定。 */
+function startCursorPoll(): void {
+  let lastInside = true
+  setInterval(() => {
+    const w = safeWin()
+    if (!w || !visible) return
+    const b = w.getBounds()
+    const pt = screen.getCursorScreenPoint()
+    const inside = pt.x >= b.x && pt.x <= b.x + b.width && pt.y >= b.y && pt.y <= b.y + b.height
+    if (inside !== lastInside) {
+      lastInside = inside
+      w.webContents.send(IPC.cursorInside, inside)
+    }
+  }, 200)
 }
 
 function createWindow(data: ReturnType<AppContext['current']>): void {
