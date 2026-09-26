@@ -433,8 +433,8 @@ async function onComplete(id: string): Promise<void> {
 }
 
 .icon-btn {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px; /* 四轮5 定稿：36px 在小屏挤压满载列表（CI 实测溢出 8px）→ 回退 30×30 正方形 */
   padding: 0;
   border: 1px solid var(--btn-border);
   border-radius: 6px;
