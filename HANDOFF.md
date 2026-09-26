@@ -12,15 +12,14 @@
 - **质量基线**：单元/组件 282 用例 + E2E 14 用例全绿；core 层行覆盖 96.8%（门槛 90%，vitest.config thresholds）
 - **角色与纪律**：你是开发者。严格 TDD（红→绿→重构，禁止先实现后补测试）；测试与实现分笔提交；格式 `test(v1.0.1-B#): …` / `feat(v1.0.1-B#): …` / `fix(v1.0.1-B#): …`；每批全量测试绿后提交推送，CI 必须绿；**PRD 未覆盖的细节停下来问用户，不要自行发挥**
 
-## 2. 当前状态（2026-09-25 v1.0.2 已发布，本节供新会话接手）
+## 2. 当前状态（2026-09-26 v1.0.4 开发完成待发版，本节供新会话接手）
 
-- **v1.0.2 已于 tag/Release 发布**（Release：DesktopTodo-Setup/Portable-1.0.2.exe，ASCII 资产名）；内容=第二轮人工验收修复全部 7 项（§8.3 #1~#7）+ 收尾发版。CI 绿（286 单元/组件 + 23 E2E + 覆盖率门槛），打版冒烟验证通过（scripts/smoke.ps1 固化为脚本）
-- **第二轮用户已确认通过**（2026-09-25）：安装后组件正常显示（杀软坏包问题已根治，§9-11）、滚动条自绘悬浮方案（含滑块右移到行与边框之间）
-- **本轮修复明细**（§8.3 → 已全部完成）：#5 模板＋dblclick.stop、#6 未选中删除改批量条内红字提示（3 秒自动消失）、#7 footer flex-end 补回、#2 置顶=整个组件（子窗 alwaysOnTop+全路径重应用；「重启丢失」在本机 E2E 未复现，已按防御性修复+三条 E2E 覆盖）、#4 对话框关闭后 refocusChildWindows 抬升子窗、#1 二级窗口尺寸整体 +15%（七项，PRD 附录已同步）、#3 批量全禁（frozen 类：主窗标题栏/操作区按钮+另两面板整面板+历史翻页导出区）
-- **#8 Win+D**：按用户指示记录备查、暂不优化（§8.2-7）
-- **打包环境**：用户已设置 Defender 排除项（`F:\AI\VBcode\worktrees\ToDoList`），`npm run dist` 一次通过；**每次打版后必须执行启动冒烟验证**（§6-11，现可直接 `powershell -ExecutionPolicy Bypass -File scripts/smoke.ps1`）
-- **工作区**：干净，与 origin/main 同步（v1.0.2 发布点）；`out/` 与 `dist/` 为最新构建产物
-- 用户已确认的功能裁定（存档）：**设置页 4 项（上限/时制/导入/自启）**——字体项随决策#3 移除、回收站随决策#21 移除
+- **v1.0.3 已发布**（#6 删除按钮禁用定稿补丁）；v1.0.2 为第二轮验收修复发版（尺寸 +15% 七项等 7 项，用户已确认尺寸无问题）
+- **第三轮验收修复已完成**（2026-09-26，8 项全部实施，详见 §8.5 与 docs/验收报告.md v1.0.4 章节）：触碰才吸附+贴齐、缩进胶囊 160×6+感应区=胶囊、拖动中抑制自动缩进（修拖动变白条）、勾选框连点 450ms 保护窗、气泡照原型重做（仅截断弹/行左侧/Teleport 单例/模板行补齐）、去窗口投影+去 backdrop-filter（夜晚黑块）、标题栏照原型重做（品牌区+单组5枚SVG图标）、开机自启加固（启动重写登录项+回读校验+未生效提示）
+- **质量基线**：316 单元/组件 + 27 E2E 全绿 + 覆盖率门槛
+- **黑块修复与自启加固需用户真机复验**（黑块为透明窗口合成问题本地无法自证；自启需重启电脑验证，若仍失效请用户查任务管理器→启动应用）
+- **打包环境**：Defender 排除项已设，`npm run dist` 一次通过；**打版后必须冒烟**（`powershell -ExecutionPolicy Bypass -File scripts/smoke.ps1`）
+- 用户已确认的功能裁定（存档）：**设置页 4 项（上限/时制/导入/自启）**；二级窗口尺寸 +15% 维持；批量禁用范围=全禁；#6=按钮禁用方案；Win+D 记录备查不优化；缩进条备用样式=200×12 淡化白条（更换时提醒用户）
 
 ## 3. 已确认决策清单（实现时必须遵守）
 
@@ -213,3 +212,19 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - **原型组缩放重做**：`clampChildGroupScale`（上限 1.6/屏幕-24/下限 0.7/步进 0.05），childWindowOptions 同口径；resizeSelf 主进程临时解除 resizable 修复 Windows「缩小不生效」；ChildHost 无 zoom（内容流式）
 - **其他**：主窗列表垂直压缩（10 项满载无滚动条，E2E 断言）、排序按钮原型 SVG 图标、历史窗口默认定位当天的前一天（用户裁定）、E2E 布局断言按有效缩放动态推导（CI 小屏钳 0.7 兼容）
 - 最终回归：**282 单元/组件 + 19 E2E + 覆盖率门槛全绿**；打版+冒烟验证通过，用户确认显示与滚动条通过
+
+---
+
+## 8.5 第三轮人工验收反馈记录（2026-09-26，v1.0.3 成品；8 项全部实施）
+
+| # | 反馈 | 定稿/实施 | 关键点 |
+|---|------|-----------|--------|
+| 1 | 缩进触发间距 | ✅ SNAP_THRESHOLD 26→0；吸附时贴齐 wa.y | detectSnap 内 flush，setPosition 触发 moved 重入有守卫 |
+| 2 | 缩进白条丑+感应范围大 | ✅ 胶囊 160×6（TUCK_BAR_WIDTH=160）；缩进时窗口 setBounds 收窄为 tuckBarBounds（cluster-layout 纯函数）；mouseenter 移绑胶囊元素 | Windows 系统最小高度 ~39px 钳制（setMinimumSize 不豁免），E2E 按 ≤40 断言 |
+| 3 | 弹出后拖动变白条 | ✅ tuck 状态机加 moving/moveAt + window-move 事件；主进程 win.on('move') 150ms 节流→IPC.windowMoving→dispatchTuck；tick 中空闲 TUCK_MOVE_IDLE_MS(500) 解除 | 根因：原生拖动开始时渲染层伪 mouse-leave+仍吸附→400ms 自动缩回；移动中 mouse-leave 记录 leaveAt 但 canTuck 阻止生效 |
+| 4 | 连点勾选框误开窗 | ✅ createDblClickGuard(450ms)（src/components/useDblClickGuard.ts）；TodoRow.onCheckboxClick/onCheckboxClick mark、onDblClick blocked；DonePanel 同 | 已有 @dblclick.stop 只挡直接命中，挡不住第二击偏出落到行上 |
+| 5 | 悬停气泡 | ✅ 照原型 #gbubble 重做：content-bubble.ts（isTruncatedWider/placeBubbleLeft 纯函数+全局单例 reactive）；AppShell Teleport 到 body（zoom 外）+global.css 样式；仅截断弹（inline-block .tt-in 测量）；行左侧定位（用户定稿，不遮列表+屏内钳制）；QuickPanel 模板行补齐 | 块级元素 scrollWidth 恒等于容器宽——必须 inline-block 内层；气泡元素须在 zoom 容器外否则坐标二次缩放 |
+| 6 | 窗口阴影去除 | ✅ AppShell 删 --shadow-main/--shadow-side 与 .panel/.tuck-bar box-shadow | 决策#19（阴影分档）随用户新指示作废 |
+| 7 | 夜晚黑色长方形 | ✅ 移除 .panel backdrop-filter + #6 去投影消除间隙深色填充 | 两根因叠加；透明窗口合成问题本地无法截图自证，需真机复验 |
+| 8 | 主窗标题栏 | ✅ 照原型：tb-left（tb-brand 勾图标+tb-title）+ 单组 .win-actions 五按钮（moon/sun、gear、tuckLock、pin、x SVG 原文 path），42px，tb-theme data-icon=moon|sun | 图标 path 见原型 L1757-1775 |
+| 9 | 开机自启未启动 | ✅ syncAutoStartOnBoot（启动时按 settings.autoStart 重写登录项）+ setAutoStart 写后回读返回真实状态 + SettingsWindow set-autostart-error 提示 | 安装版+开关开+完全没启动：疑路径失效或被禁用；代码链路 E2E 本就正确 |
