@@ -76,4 +76,29 @@ describe('T21 标题栏工具栏五按钮', () => {
     await wrapper.find('[data-testid="tb-minimize"]').trigger('click')
     expect(api.minimizeCalls).toBeGreaterThanOrEqual(1)
   })
+
+  it('三轮8.2-6：标题栏照原型——左侧品牌区（勾图标+桌面待办），右侧同一组5按钮', async () => {
+    const { wrapper } = await mountWithStore(AppShell)
+    expect(wrapper.find('[data-testid="tb-brand"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="tb-brand"] svg').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="tb-title"]').text()).toBe('桌面待办')
+
+    // 五按钮同组（原型 .win-actions 单组）；当前实现为两组（4左+×右）→ 红
+    const groups = wrapper.findAll('[data-testid="home-panel"] .win-actions')
+    expect(groups).toHaveLength(1)
+    const order = groups[0].findAll('.wbtn').map((b) => b.attributes('data-testid'))
+    expect(order).toEqual(['tb-theme', 'tb-settings', 'tb-tucklock', 'tb-topmost', 'tb-minimize'])
+  })
+
+  it('三轮8.2-6：五按钮全部为原型同款 SVG 线性图标；白天显月亮、夜晚显太阳', async () => {
+    const { wrapper, store } = await mountWithStore(AppShell)
+    for (const tid of ['tb-theme', 'tb-settings', 'tb-tucklock', 'tb-topmost', 'tb-minimize']) {
+      expect(wrapper.find(`[data-testid="${tid}"] svg`).exists()).toBe(true)
+    }
+    expect(wrapper.find('[data-testid="tb-theme"] svg').attributes('data-icon')).toBe('moon')
+
+    await store.updateUiState({ theme: 'night' })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="tb-theme"] svg').attributes('data-icon')).toBe('sun')
+  })
 })
