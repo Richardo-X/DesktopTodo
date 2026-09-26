@@ -106,7 +106,7 @@ describe('T21 标题栏工具栏五按钮', () => {
   })
 
   it('三轮8.2-1：缩进态渲染胶囊短条；悬停胶囊弹出（感应区=胶囊本身）', async () => {
-    const { wrapper } = await mountWithStore(AppShell)
+    const { wrapper, api } = await mountWithStore(AppShell)
     const ui = useUiStore()
     ui.dispatchTuck({ type: 'snap' })
     ui.dispatchTuck({ type: 'mouse-leave', now: Date.now() })
@@ -117,8 +117,9 @@ describe('T21 标题栏工具栏五按钮', () => {
     const bar = wrapper.find('.tuck-bar')
     expect(bar.exists()).toBe(true)
 
-    // 悬停胶囊 → 弹出（旧实现 mouseenter 绑在 document/stage 上，胶囊无绑定 → 红）
-    await bar.trigger('mouseenter')
+    // 主进程轮询判定光标回到胶囊（=窗口 bounds）内 → 弹出
+    api.cursorInsideListeners[0](true)
+    await wrapper.vm.$nextTick()
     expect(ui.tuck.tucked).toBe(false)
   })
 
@@ -136,22 +137,35 @@ describe('T21 标题栏工具栏五按钮', () => {
     expect(api.tuckedCalls).toContain(true)
   })
 
-  it('四轮：伪鼠标离开后指针仍在窗内 → 不自动缩回（缩回前校验指针真实位置）', async () => {
-    const { wrapper, ui } = await mountWithStoreGetUi()
+  it('四轮二修：缩进判定改主进程光标轮询——onCursorInside 驱动 enter/leave（DOM 事件不再驱动）', async () => {
+    const { wrapper, api, ui } = await mountWithStoreGetUi()
+    // 主进程轮询判定光标在窗内 → 弹出
+    api.cursorInsideListeners[0](true)
+    await wrapper.vm.$nextTick()
+    expect(ui.tuck.tucked).toBe(false)
+
+    // 判定光标离开 → 记录离开；延时后缩回
     ui.dispatchTuck({ type: 'snap' })
-    ui.dispatchTuck({ type: 'mouse-leave', now: Date.now() })
-    // 伪离开（弹出/窗口尺寸变化引发）后指针仍在窗内活动：pointermove 事件到达
-    window.dispatchEvent(new Event('pointermove'))
+    api.cursorInsideListeners[0](false)
+    expect(ui.tuck.leaveAt).not.toBeNull()
     ui.dispatchTuck({ type: 'tick', now: Date.now() + 500 })
     await wrapper.vm.$nextTick()
-    expect(ui.tuck.tucked).toBe(false) // 指针实际在窗内 → 取消缩回（修闪烁/提前缩回）
-
-    // 真实离开（离开后无任何 pointermove）→ 延时后正常缩回
-    ui.dispatchTuck({ type: 'mouse-enter', now: Date.now() })
-    ui.dispatchTuck({ type: 'mouse-leave', now: Date.now() + 1000 })
-    ui.dispatchTuck({ type: 'tick', now: Date.now() + 1500 })
-    await wrapper.vm.$nextTick()
     expect(ui.tuck.tucked).toBe(true)
+  })
+
+  it('四轮3：批量删除进行中（选择阶段）不自动缩回，批量结束后恢复', async () => {
+    const { wrapper, api, ui } = await mountWithStoreGetUi()
+    ui.dispatchTuck({ type: 'snap' })
+    api.cursorInsideListeners[0](false) // 光标在窗外
+    ui.enterBatch('todos')
+    ui.dispatchTuck({ type: 'tick', now: Date.now() + 1000 })
+    await wrapper.vm.$nextTick()
+    expect(ui.tuck.tucked).toBe(false) // 批量中不缩回
+
+    ui.exitBatch()
+    ui.dispatchTuck({ type: 'tick', now: Date.now() + 1400 })
+    await wrapper.vm.$nextTick()
+    expect(ui.tuck.tucked).toBe(true) // 批量结束→恢复延时缩回
   })
 
   it('三轮8.2-1：胶囊只在缩进态出现；弹出后 cluster 恢复', async () => {
@@ -178,5 +192,11 @@ describe('T21 标题栏工具栏五按钮', () => {
     await store.updateUiState({ theme: 'night' })
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="tb-theme"] svg').attributes('data-icon')).toBe('sun')
+  })
+
+  it('四轮黑块修复：html/body 画布显式透明（无绘制区域不露系统深色底）', () => {
+    for (const el of [document.documentElement, document.body]) {
+      expect(getComputedStyle(el).backgroundColor === 'transparent' || getComputedStyle(el).backgroundColor === '').toBe(true)
+    }
   })
 })

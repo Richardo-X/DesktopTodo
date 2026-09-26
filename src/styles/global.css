@@ -6,6 +6,9 @@ body {
   padding: 0;
   height: 100%;
   overflow: hidden;
+  /* 四轮修复：显式画布透明——Chromium 画布底色跟随系统深浅色（夜=深色），
+   * 卡片未覆盖区域（缝隙/空槽/胶囊背后）会露出画布底色成黑块 */
+  background: transparent;
 }
 
 /* 照原型 *{box-sizing:border-box}：边框计入固定宽度，否则面板比基准宽 2px 被窗口裁切 */
