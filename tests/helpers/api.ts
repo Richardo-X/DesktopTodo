@@ -8,6 +8,7 @@ export interface TestApi extends DesktopTodoApi {
   snapshot(): AppData
   emitStateUpdated(data: AppData): void
   autoStartCalls: boolean[]
+  autoStartResult: boolean
   savedCsv: Array<{ fileName: string; content: string }>
   openChildCalls: Array<{ kind: ChildKind; id?: string }>
   topMostCalls: boolean[]
@@ -31,6 +32,7 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
   const ctx = new AppContext(repo, new SystemClock())
   const listeners = new Set<(d: AppData) => void>()
   const autoStartCalls: boolean[] = []
+  let autoStartResult = true
   const savedCsv: Array<{ fileName: string; content: string }> = []
   const openChildCalls: Array<{ kind: ChildKind; id?: string }> = []
   const topMostCalls: boolean[] = []
@@ -47,6 +49,12 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
 
   const api: TestApi = {
     autoStartCalls,
+    get autoStartResult() {
+      return autoStartResult
+    },
+    set autoStartResult(v: boolean) {
+      autoStartResult = v
+    },
     savedCsv,
     openChildCalls,
     topMostCalls,
@@ -89,7 +97,7 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     setVisibility: async () => undefined,
     setAutoStart: async (enabled) => {
       autoStartCalls.push(enabled)
-      return true
+      return autoStartResult
     },
     saveCsv: async (p) => {
       savedCsv.push(p)

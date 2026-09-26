@@ -68,6 +68,19 @@ describe('T34 设置窗口', () => {
     expect(api.autoStartCalls).toEqual([true])
   })
 
+  it('三轮：自启设置未生效时给出提示，恢复生效后提示消失', async () => {
+    const { wrapper, api } = await mountWithStore(SettingsWindow)
+    api.autoStartResult = false
+    await wrapper.find('[data-testid="set-autostart-btn"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="set-autostart-error"]').text()).toContain('未生效')
+
+    api.autoStartResult = true
+    await wrapper.find('[data-testid="set-autostart-btn"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="set-autostart-error"]').exists()).toBe(false)
+  })
+
   it('覆盖导入：先弹确认框，确认后调用导入', async () => {
     const { wrapper, api } = await mountWithStore(SettingsWindow)
     await wrapper.find('[data-testid="set-import-cover"]').trigger('click')

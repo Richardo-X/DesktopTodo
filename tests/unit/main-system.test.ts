@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { acquireSingleInstanceLock } from '../../electron/main/single-instance'
-import { setAutoStart, getAutoStart, loginItemSettingsFor } from '../../electron/main/auto-start'
+import { setAutoStart, getAutoStart, loginItemSettingsFor, syncAutoStartOnBoot } from '../../electron/main/auto-start'
 import { applyTopMost, applyTopMostAll, refocusChildWindows, withTopMost, withTuckLock, withTheme } from '../../electron/main/window-state'
 
 /** T16 单实例锁 */
@@ -62,6 +62,25 @@ describe('T18 开机自启', () => {
   it('getAutoStart 读取当前状态', () => {
     vi.mocked(app.getLoginItemSettings).mockReturnValue({ openAtLogin: true } as never)
     expect(getAutoStart()).toBe(true)
+  })
+
+  it('三轮：setAutoStart 返回真实生效状态（写后回读校验）', () => {
+    vi.mocked(app.setLoginItemSettings).mockClear()
+    vi.mocked(app.getLoginItemSettings).mockReturnValue({ openAtLogin: true } as never)
+    expect(setAutoStart(true)).toBe(true)
+
+    vi.mocked(app.getLoginItemSettings).mockReturnValue({ openAtLogin: false } as never)
+    expect(setAutoStart(true)).toBe(false) // 写入未生效（如被系统策略拦截）
+  })
+
+  it('三轮：syncAutoStartOnBoot——开关开启时重写登录项（防升级/移动目录后旧路径失效），关闭时不写', () => {
+    vi.mocked(app.setLoginItemSettings).mockClear()
+    syncAutoStartOnBoot(true)
+    expect(app.setLoginItemSettings).toHaveBeenCalledWith(expect.objectContaining({ openAtLogin: true }))
+
+    vi.mocked(app.setLoginItemSettings).mockClear()
+    syncAutoStartOnBoot(false)
+    expect(app.setLoginItemSettings).not.toHaveBeenCalled()
   })
 })
 
