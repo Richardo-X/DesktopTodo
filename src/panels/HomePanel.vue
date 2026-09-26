@@ -100,6 +100,11 @@ function onGripDown(e: PointerEvent): void {
   window.addEventListener('pointerup', onGripUp)
 }
 
+// 四轮：缩放提交节流（30ms）——commit 驱动渲染层 zoom 与主进程 setBounds 同帧交错是抖动源，
+// 节流降低交错频率；松手时提交最终值保证精度
+let lastScaleSentAt = 0
+let pendingScale: number | null = null
+
 function onGripMove(e: PointerEvent): void {
   if (scaleStart === null) return
   // 比例跟随（原型 applyPanelScale）：s0 × (w0+dx)/w0，再按工作区钳制（决策#23；基准=可见簇宽）
@@ -110,10 +115,17 @@ function onGripMove(e: PointerEvent): void {
     { width: visibleClusterWidth(store.uiState.quickVisible, store.uiState.doneVisible), height: BASE_PANEL.height },
     rendererWorkArea()
   )
-  void store.updateUiState({ clusterScale: clamped })
+  pendingScale = clamped
+  const now = performance.now()
+  if (now - lastScaleSentAt >= 30) {
+    lastScaleSentAt = now
+    void store.updateUiState({ clusterScale: clamped })
+  }
 }
 
 function onGripUp(): void {
+  if (pendingScale !== null) void store.updateUiState({ clusterScale: pendingScale })
+  pendingScale = null
   scaleStart = null
   window.removeEventListener('pointermove', onGripMove)
   window.removeEventListener('pointerup', onGripUp)
@@ -395,7 +407,7 @@ async function onComplete(id: string): Promise<void> {
 
 .clock {
   text-align: center;
-  padding: 0 0 2px; /* 四轮：36px 按钮增高后压缩时钟下距，保住 10 项满载无滚动 */
+  padding: 0 0 6px;
   flex: none;
 }
 
@@ -408,15 +420,15 @@ async function onComplete(id: string): Promise<void> {
 .clock-date {
   font-size: 12px;
   color: var(--muted);
-  margin-top: 0;
+  margin-top: 2px;
 }
 
 /* ===== actions 两行网格（原型 .actions）；上移压缩给列表空间，保证 10 项满载无滚动 ===== */
 .actions {
   display: grid;
   grid-template-columns: 1fr auto auto;
-  gap: 4px 8px; /* 四轮：行距压缩（36px 按钮增高补偿） */
-  padding-bottom: 2px;
+  gap: 6px 8px;
+  padding-bottom: 4px;
   flex: none;
 }
 
