@@ -40,18 +40,25 @@ describe('T21 AppShell 三面板簇', () => {
     expect(style).toMatch(/zoom: [\d.]+; width: calc\(1102px \/ [\d.]+ \+ 2px\); height: calc\(640px \/ [\d.]+ \+ 2px\)/)
   })
 
-  it('面板开关：visibility 占位隐藏（槽位不塌陷，主窗零移动），状态持久化', async () => {
+  it('四轮定稿 B：关闭面板即移出 DOM，簇宽收缩为可见面板并集（去掉占位）', async () => {
     const { wrapper, store, api } = await mountWithStore(AppShell)
-    const homeBefore = wrapper.find('[data-testid="home-panel"]').attributes('style') ?? ''
-    const styleBefore = wrapper.find('.cluster').attributes('style')
 
     await store.updateUiState({ quickVisible: false })
-    const quick = wrapper.find('[data-testid="quick-panel"]')
-    expect(quick.exists()).toBe(true) // 槽位保留
-    expect(quick.classes()).toContain('slot-hidden') // visibility:hidden 占位隐藏（不用 display:none 塌陷）
-    expect(wrapper.find('.cluster').attributes('style')).toBe(styleBefore) // 窗口几何恒定
-    expect(wrapper.find('[data-testid="home-panel"]').attributes('style') ?? '').toBe(homeBefore) // 主窗零移动
+    expect(wrapper.find('[data-testid="quick-panel"]').exists()).toBe(false) // v-if 移出，无占位
+    expect(wrapper.find('[data-testid="home-panel"]').exists()).toBe(true)
+    let style = wrapper.find('.cluster').attributes('style') ?? ''
+    expect(style).toMatch(/width: calc\(786px \/ [\d.]+ \+ 2px\)/) // 470+316
     expect(api.snapshot().uiState.quickVisible).toBe(false)
+
+    await store.updateUiState({ doneVisible: false })
+    expect(wrapper.find('[data-testid="done-panel"]').exists()).toBe(false)
+    style = wrapper.find('.cluster').attributes('style') ?? ''
+    expect(style).toMatch(/width: calc\(470px \/ [\d.]+ \+ 2px\)/) // 只剩待办
+
+    await store.updateUiState({ quickVisible: true })
+    expect(wrapper.find('[data-testid="quick-panel"]').exists()).toBe(true)
+    style = wrapper.find('.cluster').attributes('style') ?? ''
+    expect(style).toMatch(/width: calc\(786px \/ [\d.]+ \+ 2px\)/)
   })
 
   it('主题属性注入：day/night', async () => {

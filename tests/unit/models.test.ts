@@ -176,3 +176,53 @@ describe('date 工具（本地时区口径）', () => {
     expect(fmtDateCN(new Date(2026, 8, 21, 12, 0, 0))).toBe('2026年9月21日 星期一')
   })
 })
+
+/** 四轮定稿 B：pos 语义迁移——旧档 pos=窗口左上角 → 新档 pos=待办左上角锚点（一次性、幂等） */
+describe('pos 锚点语义迁移（动态窗口）', () => {
+  it('旧档（无标记）：快捷可见时 pos.x 右移快捷偏移，打上锚点标记', () => {
+    const raw = {
+      v: 1,
+      todos: [],
+      completed: [],
+      archive: {},
+      templates: [],
+      settings: defaultSettings(),
+      uiState: { pos: { x: 100, y: 50 }, clusterScale: 0.8, quickVisible: true, doneVisible: true }
+    }
+    const d = normalizeAppData(raw)
+    expect(d.uiState.pos).toEqual({ x: 100 + Math.round(316 * 0.8), y: 50 })
+    expect(d.uiState.posIsTodoAnchor).toBe(true)
+  })
+
+  it('旧档快捷隐藏：pos.x 不偏移', () => {
+    const raw = {
+      v: 1,
+      todos: [],
+      completed: [],
+      archive: {},
+      templates: [],
+      settings: defaultSettings(),
+      uiState: { pos: { x: 100, y: 50 }, clusterScale: 1, quickVisible: false, doneVisible: true }
+    }
+    const d = normalizeAppData(raw)
+    expect(d.uiState.pos).toEqual({ x: 100, y: 50 })
+  })
+
+  it('幂等：已带锚点标记的档案二次归一不变', () => {
+    const raw = {
+      v: 1,
+      todos: [],
+      completed: [],
+      archive: {},
+      templates: [],
+      settings: defaultSettings(),
+      uiState: { pos: { x: 353, y: 50 }, clusterScale: 0.8, quickVisible: true, doneVisible: true, posIsTodoAnchor: true }
+    }
+    const d1 = normalizeAppData(raw)
+    expect(d1.uiState.pos).toEqual({ x: 353, y: 50 })
+  })
+
+  it('首次启动默认：pos 为 null、锚点标记为 true', () => {
+    expect(defaultAppData().uiState.posIsTodoAnchor).toBe(true)
+  })
+})

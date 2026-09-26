@@ -6,7 +6,12 @@ import {
   clusterBounds,
   effectiveClusterScale,
   clampChildGroupScale,
-  tuckBarBounds
+  tuckBarBounds,
+  visibleClusterWidth,
+  visibleClusterBounds,
+  quickOffsetPx,
+  windowBoundsForAnchor,
+  anchorForWindowX
 } from '../../src/core/utils/cluster-layout'
 import { MIN_SCALE } from '../../src/core/constants'
 
@@ -116,5 +121,53 @@ describe('tuckBarBounds', () => {
     const pos = { x: 123, y: 40 }
     const b = tuckBarBounds(pos, 1102)
     expect(b.x - pos.x).toBe(Math.round((1102 - 160) / 2))
+  })
+})
+
+/** 四轮定稿 B（动态窗口）：pos=待办窗口左上角锚点；隐藏面板不再占位，
+ * 窗口 bounds=可见面板并集；缩放/开关面板以待办左上角为唯一不动点 */
+describe('动态窗口几何（四轮：锚点=待办左上角）', () => {
+  it('visibleClusterWidth：可见面板并集宽（含 6px 缝隙）', () => {
+    expect(visibleClusterWidth(true, true)).toBe(1102)
+    expect(visibleClusterWidth(true, false)).toBe(786)
+    expect(visibleClusterWidth(false, true)).toBe(786)
+    expect(visibleClusterWidth(false, false)).toBe(470)
+  })
+
+  it('visibleClusterBounds：随缩放取整', () => {
+    expect(visibleClusterBounds(1, true, true)).toEqual({ width: 1102, height: 640 })
+    expect(visibleClusterBounds(0.5, false, false)).toEqual({ width: 235, height: 320 })
+  })
+
+  it('quickOffsetPx：快捷可见时窗口左缘到待办左缘的偏移', () => {
+    expect(quickOffsetPx(1, true)).toBe(316)
+    expect(quickOffsetPx(1, false)).toBe(0)
+    expect(quickOffsetPx(0.5, true)).toBe(158)
+  })
+
+  it('windowBoundsForAnchor / anchorForWindowX：往返一致（缩放锚点不变量）', () => {
+    const anchor = { x: 500, y: 40 }
+    for (const scale of [0.7, 1, 1.3]) {
+      for (const q of [true, false]) {
+        for (const d of [true, false]) {
+          const wb = windowBoundsForAnchor(anchor, scale, q, d)
+          expect(wb.y).toBe(anchor.y)
+          expect(wb.x).toBe(anchor.x - quickOffsetPx(scale, q))
+          expect(wb.width).toBe(visibleClusterBounds(scale, q, d).width)
+          expect(anchorForWindowX(wb.x, scale, q)).toBe(anchor.x) // 往返
+        }
+      }
+    }
+  })
+
+  it('缩放时锚点不动：同锚点不同 scale，windowBounds 的 x 随快捷可见性左移、待办左缘恒在锚点', () => {
+    const anchor = { x: 500, y: 40 }
+    const wb1 = windowBoundsForAnchor(anchor, 0.7, true, true)
+    const wb2 = windowBoundsForAnchor(anchor, 1.2, true, true)
+    expect(wb2.x).toBeLessThan(wb1.x) // 放大 → 窗口左缘左移（快捷向左伸展）
+    expect(anchorForWindowX(wb1.x, 0.7, true)).toBe(500)
+    expect(anchorForWindowX(wb2.x, 1.2, true)).toBe(500)
+    expect(wb1.y).toBe(40)
+    expect(wb2.y).toBe(40)
   })
 })
