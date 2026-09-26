@@ -75,16 +75,30 @@ test('重启恢复：pos 语义=待办左上角锚点（待办窗口屏幕位置
   await waitMainVisible(h)
   await h.main.waitForTimeout(300)
 
-  const [b, probeX, probeY] = await Promise.all([
+  const [b, probeX, probeY, diag] = await Promise.all([
     h.app.evaluate(({ BrowserWindow }) => {
       const w = BrowserWindow.getAllWindows().find((win) => !win.isDestroyed() && win.isVisible())
       const r = w!.getBounds()
-      return { x: r.x, y: r.y }
+      return { x: r.x, y: r.y, width: r.width }
     }),
     h.main.evaluate(() => Math.round((document.querySelector('[data-testid="home-panel"]') as HTMLElement).getBoundingClientRect().left)),
-    h.main.evaluate(() => Math.round((document.querySelector('[data-testid="home-panel"]') as HTMLElement).getBoundingClientRect().top))
+    h.main.evaluate(() => Math.round((document.querySelector('[data-testid="home-panel"]') as HTMLElement).getBoundingClientRect().top)),
+    h.main.evaluate(() => {
+      const cluster = document.querySelector('.cluster') as HTMLElement
+      const quick = document.querySelector('[data-testid="quick-panel"]')
+      const wa = window.screen as unknown as { availWidth: number; availHeight: number }
+      return {
+        clusterStyle: cluster?.getAttribute('style') ?? 'none',
+        quickLeft: quick ? Math.round(quick.getBoundingClientRect().left) : -1,
+        quickW: quick ? Math.round(quick.getBoundingClientRect().width) : -1,
+        availW: wa.availWidth,
+        availH: wa.availHeight
+      }
+    })
   ])
-  expect(Math.abs(b.x + probeX - 500)).toBeLessThanOrEqual(2)
+  const dx = Math.abs(b.x + probeX - 500)
+  console.log(`ANCHOR-DIAG b=${JSON.stringify(b)} probeX=${probeX} probeY=${probeY} diag=${JSON.stringify(diag)}`)
+  expect(dx, `ANCHOR-DIAG b=${JSON.stringify(b)} probeX=${probeX} diag=${JSON.stringify(diag)}`).toBeLessThanOrEqual(2)
   expect(Math.abs(b.y + probeY - 200)).toBeLessThanOrEqual(2)
   await h.close()
 })
