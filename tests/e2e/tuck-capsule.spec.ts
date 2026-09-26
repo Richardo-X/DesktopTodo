@@ -36,7 +36,7 @@ test('缩进时窗口收窄为胶囊，弹出还原且位置不漂移', async ()
   // Windows 系统最小高度约 39px 钳制（setMinimumSize 不豁免）；可见胶囊仍为热区顶部 6px
   const tucked = await untilBounds()
   expect(tucked.h).toBeGreaterThanOrEqual(12)
-  expect(tucked.h).toBeLessThanOrEqual(40)
+  expect(tucked.h).toBeLessThanOrEqual(60) // CI DPI 缩放会抬高系统最小高度
 
   setTucked(false)
   await expect.poll(async () => (await bounds())?.w ?? 0, { timeout: 5_000 }).toBe(before.w)

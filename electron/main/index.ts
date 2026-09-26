@@ -105,6 +105,8 @@ function createWindow(data: ReturnType<AppContext['current']>): void {
   // 三轮8.2-1：窗口移动期间节流通知渲染层（moving 抑制自动缩进，修拖动中伪 leave 误缩回）
   let lastMoveSent = 0
   win_.on('move', () => {
+    // 缩进态的 setBounds 自身会触发 move——回传会让渲染层用旧状态把窗口弹回（反馈环），必须跳过
+    if (tucked) return
     const now = Date.now()
     if (now - lastMoveSent < 150) return
     lastMoveSent = now

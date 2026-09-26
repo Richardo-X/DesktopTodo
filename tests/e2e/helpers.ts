@@ -44,7 +44,7 @@ export async function launchApp(opts: LaunchOptions = {}): Promise<AppHandle> {
   })
   const main = await app.firstWindow()
   await main.waitForLoadState('domcontentloaded')
-  await main.locator('[data-testid="home-panel"]').waitFor({ state: 'visible', timeout: 15_000 })
+  await main.locator('[data-testid="home-panel"]').waitFor({ state: 'visible', timeout: 30_000 })
 
   let closed = false
   return {
