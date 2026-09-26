@@ -21,7 +21,7 @@ export const useUiStore = defineStore('ui', () => {
 
   function dispatchTuck(e: TuckEvent): void {
     let event = e
-    if (e.type === 'tick' && tuck.value.leaveAt !== null && lastPointerInsideAt > tuck.value.leaveAt) {
+    if (e.type === 'tick' && tuck.value.leaveAt !== null && lastPointerInsideAt >= tuck.value.leaveAt) {
       // 指针在伪离开后仍在窗内活动 → 视为在组件上，取消这次缩回
       event = { type: 'mouse-enter', now: e.now }
     }
