@@ -395,7 +395,7 @@ async function onComplete(id: string): Promise<void> {
 
 .clock {
   text-align: center;
-  padding: 0 0 6px;
+  padding: 0 0 2px; /* 四轮：36px 按钮增高后压缩时钟下距，保住 10 项满载无滚动 */
   flex: none;
 }
 
@@ -408,15 +408,15 @@ async function onComplete(id: string): Promise<void> {
 .clock-date {
   font-size: 12px;
   color: var(--muted);
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 /* ===== actions 两行网格（原型 .actions）；上移压缩给列表空间，保证 10 项满载无滚动 ===== */
 .actions {
   display: grid;
   grid-template-columns: 1fr auto auto;
-  gap: 6px 8px;
-  padding-bottom: 4px;
+  gap: 4px 8px; /* 四轮：行距压缩（36px 按钮增高补偿） */
+  padding-bottom: 2px;
   flex: none;
 }
 

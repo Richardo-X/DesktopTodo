@@ -12,8 +12,8 @@ test('操作区三枚图标按钮统一 36×36', async () => {
     })
   )
   for (const s of sizes) {
-    expect(s.w, `${s.tid} width`).toBe('36px')
-    expect(s.h, `${s.tid} height`).toBe('36px')
+    expect(Math.abs(parseFloat(s.w) - 36), `${s.tid} width=${s.w}`).toBeLessThanOrEqual(0.5) // zoom 亚像素容差
+    expect(Math.abs(parseFloat(s.h) - 36), `${s.tid} height=${s.h}`).toBeLessThanOrEqual(0.5)
   }
   await h.close()
 })
