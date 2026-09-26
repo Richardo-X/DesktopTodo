@@ -136,6 +136,24 @@ describe('T21 标题栏工具栏五按钮', () => {
     expect(api.tuckedCalls).toContain(true)
   })
 
+  it('四轮：伪鼠标离开后指针仍在窗内 → 不自动缩回（缩回前校验指针真实位置）', async () => {
+    const { wrapper, ui } = await mountWithStoreGetUi()
+    ui.dispatchTuck({ type: 'snap' })
+    ui.dispatchTuck({ type: 'mouse-leave', now: Date.now() })
+    // 伪离开（弹出/窗口尺寸变化引发）后指针仍在窗内活动：pointermove 事件到达
+    window.dispatchEvent(new Event('pointermove'))
+    ui.dispatchTuck({ type: 'tick', now: Date.now() + 500 })
+    await wrapper.vm.$nextTick()
+    expect(ui.tuck.tucked).toBe(false) // 指针实际在窗内 → 取消缩回（修闪烁/提前缩回）
+
+    // 真实离开（离开后无任何 pointermove）→ 延时后正常缩回
+    ui.dispatchTuck({ type: 'mouse-enter', now: Date.now() })
+    ui.dispatchTuck({ type: 'mouse-leave', now: Date.now() + 1000 })
+    ui.dispatchTuck({ type: 'tick', now: Date.now() + 1500 })
+    await wrapper.vm.$nextTick()
+    expect(ui.tuck.tucked).toBe(true)
+  })
+
   it('三轮8.2-1：胶囊只在缩进态出现；弹出后 cluster 恢复', async () => {
     const { wrapper } = await mountWithStore(AppShell)
     const ui = useUiStore()
