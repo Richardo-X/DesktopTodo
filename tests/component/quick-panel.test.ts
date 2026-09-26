@@ -5,7 +5,6 @@ import AppShell from '../../src/panels/AppShell.vue'
 import { mountWithStore } from '../helpers/mount'
 import { useUiStore } from '../../src/stores/ui'
 import { createTemplateItem, createTodoItem } from '../../src/core/models'
-import { contentBubble } from '../../src/components/content-bubble'
 
 function tpl(id: string, content: string) {
   return createTemplateItem({ content, now: new Date(2026, 8, 20, 9), id })
@@ -75,27 +74,28 @@ describe('T29 快捷添加面板', () => {
     expect(api.openChildCalls).toHaveLength(0)
   })
 
-  it('模板行内容截断时悬停 1 秒弹气泡（8.2-4：PRD §五模板行截断气泡补齐）', async () => {
+  it('模板行内容截断时悬停 1 秒 → 请求气泡小窗显示全文（四轮：独立窗口承载）', async () => {
     vi.useFakeTimers()
     try {
       const long = tpl('a', '运'.repeat(80))
-      const { wrapper } = await mountWithStore(QuickPanel, { templates: [long] })
+      const { wrapper, api } = await mountWithStore(QuickPanel, { templates: [long] })
       const contentEl = wrapper.find('[data-testid="tpl-content"]').element
       const inn = contentEl.querySelector('.tt-in') as HTMLElement
       Object.defineProperty(inn, 'offsetWidth', { value: 500, configurable: true })
       Object.defineProperty(contentEl, 'clientWidth', { value: 220, configurable: true })
       Object.defineProperty(wrapper.find('[data-testid="tpl-row"]').element, 'getBoundingClientRect', {
-        value: () => ({ left: 300, top: 100, right: 560, bottom: 136, width: 260, height: 36, x: 300, y: 100, toJSON: () => ({}) }),
+        value: () => ({ left: 60, top: 100, right: 380, bottom: 136, width: 320, height: 36, x: 60, y: 100, toJSON: () => ({}) }),
         configurable: true
       })
 
       await wrapper.find('[data-testid="tpl-content"]').trigger('mouseenter')
-      expect(contentBubble.visible).toBe(false)
+      expect(api.bubbleShowCalls).toHaveLength(0)
       await vi.advanceTimersByTimeAsync(1000)
-      expect(contentBubble.visible).toBe(true)
-      expect(contentBubble.text).toBe(long.content)
+      expect(api.bubbleShowCalls).toHaveLength(1)
+      expect(api.bubbleShowCalls[0].text).toBe(long.content)
+      expect(api.bubbleShowCalls[0].row.left).toBe(60)
       await wrapper.find('[data-testid="tpl-content"]').trigger('mouseleave')
-      expect(contentBubble.visible).toBe(false)
+      expect(api.bubbleHideCalls).toHaveLength(1)
     } finally {
       vi.useRealTimers()
     }

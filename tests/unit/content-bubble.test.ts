@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { isTruncatedWider, placeBubbleLeft, bubbleMaxWidth } from '../../src/components/content-bubble'
+import { isTruncatedWider, placeBubbleScreen } from '../../src/components/content-bubble'
 
-/** 三轮反馈（8.2-4）：气泡照原型 #gbubble 重做——只有确实截断才弹、位置固定在行左侧不遮列表 */
+/** 四轮（8.2-4 定稿）：气泡改由独立小窗口承载（可越出主窗口），屏幕坐标定位——
+ * 默认在行左侧；会碰到屏幕左缘时改在行右侧（允许遮列表）；不做下边缘特殊处理 */
 
 describe('isTruncatedWider 截断判定（原型 measureTrunc 口径）', () => {
   it('文本真实宽度 > 可见宽度 - 一个字宽 → 判定截断', () => {
@@ -18,47 +19,35 @@ describe('isTruncatedWider 截断判定（原型 measureTrunc 口径）', () => 
   })
 })
 
-describe('placeBubbleLeft 行左侧定位（用户定稿：只弹行左侧，不遮待办列表，屏内钳制）', () => {
-  const ROW = { left: 400, top: 100, height: 36 }
+describe('placeBubbleScreen 屏幕坐标定位（左缘碰撞→右侧翻转；逐窗独立判定）', () => {
+  const BUBBLE_W = 320
+  const ROW = { left: 400, top: 100, right: 720, bottom: 136 } // 行屏幕矩形（高 36）
 
-  it('常规：气泡右缘距行左缘 14px，垂直居中对齐行，箭头指向行中心', () => {
-    const g = placeBubbleLeft(ROW, 200, 60, 1080)
-    expect(g.x).toBe(400 - 200 - 14) // 186
-    expect(g.y).toBe(100 + 18 - 30) // 垂直居中
-    expect(g.arrowTop).toBe(24) // 行中心在气泡内偏移-6（箭头半高）
-    // 不遮列表：气泡右缘 < 行左缘
-    expect(g.x + 200).toBeLessThanOrEqual(ROW.left)
+  it('左侧放得下 → 气泡右缘距行左缘 14px，垂直居中对齐行', () => {
+    const g = placeBubbleScreen(ROW, BUBBLE_W)
+    expect(g.side).toBe('left')
+    expect(g.x).toBe(400 - 14 - BUBBLE_W) // 66
+    expect(g.y).toBe(100 + 18 - 80) // 行中心 - 气泡半高（暂按 160 高窗）
   })
 
-  it('行贴近屏幕左缘：气泡钳制在 8px 边距内，不越屏', () => {
-    const g = placeBubbleLeft({ left: 100, top: 100, height: 36 }, 200, 60, 1080)
-    expect(g.x).toBe(8)
-    expect(g.y).toBe(100 + 18 - 30)
+  it('会碰到屏幕左缘 → 翻转到行右侧（允许遮挡列表），箭头指向行左侧', () => {
+    const nearEdge = { left: 100, top: 100, right: 420, bottom: 136 }
+    const g = placeBubbleScreen(nearEdge, BUBBLE_W)
+    expect(g.side).toBe('right')
+    expect(g.x).toBe(420 + 14) // 行右缘 + 14
   })
 
-  it('行贴近屏幕顶部：垂直位置钳制 8px', () => {
-    const g = placeBubbleLeft({ left: 400, top: 4, height: 36 }, 200, 60, 1080)
-    expect(g.y).toBe(8)
+  it('翻转判定逐窗独立：同一屏上快捷窗口行翻转、待办窗口行保持左侧', () => {
+    const quickRow = { left: 60, top: 100, right: 380, bottom: 136 } // 快捷窗靠左缘
+    const todoRow = { left: 700, top: 100, right: 1020, bottom: 136 } // 待办窗居中
+    expect(placeBubbleScreen(quickRow, BUBBLE_W).side).toBe('right')
+    expect(placeBubbleScreen(todoRow, BUBBLE_W).side).toBe('left')
   })
 
-  it('行贴近屏幕底部：气泡底缘不越屏', () => {
-    const g = placeBubbleLeft({ left: 400, top: 1040, height: 36 }, 200, 60, 1080)
-    expect(g.y).toBe(1080 - 60 - 8)
-  })
-})
-
-describe('bubbleMaxWidth（CI 反馈：左侧空间不足时收缩气泡宽度，保证不遮列表）', () => {
-  it('可用空间充足 → 上限 300px', () => {
-    expect(bubbleMaxWidth(400)).toBe(300)
-    expect(bubbleMaxWidth(322)).toBe(300)
-  })
-
-  it('可用空间不足 → 收缩为可用宽度（行左缘-14 间距-8 屏边距）', () => {
-    expect(bubbleMaxWidth(211)).toBe(211)
-    expect(bubbleMaxWidth(150)).toBe(150)
-  })
-
-  it('极窄时下限 120px（过度收缩不可读）', () => {
-    expect(bubbleMaxWidth(60)).toBe(120)
+  it('边界逐像素一致：≥8 左弹、<8 右翻', () => {
+    // 行左缘 330：1920 宽屏左侧放得下（330-14-320=-4 <8 → 其实也翻转！边界必须一致）
+    const row = { left: 342, top: 100, right: 660, bottom: 136 }
+    expect(placeBubbleScreen(row, BUBBLE_W).side).toBe('left') // 342-14-320=8 ≥8
+    expect(placeBubbleScreen({ ...row, left: 341, right: 659 }, BUBBLE_W).side).toBe('right') // 7 <8
   })
 })

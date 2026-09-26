@@ -10,11 +10,13 @@ export const CHILD_SIZES: Record<ChildKind, { w: number; h: number }> = {
   'template-edit': { w: 410, h: 435 },
   detail: { w: 415, h: 490 },
   history: { w: 645, h: 620 },
-  settings: { w: 460, h: 540 }
+  settings: { w: 460, h: 540 },
+  // 四轮：气泡独立小窗口（非用户子窗口，不经 openChild 打开；仅为类型完备）
+  bubble: { w: 320, h: 160 }
 }
 
 /** 缩放分组（PRD §二：事项类/模板类/历史/设置；detail 归事项组；主进程与渲染层单一来源） */
-export type ChildGroup = 'todo' | 'template' | 'history' | 'settings'
+export type ChildGroup = 'todo' | 'template' | 'history' | 'settings' | 'bubble'
 
 export const GROUP_OF: Record<ChildKind, ChildGroup> = {
   'todo-new': 'todo',
@@ -23,7 +25,8 @@ export const GROUP_OF: Record<ChildKind, ChildGroup> = {
   'template-new': 'template',
   'template-edit': 'template',
   history: 'history',
-  settings: 'settings'
+  settings: 'settings',
+  bubble: 'bubble'
 }
 
 export interface WorkArea {

@@ -1,18 +1,20 @@
-import { nextTick, reactive } from 'vue'
+import { getApi } from '../services/api'
 
-/** 悬停气泡（三轮反馈 8.2-4，照原型 #gbubble 重做）：
- * 只有内容确实被截断才触发；位置固定在鼠标所在行的左侧（不遮待办列表），屏内钳制。 */
+/** 悬停气泡（三轮 8.2-4 提出 / 四轮定稿：独立小窗口承载）：
+ * 只有内容确实被截断才触发；默认显示在鼠标所在行的左侧（屏幕坐标，可越出主窗口），
+ * 会碰到屏幕左缘时改在行右侧弹出（允许遮挡列表）；垂直方向居中对齐行，不做下边缘特殊处理。 */
 
 export interface BubbleGeometry {
   x: number
   y: number
-  arrowTop: number
+  side: 'left' | 'right'
 }
 
-export interface RowRect {
+export interface ScreenRow {
   left: number
   top: number
-  height: number
+  right: number
+  bottom: number
 }
 
 /** 截断判定（原型 measureTrunc 口径）：文本真实宽度 > 可见宽度 - 一个字宽 */
@@ -20,40 +22,21 @@ export function isTruncatedWider(innerW: number, visibleW: number, reserve: numb
   return innerW > visibleW - reserve
 }
 
-/** 气泡宽度上限：min(300, 行左侧可用空间)，下限 120——保证「行左侧+不遮列表」在窄余量下也成立 */
-export function bubbleMaxWidth(availableLeft: number): number {
-  return Math.max(120, Math.min(300, availableLeft))
-}
-
-/** 行左侧定位：右缘距行左缘 14px、垂直居中、8px 屏边距钳制、箭头指向行中心。
- * （行左只会越出屏幕左缘，右侧天然不溢出，故无需视口宽度参数） */
-export function placeBubbleLeft(row: RowRect, bw: number, bh: number, vh: number): BubbleGeometry {
+/** 屏幕坐标定位（气泡窗宽 bubbleW）：左缘放得下（≥8px）在行左侧，否则翻转到行右侧（允许遮列表）；
+ * 垂直=行中心对齐（下边缘不做特殊处理——四轮用户定稿） */
+export function placeBubbleScreen(row: ScreenRow, bubbleW: number): BubbleGeometry {
   const M = 8
-  const x = Math.max(M, row.left - bw - 14)
-  const cy = row.top + row.height / 2
-  const y = Math.max(M, Math.min(cy - bh / 2, vh - bh - M))
-  const arrowTop = Math.max(8, Math.min(cy - y - 6, bh - 20))
-  return { x, y, arrowTop }
+  const cy = (row.top + row.bottom) / 2
+  const y = Math.round(cy - BUBBLE_H / 2)
+  const leftX = row.left - 14 - bubbleW
+  if (leftX >= M) return { x: leftX, y, side: 'left' }
+  return { x: row.right + 14, y, side: 'right' }
 }
 
-export interface ContentBubbleState {
-  visible: boolean
-  shown: boolean
-  text: string
-  x: number
-  y: number
-  arrowTop: number
-}
-
-/** 全局单例状态（宿主渲染在 AppShell 的 Teleport，zoom 容器之外） */
-export const contentBubble = reactive<ContentBubbleState>({
-  visible: false,
-  shown: false,
-  text: '',
-  x: -9999,
-  y: -9999,
-  arrowTop: 12
-})
+/** 气泡小窗的暂定高度（页面量得实际内容高后经 bubbleResize 修正） */
+export const BUBBLE_H = 160
+/** 气泡内容最大宽（原型 #gbubble 规格） */
+export const BUBBLE_MAX_W = 300
 
 let hoverTimer: ReturnType<typeof setTimeout> | null = null
 let currentContent: HTMLElement | null = null
@@ -68,8 +51,7 @@ function measureTruncated(content: HTMLElement): boolean {
 }
 
 export function hideBubble(): void {
-  contentBubble.visible = false
-  contentBubble.shown = false
+  void getApi().bubbleHide()
 }
 
 export function bubbleContentEnter(content: HTMLElement, row: HTMLElement): void {
@@ -81,7 +63,7 @@ export function bubbleContentEnter(content: HTMLElement, row: HTMLElement): void
     hoverTimer = null
     if (currentContent === null || currentRow === null) return // 已移开
     if (!measureTruncated(currentContent)) return
-    void showNow()
+    showNow()
   }, 1000)
 }
 
@@ -95,25 +77,15 @@ export function bubbleContentLeave(): void {
   hideBubble()
 }
 
-async function showNow(): Promise<void> {
+function showNow(): void {
   const inn = currentContent?.querySelector<HTMLElement>('.tt-in')
-  contentBubble.text = inn?.textContent ?? ''
-  contentBubble.visible = true
-  contentBubble.shown = false
-  await nextTick()
   const row = currentRow
   if (!row) return
-  const el = document.querySelector<HTMLElement>('[data-testid="content-bubble"]')
-  const rr = row.getBoundingClientRect()
-  if (el) el.style.maxWidth = `${bubbleMaxWidth(rr.left - 14 - 8)}px`
-  const g = placeBubbleLeft(
-    { left: rr.left, top: rr.top, height: rr.height },
-    el?.offsetWidth ?? 0,
-    el?.offsetHeight ?? 0,
-    window.innerHeight
-  )
-  contentBubble.x = g.x
-  contentBubble.y = g.y
-  contentBubble.arrowTop = g.arrowTop
-  contentBubble.shown = true
+  const r = row.getBoundingClientRect()
+  const theme = document.querySelector('.stage')?.getAttribute('data-theme') === 'night' ? 'night' : 'day'
+  void getApi().bubbleShow({
+    text: inn?.textContent ?? '',
+    theme: theme as 'day' | 'night',
+    row: { left: r.left, top: r.top, right: r.right, bottom: r.bottom }
+  })
 }

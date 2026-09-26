@@ -12,6 +12,7 @@ import { buildTrayContextMenu, exitConfirmMessage } from './tray-menu'
 import { trayIconPng } from './icon'
 import { applyTopMost, refocusChildWindows } from './window-state'
 import { setAutoStart, syncAutoStartOnBoot } from './auto-start'
+import { showBubble, hideBubble, resizeBubble } from './bubble'
 import { ensureOnSomeDisplay, clampPosToWorkArea } from '../../src/core/utils/screen-clamp'
 import { localDateKey } from '../../src/core/utils/date'
 import { IPC, type ChildKind } from '../../src/ipc/contract'
@@ -426,6 +427,20 @@ function registerIpc(): void {
   ipcMain.handle(IPC.setVisibility, (_e, v: boolean) => {
     if (v) showWindow()
     else hideToTray()
+  })
+
+  ipcMain.handle(IPC.bubbleShow, (e, p: { text: string; theme: 'day' | 'night'; row: { left: number; top: number; right: number; bottom: number } }) => {
+    const wb = BrowserWindow.fromWebContents(e.sender)?.getBounds()
+    if (!wb) return
+    showBubble(wb, p)
+  })
+
+  ipcMain.handle(IPC.bubbleHide, () => {
+    hideBubble()
+  })
+
+  ipcMain.handle(IPC.bubbleResize, (_e, p: { w: number; h: number }) => {
+    resizeBubble(p)
   })
 
   ipcMain.handle(IPC.setAutoStart, (_e, enabled: boolean) => setAutoStart(enabled))

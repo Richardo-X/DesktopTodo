@@ -21,6 +21,10 @@ export const IPC = {
   setTucked: 'window:set-tucked',
   snapChanged: 'app:snap-state',
   windowMoving: 'window:moving',
+  bubbleShow: 'bubble:show',
+  bubbleHide: 'bubble:hide',
+  bubbleResize: 'bubble:resize',
+  bubblePayload: 'bubble:payload',
   childClosed: 'app:child-closed',
   requestExit: 'app:request-exit',
   minimizeToTray: 'window:minimize-to-tray'
@@ -35,6 +39,7 @@ export type ChildKind =
   | 'detail'
   | 'history'
   | 'settings'
+  | 'bubble'
 
 export interface WindowPos {
   x: number
@@ -69,6 +74,11 @@ export interface DesktopTodoApi {
   /** 贴边缩进状态：主进程按小条/整簇调整窗口高度 */
   setTucked(tucked: boolean): Promise<void>
   onWindowMoving(cb: (now: number) => void): () => void
+  /** 四轮：气泡独立小窗口（渲染层传行视口矩形，主进程换算屏幕坐标并承载/定尺寸） */
+  bubbleShow(p: { text: string; theme: 'day' | 'night'; row: { left: number; top: number; right: number; bottom: number } }): Promise<void>
+  bubbleHide(): Promise<void>
+  bubbleResize(p: { w: number; h: number }): Promise<void>
+  onBubblePayload(cb: (p: { text: string; theme: 'day' | 'night'; side: 'left' | 'right' }) => void): () => void
   /** 主进程吸附状态变化（窗口移动到/离开上边缘） */
   onSnapChanged(cb: (snapped: boolean) => void): () => void
   /** 任一子窗口关闭（缩进状态机 child-closed） */

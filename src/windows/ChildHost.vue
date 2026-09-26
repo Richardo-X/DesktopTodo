@@ -11,6 +11,7 @@ import TemplateEditWindow from './TemplateEditWindow.vue'
 import DetailWindow from './DetailWindow.vue'
 import HistoryWindow from './HistoryWindow.vue'
 import SettingsWindow from './SettingsWindow.vue'
+import BubbleWindow from './BubbleWindow.vue'
 import type { ChildKind } from '../ipc/contract'
 import './child-window.css'
 
@@ -81,6 +82,8 @@ const page = computed(() => {
       return HistoryWindow
     case 'settings':
       return SettingsWindow
+    case 'bubble':
+      return BubbleWindow
     default:
       return null
   }

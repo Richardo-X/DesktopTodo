@@ -8,6 +8,8 @@ export interface TestApi extends DesktopTodoApi {
   snapshot(): AppData
   emitStateUpdated(data: AppData): void
   autoStartCalls: boolean[]
+  bubbleShowCalls: Array<{ text: string; theme: 'day' | 'night'; row: { left: number; top: number; right: number; bottom: number } }>
+  bubbleHideCalls: number[]
   autoStartResult: boolean
   savedCsv: Array<{ fileName: string; content: string }>
   openChildCalls: Array<{ kind: ChildKind; id?: string }>
@@ -32,6 +34,8 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
   const ctx = new AppContext(repo, new SystemClock())
   const listeners = new Set<(d: AppData) => void>()
   const autoStartCalls: boolean[] = []
+  const bubbleShowCalls: Array<{ text: string; theme: 'day' | 'night'; row: { left: number; top: number; right: number; bottom: number } }> = []
+  const bubbleHideCalls: number[] = []
   let autoStartResult = true
   const savedCsv: Array<{ fileName: string; content: string }> = []
   const openChildCalls: Array<{ kind: ChildKind; id?: string }> = []
@@ -49,6 +53,8 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
 
   const api: TestApi = {
     autoStartCalls,
+    bubbleShowCalls,
+    bubbleHideCalls,
     get autoStartResult() {
       return autoStartResult
     },
@@ -117,6 +123,14 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
       resizeSelfCalls.push(params)
     },
     onWindowMoving: (_cb: (now: number) => void) => () => {},
+    bubbleShow: async (p) => {
+      bubbleShowCalls.push(p)
+    },
+    bubbleHide: async () => {
+      bubbleHideCalls.push(1)
+    },
+    bubbleResize: async () => undefined,
+    onBubblePayload: (_cb) => () => {},
     setTucked: async (tucked: boolean) => {
       tuckedCalls.push(tucked)
     },

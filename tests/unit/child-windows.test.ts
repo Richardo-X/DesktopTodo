@@ -13,7 +13,7 @@ describe('CHILD_SIZES 基准尺寸与分组', () => {
     expect(CHILD_SIZES.detail).toEqual({ w: 415, h: 490 })
     expect(CHILD_SIZES.history).toEqual({ w: 645, h: 620 })
     expect(CHILD_SIZES.settings).toEqual({ w: 460, h: 540 })
-    expect(Object.keys(CHILD_SIZES)).toHaveLength(7)
+    expect(Object.keys(CHILD_SIZES)).toHaveLength(8) // 7 类用户子窗口 + bubble（四轮独立气泡窗，非 openChild 通道）
     expect('recycle' in CHILD_SIZES).toBe(false)
   })
 
