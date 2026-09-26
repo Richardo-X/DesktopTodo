@@ -152,6 +152,12 @@ function toggleTopMost(): void {
   void store.updateUiState({ topMost: !store.uiState.topMost })
 }
 
+function onSelectToggle(id: string): void {
+  // 四轮1：批量目标不是待办时（如模板批量），待办行不参与选择（全禁补对称）
+  if (ui.batchTarget !== 'todos') return
+  ui.toggleSelect(id)
+}
+
 function toggleQuick(): void {
   void store.updateUiState({ quickVisible: !store.uiState.quickVisible })
 }
@@ -175,7 +181,7 @@ async function onComplete(id: string): Promise<void> {
 </script>
 
 <template>
-  <section class="panel home-panel" data-testid="home-panel">
+  <section class="panel home-panel" data-testid="home-panel" :class="{ frozen: ui.batchMode && ui.batchTarget !== 'todos' }">
     <!-- 三轮8.2-6：照原型重做——左侧品牌区（勾图标+桌面待办），右侧一组5按钮（SVG 线性图标）；
          决策#8：标题栏拖动窗口；8.2-7：批量进行中冻结 -->
     <header class="titlebar">
@@ -278,7 +284,7 @@ async function onComplete(id: string): Promise<void> {
           :dragging="isDragging(i)"
           @toggle="onComplete(t.id)"
           @edit="ui.openChild('todo-edit', t.id)"
-          @select-toggle="ui.toggleSelect(t.id)"
+          @select-toggle="onSelectToggle(t.id)"
           @handle-down="drag.handleDown(i, $event)"
         />
       </div>
@@ -415,9 +421,9 @@ async function onComplete(id: string): Promise<void> {
 }
 
 .icon-btn {
-  height: 30px;
-  min-width: 32px;
-  padding: 0 10px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border: 1px solid var(--btn-border);
   border-radius: 6px;
   background: var(--btn);
