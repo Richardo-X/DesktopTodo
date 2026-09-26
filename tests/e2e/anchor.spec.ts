@@ -18,6 +18,22 @@ async function waitMainVisible(h: { app: import('@playwright/test').ElectronAppl
     .toBe(true)
 }
 
+/** 屏幕锚点 = 窗口左上 + 待办面板视口偏移（含 zoom） */
+async function anchorOf(h: { app: import('@playwright/test').ElectronApplication; main: import('@playwright/test').Page }): Promise<{ x: number; y: number }> {
+  const [b, probe] = await Promise.all([
+    h.app.evaluate(({ BrowserWindow }) => {
+      const w = BrowserWindow.getAllWindows().find((win) => !win.isDestroyed() && win.isVisible())
+      const r = w ? w.getBounds() : { x: -99999, y: -99999 }
+      return { x: r.x, y: r.y }
+    }),
+    h.main.evaluate(() => {
+      const r = (document.querySelector('[data-testid="home-panel"]') as HTMLElement).getBoundingClientRect()
+      return { left: Math.round(r.left), top: Math.round(r.top) }
+    })
+  ])
+  return { x: b.x + probe.left, y: b.y + probe.top }
+}
+
 test('开关面板：待办窗口屏幕锚点不动，窗口宽随可见面板收缩', async () => {
   const h = await launchApp()
   await h.main.waitForSelector('[data-testid="home-panel"]')
@@ -68,37 +84,25 @@ test('开关面板：待办窗口屏幕锚点不动，窗口宽随可见面板�
 })
 
 test('重启恢复：pos 语义=待办左上角锚点（待办窗口屏幕位置=存档值）', async () => {
-  const seed = defaultAppData()
-  seed.uiState.pos = { x: 500, y: 200 } // 锚点=待办左上角；取屏内值避免钳制改写
-  const h = await launchApp({ seed })
+  // 两阶段、屏幕无关：先启动读取实际锚点（屏幕坐标），关闭后把它作为存档值写回 data.json，
+  // 重启断言待办窗口原位恢复——硬编码种子锚点在窄屏上会越界被正确的钳制改写，不可用作存档
+  const h = await launchApp()
   await h.main.waitForSelector('[data-testid="home-panel"]')
   await waitMainVisible(h)
   await h.main.waitForTimeout(300)
 
-  const [b, probeX, probeY, diag] = await Promise.all([
-    h.app.evaluate(({ BrowserWindow }) => {
-      const w = BrowserWindow.getAllWindows().find((win) => !win.isDestroyed() && win.isVisible())
-      const r = w!.getBounds()
-      return { x: r.x, y: r.y, width: r.width }
-    }),
-    h.main.evaluate(() => Math.round((document.querySelector('[data-testid="home-panel"]') as HTMLElement).getBoundingClientRect().left)),
-    h.main.evaluate(() => Math.round((document.querySelector('[data-testid="home-panel"]') as HTMLElement).getBoundingClientRect().top)),
-    h.main.evaluate(() => {
-      const cluster = document.querySelector('.cluster') as HTMLElement
-      const quick = document.querySelector('[data-testid="quick-panel"]')
-      const wa = window.screen as unknown as { availWidth: number; availHeight: number }
-      return {
-        clusterStyle: cluster?.getAttribute('style') ?? 'none',
-        quickLeft: quick ? Math.round(quick.getBoundingClientRect().left) : -1,
-        quickW: quick ? Math.round(quick.getBoundingClientRect().width) : -1,
-        availW: wa.availWidth,
-        availH: wa.availHeight
-      }
-    })
-  ])
-  const dx = Math.abs(b.x + probeX - 500)
-  console.log(`ANCHOR-DIAG b=${JSON.stringify(b)} probeX=${probeX} probeY=${probeY} diag=${JSON.stringify(diag)}`)
-  expect(dx, `ANCHOR-DIAG b=${JSON.stringify(b)} probeX=${probeX} diag=${JSON.stringify(diag)}`).toBeLessThanOrEqual(2)
-  expect(Math.abs(b.y + probeY - 200)).toBeLessThanOrEqual(2)
+  const anchor1 = await anchorOf(h)
   await h.close()
+
+  const seed = defaultAppData()
+  seed.uiState.pos = { x: anchor1.x, y: anchor1.y }
+  const h2 = await launchApp({ seed })
+  await h2.main.waitForSelector('[data-testid="home-panel"]')
+  await waitMainVisible(h2)
+  await h2.main.waitForTimeout(300)
+
+  const anchor2 = await anchorOf(h2)
+  expect(Math.abs(anchor2.x - anchor1.x), `anchor1=${JSON.stringify(anchor1)} anchor2=${JSON.stringify(anchor2)}`).toBeLessThanOrEqual(2)
+  expect(Math.abs(anchor2.y - anchor1.y)).toBeLessThanOrEqual(2)
+  await h2.close()
 })
