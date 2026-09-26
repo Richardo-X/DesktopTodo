@@ -4,6 +4,7 @@ import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import { fmtTime } from '../core/utils/date'
 import { useOverlayThumb } from '../components/useOverlayThumb'
+import { createDblClickGuard } from '../components/useDblClickGuard'
 
 const store = useAppStore()
 const ui = useUiStore()
@@ -19,13 +20,22 @@ const sorted = computed(() => {
 
 const error = ref('')
 
+// 8.2-9 连点保护窗：反选框点击后短时间内忽略行双击
+const dblGuard = createDblClickGuard()
+
 // 自绘悬浮滚动条（二轮反馈）：滑块位于右缘专用带，行宽不受影响
 const listEl = ref<HTMLElement | null>(null)
 const thumb = useOverlayThumb(listEl)
 
 async function toggleBack(id: string): Promise<void> {
+  dblGuard.mark()
   const r = await store.returnToActive(id)
   error.value = r.ok ? '' : r.reason === 'limit-reached' ? '待办数量已达上限' : '退回失败'
+}
+
+function onRowDblClick(id: string): void {
+  if (dblGuard.blocked()) return
+  void ui.openChild('detail', id)
 }
 
 function toggleSort(): void {
@@ -97,7 +107,7 @@ function fmtDone(iso: string | null): string {
             class="todo-row"
             data-testid="done-row"
             :data-id="t.id"
-            @dblclick="ui.openChild('detail', t.id)"
+            @dblclick="onRowDblClick(t.id)"
           >
             <button
               type="button"

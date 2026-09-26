@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { TodoItem } from '../core/models/types'
+import { createDblClickGuard } from './useDblClickGuard'
 
 const props = defineProps<{
   item: TodoItem
@@ -16,6 +17,8 @@ const emit = defineEmits<{
   'select-toggle': []
   'handle-down': [e: PointerEvent]
 }>()
+
+const dblGuard = createDblClickGuard()
 
 // 悬停 1 秒显示全文气泡（PRD §3）
 const bubbleVisible = ref(false)
@@ -39,11 +42,13 @@ function onRowClick(): void {
 }
 
 function onDblClick(): void {
-  if (props.batchMode) return
+  // 8.2-9 连点保护窗：勾选框刚被点击过，双击大概率是连点偏出的误合成
+  if (props.batchMode || dblGuard.blocked()) return
   emit('edit')
 }
 
 function onCheckboxClick(): void {
+  dblGuard.mark()
   // 决策#25：批量模式勾选框 = 选中示意；常规模式 = 完成
   if (props.batchMode) emit('select-toggle')
   else emit('toggle')
