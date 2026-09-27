@@ -355,6 +355,8 @@ function openChildWindow(kind: ChildKind, id?: string): void {
     y: placement.y,
     frame: false,
     transparent: true,
+    backgroundColor: '#00000000',
+    thickFrame: false,
     skipTaskbar: true,
     resizable: false,
     hasShadow: false,

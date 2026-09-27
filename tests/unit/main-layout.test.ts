@@ -29,6 +29,14 @@ describe('layout re-export：与 cluster-layout 单一来源一致', () => {
   })
 })
 
+describe('四轮黑块：透明窗口衬底显式声明', () => {
+  it('主窗构造选项：backgroundColor=#00000000 + thickFrame=false（Windows 透明窗黑块官方口径）', () => {
+    const o = defaultWindowOptions({ width: 1102, height: 640 })
+    expect(o.backgroundColor).toBe('#00000000')
+    expect(o.thickFrame).toBe(false)
+  })
+})
+
 describe('initialPos 首次启动默认位置', () => {
   it('屏幕右侧偏上，且不贴边（预留上边缘距离，避免触发贴边缩进）', () => {
     const b = clusterBounds(1)

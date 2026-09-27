@@ -25,6 +25,10 @@ export interface WindowOptions {
   height: number
   frame: boolean
   transparent: boolean
+  /** 四轮黑块修复：显式全透明底色（Windows 透明窗口未声明时未覆盖区域露出系统衬底成黑块） */
+  backgroundColor: string
+  /** 四轮黑块修复：去掉 WS_THICKFRAME 系统衬底层 */
+  thickFrame: boolean
   skipTaskbar: boolean
   resizable: boolean
   movable: boolean
@@ -51,6 +55,8 @@ export function defaultWindowOptions(bounds: Bounds): WindowOptions {
     height: bounds.height,
     frame: false,
     transparent: true,
+    backgroundColor: '#00000000',
+    thickFrame: false,
     skipTaskbar: true,
     resizable: false,
     movable: true,
