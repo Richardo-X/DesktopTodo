@@ -22,6 +22,8 @@ export interface LaunchOptions {
   exportDir?: string
   /** 测试模式导入文件（文件选择旁路） */
   importFile?: string
+  /** 批次 A spike：三窗分离技术验证（DTODO_CLUSTER_SPIKE=1） */
+  spike?: boolean
 }
 
 /** T44：启动 Electron 应用（临时 userData、时钟偏移、测试钩子） */
@@ -36,12 +38,41 @@ export async function launchApp(opts: LaunchOptions = {}): Promise<AppHandle> {
   if (opts.clockOffsetHours) env.DTODO_CLOCK_OFFSET_H = String(opts.clockOffsetHours)
   if (opts.exportDir) env.DTODO_TEST_EXPORT_DIR = opts.exportDir
   if (opts.importFile) env.DTODO_TEST_IMPORT_FILE = opts.importFile
+  if (opts.spike) env.DTODO_CLUSTER_SPIKE = '1'
 
   const app: ElectronApplication = await electron.launch({
     args: ['out/main/index.js'],
     cwd: process.cwd(),
     env
   })
+
+  if (opts.spike) {
+    // 三窗 spike：等待 quick/main/done 三个 spike 页面就绪（firstWindow 可能是任意一个）
+    const deadline = Date.now() + 30_000
+    let pages: Page[] = []
+    while (Date.now() < deadline) {
+      pages = app.windows().filter((w) => w.url().includes('win=spike'))
+      if (pages.length >= 3) break
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    }
+    if (pages.length < 3) throw new Error(`spike windows incomplete: ${pages.length}/3`)
+    const main = pages.find((w) => w.url().includes('panel=main'))
+    if (!main) throw new Error('spike main page missing')
+    await main.waitForLoadState('domcontentloaded')
+    await main.locator('[data-testid="spike-panel"]').waitFor({ state: 'visible', timeout: 30_000 })
+    let closed = false
+    return {
+      app,
+      main,
+      userData,
+      async close() {
+        if (closed) return
+        closed = true
+        await app.close()
+      }
+    }
+  }
+
   const main = await app.firstWindow()
   await main.waitForLoadState('domcontentloaded')
   await main.locator('[data-testid="home-panel"]').waitFor({ state: 'visible', timeout: 30_000 })

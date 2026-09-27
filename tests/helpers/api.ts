@@ -23,6 +23,8 @@ export interface TestApi extends DesktopTodoApi {
   snapListeners: Set<(snapped: boolean) => void>
   cursorInsideListeners: Array<(inside: boolean) => void>
   childCloseListeners: Set<() => void>
+  dragStartCalls: number[]
+  dragEndCalls: number[]
 }
 
 /**
@@ -50,6 +52,8 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
   const snapListeners = new Set<(snapped: boolean) => void>()
   const cursorInsideListeners = Array<(inside: boolean) => void>()
   const childCloseListeners = new Set<() => void>()
+  const dragStartCalls: number[] = []
+  const dragEndCalls: number[] = []
 
   const booted: Promise<unknown> = ctx.boot()
 
@@ -70,6 +74,8 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     snapListeners,
     cursorInsideListeners,
     childCloseListeners,
+    dragStartCalls,
+    dragEndCalls,
     get minimizeCalls() {
       return minimizeCalls
     },
@@ -154,6 +160,12 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     },
     openChild: async (p) => {
       openChildCalls.push(p)
+    },
+    clusterDragStart: async () => {
+      dragStartCalls.push(1)
+    },
+    clusterDragEnd: async () => {
+      dragEndCalls.push(1)
     }
   }
   return api
