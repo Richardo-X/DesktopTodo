@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import AppShell from '../../src/panels/AppShell.vue'
 import { mountWithStore } from '../helpers/mount'
+import { defaultAppData } from '../../src/core/models'
 import { useUiStore } from '../../src/stores/ui'
 
 
@@ -198,5 +199,35 @@ describe('T21 标题栏工具栏五按钮', () => {
     for (const el of [document.documentElement, document.body]) {
       expect(getComputedStyle(el).backgroundColor === 'transparent' || getComputedStyle(el).backgroundColor === '').toBe(true)
     }
+  })
+
+  it('四轮5：缩进锁定接线——开关同步状态机，锁定时贴边不缩回；解锁后光标在外立即恢复缩回', async () => {
+    const { wrapper, api, ui } = await mountWithStoreGetUi()
+    await wrapper.find('[data-testid="tb-tucklock"]').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(ui.tuck.locked).toBe(true) // lock 事件接线（此前从未派发——历史遗漏）
+
+    ui.dispatchTuck({ type: 'snap' })
+    ui.dispatchTuck({ type: 'mouse-leave', now: Date.now() })
+    ui.dispatchTuck({ type: 'tick', now: Date.now() + 500 })
+    await wrapper.vm.$nextTick()
+    expect(ui.tuck.tucked).toBe(false) // 锁定 → 不缩回
+
+    // 解锁：光标在外（轮询最后判定 false）→ 立即补发离开，延时后缩回
+    api.cursorInsideListeners[0](false)
+    await wrapper.find('[data-testid="tb-tucklock"]').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(ui.tuck.locked).toBe(false)
+    ui.dispatchTuck({ type: 'tick', now: Date.now() + 1000 })
+    await wrapper.vm.$nextTick()
+    expect(ui.tuck.tucked).toBe(true)
+  })
+
+  it('四轮5b：启动按存档 tuckLock 初始化锁定状态', async () => {
+    const seed = defaultAppData()
+    seed.uiState.tuckLock = true
+    await mountWithStore(AppShell, seed)
+    await new Promise((r) => setTimeout(r, 20))
+    expect(useUiStore().tuck.locked).toBe(true)
   })
 })

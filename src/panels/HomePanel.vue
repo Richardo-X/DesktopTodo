@@ -157,7 +157,10 @@ function toggleTheme(): void {
 }
 
 function toggleTuckLock(): void {
-  void store.updateUiState({ tuckLock: !store.uiState.tuckLock })
+  const next = !store.uiState.tuckLock
+  // 四轮5：锁定接线——同步派发给缩进状态机（此前只写持久化，状态机从未感知锁定）
+  ui.dispatchTuck({ type: 'lock', on: next })
+  void store.updateUiState({ tuckLock: next })
 }
 
 function toggleTopMost(): void {

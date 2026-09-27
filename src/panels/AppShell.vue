@@ -45,7 +45,10 @@ const clusterStyle = computed(() => {
 })
 
 onMounted(() => {
-  void store.init()
+  void store.init().then(() => {
+    // 四轮5：按存档初始化缩进锁定（此前锁定从未接线，启动后状态机不知道锁定态）
+    ui.initTuckLockFromState(store.uiState.tuckLock)
+  })
   ui.initSystemEvents()
   // 四轮二修：缩进弹出/缩回由主进程光标轮询权威驱动（onCursorInside）——
   // DOM mouseenter/mouseleave 会因窗口尺寸变化产生伪事件（闪烁/提前缩回根源），不再绑定

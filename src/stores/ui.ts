@@ -18,6 +18,8 @@ export const useUiStore = defineStore('ui', () => {
   // 四轮：指针最后在窗内活动的时刻——弹出/窗口尺寸变化会引发伪 mouse-leave，
   // 缩回前校验：伪离开后指针仍在窗内活动 → 取消缩回（修闪烁与提前缩回）
   let lastPointerInsideAt = 0
+  // 四轮5：主进程光标轮询的最后判定（解锁补发离开用）
+  let lastCursorInside = true
 
   function dispatchTuck(e: TuckEvent): void {
     let event = e
@@ -29,6 +31,10 @@ export const useUiStore = defineStore('ui', () => {
     }
     const prevTucked = tuck.value.tucked
     tuck.value = reduceTuck(tuck.value, event)
+    // 四轮5：解锁时光标已在窗外 → 锁应用后补发离开（顺序不能反：锁定未解除时离开会被吞）
+    if (event.type === 'lock' && !event.on && !lastCursorInside) {
+      tuck.value = reduceTuck(tuck.value, { type: 'mouse-leave', now: Date.now() })
+    }
     // 仅在 tucked 实际变化时同步主进程：事件乱序时旧状态不得回弹窗口（CI 反馈环根因）
     if (tuck.value.tucked !== prevTucked) void getApi().setTucked(tuck.value.tucked)
     if (tuck.value.leaveAt !== null && tickTimer === null) {
@@ -53,9 +59,10 @@ export const useUiStore = defineStore('ui', () => {
       lastPointerInsideAt = Date.now()
     })
     // 四轮二修：缩进判定改主进程光标轮询权威驱动——DOM mouseenter/leave 不再驱动缩进
-    getApi().onCursorInside((inside) =>
+    getApi().onCursorInside((inside) => {
+      lastCursorInside = inside
       dispatchTuck({ type: inside ? 'mouse-enter' : 'mouse-leave', now: Date.now() })
-    )
+    })
   }
 
   function mouseLeave(): void {
@@ -102,6 +109,11 @@ export const useUiStore = defineStore('ui', () => {
     selectedIds.value = [...ids]
   }
 
+  /** 四轮5：启动按存档 tuckLock 初始化状态机锁定 */
+  function initTuckLockFromState(initial: boolean): void {
+    if (initial) dispatchTuck({ type: 'lock', on: true })
+  }
+
   async function openChild(kind: ChildKind, id?: string): Promise<void> {
     // 缩进状态机：打开子窗口立即弹出（I4）
     dispatchTuck({ type: 'child-open' })
@@ -112,6 +124,7 @@ export const useUiStore = defineStore('ui', () => {
     tuck,
     dispatchTuck,
     initSystemEvents,
+    initTuckLockFromState,
     mouseLeave,
     mouseEnter,
     batchTarget,
