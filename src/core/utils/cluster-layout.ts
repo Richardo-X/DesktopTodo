@@ -112,4 +112,42 @@ export function tuckBarBounds(pos: { x: number; y: number }, clusterWidth: numbe
   }
 }
 
+/** OS 窗口完整 bounds（x/y/宽/高） */
+export interface WinBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** 三窗逐窗 bounds：隐藏侧窗=null（独立 OS 窗口不占位；批次 A spike 与批次 B 几何迁移共用） */
+export interface ClusterWindowsBounds {
+  quick: WinBounds | null
+  main: WinBounds
+  done: WinBounds | null
+}
+
+/**
+ * 三窗分离定稿（§9.2/#31）逐窗 bounds：锚点=待办左上角（唯一不动点），
+ * 快捷窗右缘钉待办左缘 -6、已完成窗左缘钉待办右缘 +6；各窗偏移/尺寸独立取整（缝隙 ±1px 容差）。
+ * 纯函数：同帧拖动=锚点平移 → 全部可见窗坐标同步平移（单测不变量），主进程逐窗 setBounds 即可同帧定位。
+ */
+export function threeWindowBoundsForAnchor(
+  anchor: { x: number; y: number },
+  scale: number,
+  quickVisible: boolean,
+  doneVisible: boolean
+): ClusterWindowsBounds {
+  const sideW = Math.round(BASE_PANEL.quick * scale)
+  const mainW = Math.round(BASE_PANEL.main * scale)
+  const height = Math.round(BASE_PANEL.height * scale)
+  const quickStep = Math.round((BASE_PANEL.quick + BASE_GAP) * scale)
+  const doneStep = Math.round((BASE_PANEL.main + BASE_GAP) * scale)
+  return {
+    quick: quickVisible ? { x: anchor.x - quickStep, y: anchor.y, width: sideW, height } : null,
+    main: { x: anchor.x, y: anchor.y, width: mainW, height },
+    done: doneVisible ? { x: anchor.x + doneStep, y: anchor.y, width: sideW, height } : null
+  }
+}
+
 export type { WorkArea }
