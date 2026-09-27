@@ -11,7 +11,8 @@ import {
   visibleClusterBounds,
   quickOffsetPx,
   windowBoundsForAnchor,
-  anchorForWindowX
+  anchorForWindowX,
+  threeWindowBoundsForAnchor
 } from '../../src/core/utils/cluster-layout'
 import { MIN_SCALE } from '../../src/core/constants'
 
@@ -169,5 +170,70 @@ describe('动态窗口几何（四轮：锚点=待办左上角）', () => {
     expect(anchorForWindowX(wb2.x, 1.2, true)).toBe(500)
     expect(wb1.y).toBe(40)
     expect(wb2.y).toBe(40)
+  })
+})
+
+/**
+ * 批次 A（三窗分离技术验证）：三窗逐窗 bounds——
+ * 定稿 §9.2：锚点=待办左上角；快捷窗右缘钉待办左缘 -6、已完成窗左缘钉待办右缘 +6；
+ * 隐藏侧窗 bounds=null（独立 OS 窗口，不占位）。主进程 spike 拖动与批次 B 几何迁移共用。
+ */
+describe('threeWindowBoundsForAnchor 三窗逐窗 bounds（批次 A）', () => {
+  const SIDE_STEP = BASE_PANEL.quick + BASE_GAP // 316
+  const DONE_STEP = BASE_PANEL.main + BASE_GAP // 476
+
+  it('scale=1 全开：快捷 -316、待办 0、已完成 +476，尺寸=基准，顶边同 y', () => {
+    const b = threeWindowBoundsForAnchor({ x: 500, y: 200 }, 1, true, true)
+    expect(b.main).toEqual({ x: 500, y: 200, width: 470, height: 640 })
+    expect(b.quick).toEqual({ x: 500 - SIDE_STEP, y: 200, width: 310, height: 640 })
+    expect(b.done).toEqual({ x: 500 + DONE_STEP, y: 200, width: 310, height: 640 })
+  })
+
+  it('缝隙恰好 6px：快捷右缘+6=待办左缘；待办右缘+6=已完成左缘', () => {
+    const b = threeWindowBoundsForAnchor({ x: 500, y: 200 }, 1, true, true)
+    expect(b.quick!.x + b.quick!.width + BASE_GAP).toBe(b.main.x)
+    expect(b.main.x + b.main.width + BASE_GAP).toBe(b.done!.x)
+  })
+
+  it('缩放等比（0.8）：偏移与尺寸各自取整，锚点不动', () => {
+    const b = threeWindowBoundsForAnchor({ x: 500, y: 200 }, 0.8, true, true)
+    expect(b.main.x).toBe(500)
+    expect(b.main).toEqual({ x: 500, y: 200, width: Math.round(470 * 0.8), height: Math.round(640 * 0.8) })
+    expect(b.quick).toEqual({
+      x: 500 - Math.round(316 * 0.8),
+      y: 200,
+      width: Math.round(310 * 0.8),
+      height: Math.round(640 * 0.8)
+    })
+    expect(b.done).toEqual({
+      x: 500 + Math.round(476 * 0.8),
+      y: 200,
+      width: Math.round(310 * 0.8),
+      height: Math.round(640 * 0.8)
+    })
+  })
+
+  it('侧窗隐藏 → bounds=null（隐藏不占位）；主窗恒有 bounds', () => {
+    const both = threeWindowBoundsForAnchor({ x: 0, y: 0 }, 1, false, false)
+    expect(both.quick).toBeNull()
+    expect(both.done).toBeNull()
+    expect(both.main).toEqual({ x: 0, y: 0, width: 470, height: 640 })
+
+    const onlyQuick = threeWindowBoundsForAnchor({ x: 0, y: 0 }, 1, true, false)
+    expect(onlyQuick.quick).not.toBeNull()
+    expect(onlyQuick.done).toBeNull()
+
+    const onlyDone = threeWindowBoundsForAnchor({ x: 0, y: 0 }, 1, false, true)
+    expect(onlyDone.quick).toBeNull()
+    expect(onlyDone.done).not.toBeNull()
+  })
+
+  it('同帧拖动不变量：锚点平移 (dx,dy) → 每个可见窗坐标同步平移（三窗同帧的几何前提）', () => {
+    const a = threeWindowBoundsForAnchor({ x: 500, y: 200 }, 0.8, true, true)
+    const b = threeWindowBoundsForAnchor({ x: 500 + 120, y: 200 + 60 }, 0.8, true, true)
+    for (const k of ['quick', 'main', 'done'] as const) {
+      expect(b[k]!.x - a[k]!.x).toBe(120)
+      expect(b[k]!.y - a[k]!.y).toBe(60)
+    }
   })
 })
