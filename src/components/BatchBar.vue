@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 
@@ -11,6 +12,17 @@ const allIds = (): string[] => {
   if (props.target === 'templates') return store.templates.map((t) => t.id)
   if (props.target === 'history') return (props.historyDateKey ? store.archive[props.historyDateKey] ?? [] : []).map((t) => t.id)
   return store.todos.map((t) => t.id)
+}
+
+// 四轮5：已全选时「全选」按钮切换为「取消」（点击清空选择）
+const allSelected = computed(() => {
+  const ids = allIds()
+  return ids.length > 0 && ui.selectedIds.length >= ids.length
+})
+
+function onToggleSelectAll(): void {
+  if (allSelected.value) ui.selectAll([])
+  else ui.selectAll(allIds())
 }
 
 async function onDelete(): Promise<void> {
@@ -29,8 +41,8 @@ async function onDelete(): Promise<void> {
 <template>
   <div class="batch-bar" data-testid="batch-bar">
     <span class="count" data-testid="batch-count">已选 {{ ui.selectedIds.length }} 项</span>
-    <button class="b" data-testid="batch-select-all" @click="ui.selectAll(allIds())">全选</button>
-    <button class="b" data-testid="batch-cancel" @click="ui.exitBatch()">取消</button>
+    <button class="b" data-testid="batch-select-all" @click="onToggleSelectAll">{{ allSelected ? '取消' : '全选' }}</button>
+    <button class="b" data-testid="batch-cancel" @click="ui.exitBatch()">返回</button>
     <button class="b danger" data-testid="batch-delete" :disabled="ui.selectedIds.length === 0" @click="onDelete">删除所选</button>
   </div>
 </template>

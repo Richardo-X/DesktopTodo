@@ -131,7 +131,6 @@ describe('T25 批量删除模式', () => {
     await wrapper.find('[data-testid="batch-cancel"]').trigger('click')
     expect(wrapper.find('[data-testid="tb-theme"]').classes()).not.toContain('frozen')
   })
-})
 
   it('四轮1：模板批量进行中待办主窗整面板冻结，行点选不影响批量选择（全禁补对称）', async () => {
     const { wrapper } = await mountWithStore(AppShell, seedTodos())
@@ -144,3 +143,20 @@ describe('T25 批量删除模式', () => {
     await wrapper.findAll('[data-testid="todo-row"]')[0].trigger('click')
     expect(ui.selectedIds).toHaveLength(0)
   })
+
+  it('四轮5：全选后「全选」变「取消」（点击清空选择）；退出按钮改「返回」', async () => {
+    const { wrapper } = await mountWithStore(AppShell, seedTodos())
+    await wrapper.find('[data-testid="op-batch"]').trigger('click')
+    const sel = wrapper.find('[data-testid="batch-select-all"]')
+    expect(sel.text()).toBe('全选')
+
+    await sel.trigger('click')
+    expect(wrapper.find('[data-testid="batch-count"]').text()).toBe('已选 3 项')
+    expect(sel.text()).toBe('取消') // 已全选 → 文字切换
+    await sel.trigger('click')
+    expect(wrapper.find('[data-testid="batch-count"]').text()).toBe('已选 0 项')
+    expect(sel.text()).toBe('全选')
+
+    expect(wrapper.find('[data-testid="batch-cancel"]').text()).toBe('返回')
+  })
+})
