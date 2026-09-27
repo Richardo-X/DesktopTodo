@@ -50,7 +50,9 @@ const api = {
     const listener = (): void => cb()
     ipcRenderer.on(IPC.childClosed, listener)
     return () => ipcRenderer.removeListener(IPC.childClosed, listener)
-  }
+  },
+  clusterDragStart: () => ipcRenderer.invoke(IPC.clusterDragStart),
+  clusterDragEnd: () => ipcRenderer.invoke(IPC.clusterDragEnd)
 }
 
 contextBridge.exposeInMainWorld('desktopTodo', api)
@@ -58,7 +60,8 @@ contextBridge.exposeInMainWorld('desktopTodo', api)
 // E2E 测试钩子（仅测试模式注册）
 if (process.env.DTODO_TEST === '1') {
   contextBridge.exposeInMainWorld('desktopTodoTest', {
-    forceSettle: (days: number) => ipcRenderer.invoke('test:force-settle', days)
+    forceSettle: (days: number) => ipcRenderer.invoke('test:force-settle', days),
+    spikeDragDelta: (dx: number, dy: number) => ipcRenderer.invoke('test:spike-drag-delta', { dx, dy })
   })
 }
 

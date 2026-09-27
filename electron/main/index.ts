@@ -17,6 +17,7 @@ import { ensureOnSomeDisplay, clampPosToWorkArea } from '../../src/core/utils/sc
 import { localDateKey } from '../../src/core/utils/date'
 import { IPC, type ChildKind } from '../../src/ipc/contract'
 import { GROUP_OF, childWindowOptions } from './child-windows'
+import { createSpikeCluster, registerSpikeIpc } from './cluster-windows'
 import {
   tuckBarBounds,
   windowBoundsForAnchor,
@@ -95,6 +96,25 @@ async function bootstrap(): Promise<void> {
 
   // 三轮：自启加固——开关为开时重写登录项（路径始终指向当前 exe）
   syncAutoStartOnBoot(data.settings.autoStart)
+
+  // 批次 A spike（HANDOFF §9.5）：DTODO_CLUSTER_SPIKE=1 时以三个独立窗口启动，
+  // 验证手写整体拖动（光标轮询同帧 setBounds）+ z-order 绑定；默认单窗路径不受影响
+  if (process.env.DTODO_CLUSTER_SPIKE === '1') {
+    const wa = screen.getPrimaryDisplay().workArea
+    const q = data.uiState.quickVisible
+    const d = data.uiState.doneVisible
+    const scale = effectiveClusterScale(data.uiState.clusterScale, wa, q, d)
+    const anchor =
+      data.uiState.pos !== null
+        ? clampAnchorToWorkArea(data.uiState.pos, scale, q, d, wa)
+        : initialAnchor(wa, scale, q, d)
+    createSpikeCluster({ anchor, scale, quickVisible: q, doneVisible: d, topMost: data.uiState.topMost })
+    createTray()
+    registerIpc()
+    registerSpikeIpc(ipcMain)
+    startSettleTimer()
+    return
+  }
 
   createWindow(data)
   createTray()

@@ -28,7 +28,9 @@ export const IPC = {
   cursorInside: 'app:cursor-inside',
   childClosed: 'app:child-closed',
   requestExit: 'app:request-exit',
-  minimizeToTray: 'window:minimize-to-tray'
+  minimizeToTray: 'window:minimize-to-tray',
+  clusterDragStart: 'spike:drag-start',
+  clusterDragEnd: 'spike:drag-end'
 } as const
 
 /** 子窗口种类（PRD §2.1；B1.5：回收站窗口已移除） */
@@ -86,4 +88,7 @@ export interface DesktopTodoApi {
   onSnapChanged(cb: (snapped: boolean) => void): () => void
   /** 任一子窗口关闭（缩进状态机 child-closed） */
   onChildClosed(cb: () => void): () => void
+  /** 批次 A spike：三窗手写整体拖动（spike 标题栏按下=开始光标轮询，window pointerup=结束） */
+  clusterDragStart(): Promise<void>
+  clusterDragEnd(): Promise<void>
 }
