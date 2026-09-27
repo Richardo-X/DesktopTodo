@@ -230,4 +230,19 @@ describe('T21 标题栏工具栏五按钮', () => {
     await new Promise((r) => setTimeout(r, 20))
     expect(useUiStore().tuck.locked).toBe(true)
   })
+
+  it('四轮黑块真因：夜间 .stage 不得被 [data-theme] 裸规则涂色（Vue :global 编译丢弃限定符的坑）', async () => {
+    const { wrapper, store } = await mountWithStore(AppShell)
+    await store.updateUiState({ theme: 'night' })
+    await wrapper.vm.$nextTick()
+    const bg = getComputedStyle(wrapper.find('.stage').element).backgroundColor
+    // 回归信号 = 262a34 系不透明深色；happy-dom 未设底色返回空串，也视为通过
+    expect(bg.includes('38, 42, 52') || bg.includes('262a34'), `stage bg=${bg}`).toBe(false)
+
+    await store.updateUiState({ theme: 'day' })
+    await wrapper.vm.$nextTick()
+    const bgDay = getComputedStyle(wrapper.find('.stage').element).backgroundColor
+    expect(bgDay.includes('38, 42, 52'), `stage day bg=${bgDay}`).toBe(false)
+  })
+
 })

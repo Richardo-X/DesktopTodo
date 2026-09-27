@@ -101,6 +101,8 @@ onMounted(() => {
   --danger: #c42b1c;
   --overdue: #d13438;
   --cb-border: #8a8a8a;
+  --dialog-bg: #ffffff;
+  --dialog-fg: #2a2f3a;
 
   color: var(--text);
   font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
@@ -125,6 +127,8 @@ onMounted(() => {
   --bubble-bg: #3a3a3c;
   --bubble-fg: #f0f0f0;
   --cb-border: #9a9a9a;
+  --dialog-bg: #262a34;
+  --dialog-fg: #e8eaf0;
 }
 
 /* ===== 簇：基准尺寸 + zoom（容器尺寸=视口÷zoom，由 clusterStyle 内联绑定；

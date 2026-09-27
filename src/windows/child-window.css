@@ -29,6 +29,8 @@
   --danger: #c42b1c;
   --danger-hover: #a9271c; /* 决策#22 */
   --overdue: #d13438;
+  --dialog-bg: #ffffff;
+  --dialog-fg: #2a2f3a;
 }
 
 .child-root[data-theme='night'] {

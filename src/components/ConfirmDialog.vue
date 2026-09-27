@@ -31,15 +31,12 @@ const ui = useUiStore()
   min-width: 240px;
   max-width: 320px;
   border-radius: 12px;
-  background: #fff;
-  color: #2a2f3a;
+  /* 四轮真因修复：夜间底色走令牌——原 :global([data-theme]) 裸选择器被 Vue 编译器丢弃
+     .dialog 限定符，导致夜间整个主题根元素被涂成不透明深色（黑块） */
+  background: var(--dialog-bg, #fff);
+  color: var(--dialog-fg, #2a2f3a);
   padding: 16px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
-}
-
-:global([data-theme='night']) .dialog {
-  background: #262a34;
-  color: #e8eaf0;
 }
 
 .message {
