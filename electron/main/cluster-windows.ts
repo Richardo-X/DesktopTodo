@@ -13,8 +13,8 @@ import { threeWindowBoundsForAnchor, type WinBounds } from '../../src/core/utils
  * 位置/缩放不在此持久化（批次 B 几何迁移落位）。拖动手感需真机验证（§9.3 质量标准 E/F）。
  */
 
-/** 拖动轮询间隔：16ms ≈ 60fps */
-export const SPIKE_DRAG_INTERVAL_MS = 16
+/** 拖动轮询间隔：8ms 对齐标准鼠标 125Hz 上报率——降低拖动滞后，手感更跟手 */
+export const SPIKE_DRAG_INTERVAL_MS = 8
 
 interface SpikeState {
   windows: { quick: BrowserWindow | null; main: BrowserWindow; done: BrowserWindow | null }
@@ -27,6 +27,8 @@ interface SpikeState {
 let spike: SpikeState | null = null
 let dragTimer: ReturnType<typeof setInterval> | null = null
 let dragStart: { cursor: { x: number; y: number }; anchor: { x: number; y: number } } | null = null
+/** 上次已应用锚点：光标静止时跳过冗余 setBounds（Windows 每次调用都是一次原生 SetWindowPos） */
+let lastAppliedAnchor: { x: number; y: number } | null = null
 
 function webPreferences(): { preload: string; contextIsolation: boolean; nodeIntegration: boolean; sandbox: boolean } {
   return {
@@ -96,15 +98,18 @@ export function createSpikeCluster(opts: {
   }
 }
 
-/** 三窗同帧定位：一个锚点 → 同一 tick 内逐窗 setBounds */
+/** 三窗同帧定位：一个锚点 → 同一 tick 内逐窗 setPosition（拖动只改位置不改尺寸，
+ * setPosition 比 setBounds 少一次尺寸处理，Windows 上明显更顺滑） */
 export function applySpikeBounds(anchor: { x: number; y: number }): void {
   if (!spike) return
+  if (lastAppliedAnchor && lastAppliedAnchor.x === anchor.x && lastAppliedAnchor.y === anchor.y) return
   const b = threeWindowBoundsForAnchor(anchor, spike.scale, spike.quickVisible, spike.doneVisible)
   spike.anchor = anchor
+  lastAppliedAnchor = { x: anchor.x, y: anchor.y }
   const { quick, main, done } = spike.windows
-  if (quick && b.quick && !quick.isDestroyed()) quick.setBounds(b.quick)
-  if (!main.isDestroyed()) main.setBounds(b.main)
-  if (done && b.done && !done.isDestroyed()) done.setBounds(b.done)
+  if (quick && b.quick && !quick.isDestroyed()) quick.setPosition(b.quick.x, b.quick.y)
+  if (!main.isDestroyed()) main.setPosition(b.main.x, b.main.y)
+  if (done && b.done && !done.isDestroyed()) done.setPosition(b.done.x, b.done.y)
 }
 
 /** z-order 绑定：任一窗激活 → 三窗按固定顺序 moveTop 同升（moveTop 不夺焦，不产生焦点抖动） */
@@ -115,10 +120,11 @@ export function raiseSpikeAll(): void {
   }
 }
 
-/** 手写整体拖动开始：记录光标/锚点起点，16ms 轮询系统光标（~60fps） */
+/** 手写整体拖动开始：记录光标/锚点起点，8ms 轮询系统光标 */
 export function startSpikeDrag(): void {
   if (!spike || dragTimer !== null) return
   dragStart = { cursor: screen.getCursorScreenPoint(), anchor: { ...spike.anchor } }
+  lastAppliedAnchor = null
   dragTimer = setInterval(() => {
     if (dragStart === null) {
       stopSpikeDrag()

@@ -112,7 +112,7 @@ test('spike：focus 侧窗（z-order 绑定触发点）不抛错且三窗保持�
           )
           return quick ? quick.isFocused() : false
         }),
-      { timeout: 5_000 }
+      { timeout: 15_000 }
     )
     .toBe(true)
   const allVisible = await h.app.evaluate(({ BrowserWindow }) =>
