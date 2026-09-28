@@ -98,8 +98,10 @@ export function createSpikeCluster(opts: {
   }
 }
 
-/** 三窗同帧定位：一个锚点 → 同一 tick 内逐窗 setPosition（拖动只改位置不改尺寸，
- * setPosition 比 setBounds 少一次尺寸处理，Windows 上明显更顺滑） */
+/** 三窗同帧定位：一个锚点 → 同一 tick 内逐窗 setBounds。
+ * 必须用 setBounds 而非 setPosition：跨 DPI 双屏拖动时 Windows 会对移入不同缩放比的
+ * 窗口按"建议矩形"改写尺寸，且拖动中反复触发逐帧复利放大（用户实测）——
+ * 每帧重申逻辑尺寸压制该行为；代价是跨越瞬间两侧窗短暂尺寸不一致（瞬态，完全过界后自愈） */
 export function applySpikeBounds(anchor: { x: number; y: number }): void {
   if (!spike) return
   if (lastAppliedAnchor && lastAppliedAnchor.x === anchor.x && lastAppliedAnchor.y === anchor.y) return
@@ -107,9 +109,9 @@ export function applySpikeBounds(anchor: { x: number; y: number }): void {
   spike.anchor = anchor
   lastAppliedAnchor = { x: anchor.x, y: anchor.y }
   const { quick, main, done } = spike.windows
-  if (quick && b.quick && !quick.isDestroyed()) quick.setPosition(b.quick.x, b.quick.y)
-  if (!main.isDestroyed()) main.setPosition(b.main.x, b.main.y)
-  if (done && b.done && !done.isDestroyed()) done.setPosition(b.done.x, b.done.y)
+  if (quick && b.quick && !quick.isDestroyed()) quick.setBounds(b.quick)
+  if (!main.isDestroyed()) main.setBounds(b.main)
+  if (done && b.done && !done.isDestroyed()) done.setBounds(b.done)
 }
 
 /** z-order 绑定：任一窗激活 → 三窗按固定顺序 moveTop 同升（moveTop 不夺焦，不产生焦点抖动） */
