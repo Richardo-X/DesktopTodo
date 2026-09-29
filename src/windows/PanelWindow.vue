@@ -65,10 +65,23 @@ function isTitlebarHit(e: PointerEvent): boolean {
 }
 
 function onDocPointerDown(e: PointerEvent): void {
-  if (isTitlebarHit(e)) void getApi().clusterDragStart()
+  if (!isTitlebarHit(e)) return
+  // 指针捕获：拖动中光标快速移出窗口/跨屏时 pointerup 仍必达本窗
+  // （否则主进程轮询永不停止，组件永久跟随光标——用户实测卡死）
+  try {
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+  } catch {
+    /* 部分目标元素不可捕获（如 SVG 内部节点），忽略 */
+  }
+  void getApi().clusterDragStart()
 }
 
 function onDocPointerUp(): void {
+  void getApi().clusterDragEnd()
+}
+
+function onWindowBlur(): void {
+  // 双保险：窗口失焦=拖动必然已结束（Alt+Tab/点别的窗口都会丢 pointerup）
   void getApi().clusterDragEnd()
 }
 
@@ -81,11 +94,13 @@ onMounted(() => {
   ui.registerBatchSync()
   document.addEventListener('pointerdown', onDocPointerDown, true)
   window.addEventListener('pointerup', onDocPointerUp)
+  window.addEventListener('blur', onWindowBlur)
 })
 
 onUnmounted(() => {
   document.removeEventListener('pointerdown', onDocPointerDown, true)
   window.removeEventListener('pointerup', onDocPointerUp)
+  window.removeEventListener('blur', onWindowBlur)
 })
 </script>
 

@@ -213,15 +213,23 @@ export function applyClusterBounds(placeAll = false): void {
   }
   const b = threeWindowBoundsForAnchor(cluster.anchor, cluster.scale, cluster.quickVisible, cluster.doneVisible)
   const { quick, main, done } = cluster.windows
+  // 跨 DPI 校验（#40）：Windows 会对移入不同缩放比屏幕的窗口按建议矩形改写尺寸，
+  // 拖回原屏后残留不还原（用户实测图3~5）——实测主窗尺寸偏离逻辑值 >1px 即本次全窗强制重申
+  const actualMain = main.isVisible() ? main.getBounds() : null
+  const needPlaceAll =
+    placeAll ||
+    (actualMain !== null &&
+      (Math.abs(actualMain.width - b.main.width) > 1 || Math.abs(actualMain.height - b.main.height) > 1))
   // 隐藏窗跳过 setBounds：Windows 上对隐藏窗口 setBounds 会将其显示（用户实测点击隐藏后又弹回）；
-  // 几何登记到 pendingBounds，showSidePanel 显示时先落位
+  // 几何登记到 pendingBounds，showSidePanel 显示时先落位。
+  // 落位顺序 done→quick→main：锚点窗最后落位，缝隙呈现不再错帧（用户实测快捷窗抖动较大）
   for (const [w, bb] of [
+    [done, b.done ?? b.main],
     [quick, b.quick ?? b.main],
-    [main, b.main],
-    [done, b.done ?? b.main]
+    [main, b.main]
   ] as const) {
     if (!safe(w)) continue
-    if (!placeAll && !w.isVisible()) pendingBounds.set(w.id, bb)
+    if (!needPlaceAll && !w.isVisible()) pendingBounds.set(w.id, bb)
     else {
       pendingBounds.delete(w.id)
       w.setBounds(bb)
@@ -230,11 +238,13 @@ export function applyClusterBounds(placeAll = false): void {
   lastAppliedAnchor = { x: cluster.anchor.x, y: cluster.anchor.y }
 }
 
-/** z-order 绑定：任一窗激活 → 三窗按固定顺序 moveTop 同升 */
+/** z-order 绑定：任一窗激活 → 三窗按固定顺序 moveTop 同升。
+ * 跳过隐藏窗（缩进侧窗/托盘隐藏）：Windows 的 moveTop 会把隐藏窗口带出来
+ * （用户实测：胶囊态托盘显示后侧窗复活）——重新显示走 showSidePanel 落位路径 */
 export function raiseClusterAll(): void {
   if (!cluster) return
   for (const w of [cluster.windows.quick, cluster.windows.main, cluster.windows.done]) {
-    if (safe(w)) w.moveTop()
+    if (safe(w) && w.isVisible()) w.moveTop()
   }
 }
 
@@ -353,23 +363,36 @@ export function clusterDragDeltaBy(dx: number, dy: number): void {
   applyAnchor({ x: cluster.anchor.x + dx, y: cluster.anchor.y + dy })
 }
 
-/** 托盘隐藏=组件整体隐藏（决策#9） */
+/** 托盘隐藏=组件整体隐藏（决策#9）；拖动中隐藏则终止轮询 */
 export function hideCluster(): void {
   if (!cluster) return
+  stopClusterDrag()
   cluster.visible = false
   for (const w of getAllClusterWindows()) w.hide()
 }
 
-/** 显示=整体恢复（含置顶重应用——hide/show 可能重置 z-order） */
+/** 显示=整体恢复（含置顶重应用——hide/show 可能重置 z-order）。
+ * 胶囊态只显主窗短条；展开态 placeAll 强制全窗落位（修跨 DPI 尺寸残留——用户实测最小化再显示自愈，此处显式化） */
 export function showCluster(): void {
   if (!cluster) return
   cluster.visible = true
   lastAppliedAnchor = null
-  applyClusterBounds()
   const { quick, main, done } = cluster.windows
-  if (safe(quick) && cluster.quickVisible && !cluster.tucked) showSidePanel('quick')
-  if (safe(main)) main.show()
-  if (safe(done) && cluster.doneVisible && !cluster.tucked) showSidePanel('done')
+  if (cluster.tucked) {
+    applyClusterBounds()
+    if (safe(main)) main.show()
+  } else {
+    applyClusterBounds(true)
+    if (safe(main)) main.show()
+    if (safe(quick)) {
+      if (cluster.quickVisible) showSidePanel('quick')
+      else quick.hide()
+    }
+    if (safe(done)) {
+      if (cluster.doneVisible) showSidePanel('done')
+      else done.hide()
+    }
+  }
   applyTopMostToCluster(cluster.topMost)
 }
 
@@ -433,10 +456,27 @@ function contains(b: WinBounds, pt: { x: number; y: number }): boolean {
 }
 
 /** spike→生产：拖动 IPC（标题栏）+ E2E 位移钩子（仅 DTODO_TEST=1） */
+/** 测试调试：集群状态快照（DTODO_TEST=1 经 test:cluster-state 暴露） */
+export function clusterDebugState(): Record<string, unknown> | null {
+  if (!cluster) return null
+  return {
+    tucked: cluster.tucked,
+    quickVisible: cluster.quickVisible,
+    doneVisible: cluster.doneVisible,
+    visible: cluster.visible,
+    quickVis: cluster.windows.quick.isVisible(),
+    mainVis: cluster.windows.main.isVisible(),
+    doneVis: cluster.windows.done.isVisible(),
+    quickBounds: cluster.windows.quick.getBounds(),
+    mainBounds: cluster.windows.main.getBounds()
+  }
+}
+
 export function registerClusterIpc(ipcMain: IpcMain): void {
   ipcMain.handle(IPC.clusterDragStart, () => startClusterDrag())
   ipcMain.handle(IPC.clusterDragEnd, () => stopClusterDrag())
   if (process.env.DTODO_TEST === '1') {
     ipcMain.handle('test:cluster-drag-delta', (_e, p: { dx: number; dy: number }) => clusterDragDeltaBy(p.dx, p.dy))
+    ipcMain.handle('test:cluster-state', () => clusterDebugState())
   }
 }

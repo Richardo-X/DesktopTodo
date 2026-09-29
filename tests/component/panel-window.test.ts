@@ -57,6 +57,14 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
     expect(api.dragEndCalls.length).toBeGreaterThan(before)
   })
 
+  it('拖动双保险：窗口失焦（blur）→ clusterDragEnd（修 pointerup 丢失导致的永久跟随）', async () => {
+    const { api } = await mountMain()
+    const before = api.dragEndCalls.length
+    window.dispatchEvent(new Event('blur'))
+    await Promise.resolve()
+    expect(api.dragEndCalls.length).toBeGreaterThan(before)
+  })
+
   describe('T21 标题栏工具栏五按钮', () => {
     it('主题切换/设置/缩进锁定/置顶/×', async () => {
       const { wrapper, store, api } = await mountMain()
