@@ -312,7 +312,7 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - **B-5 E2E 重写**：窗口数 1→3（tuck/anchor/main-flow 布局类大面积重写）；删「10 项满载无滚动」改滚动条断言（溢出出现滑块/位置在缝隙/不挤压行宽）；spike spec 转正
 - **批次 C（B 后）**：缩进胶囊窗化（两侧窗 hide+主窗收缩胶囊）、托盘/置顶/模态/批量冻结遍历三窗（含 #27 蒙层渲染、#38 Win+D TOOLWINDOW）、收尾发版 v1.1.0
 
-### 9.9 批次 B-1 进行中快照（2026-09-28；防上下文丢失的关键状态）
+### 9.9 批次 B 完成记录（2026-09-29；§9.5 B-1~B-5 全部落地，CI 绿）
 
 **架构事实（已实现，未提交）**：
 - 渲染根 `src/windows/PanelWindow.vue`：每窗=stage(令牌+data-theme 逐窗)+zoom 容器（470/310×640 ÷ scale）+面板；缩进胶囊仅待办窗；`?win=cluster&panel=quick|main|done` 路由；手写拖动=document capture 段 `.titlebar` 命中（排除 button）→ `getApi().clusterDragStart()`，window pointerup → clusterDragEnd
@@ -328,3 +328,21 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - **待修失败（根因已定位）**：主流程/子窗滚动条/import-export/limits 的跨窗交互——完成行、历史按钮、模板＋按钮现在分别在 done/quick 窗口页，spec 需取对应 Page（helpers 补 quick/done 字段）；cross-day/shadow 待查
 - **focus 测试**：Windows 前台锁——调用方无前台时 focus() 被拒；已改为先点主窗获前台再断言（待验证）
 - 调试遗留：tests/e2e/debug-toggle.spec.ts（临时，提交前删除）；cluster-windows.ts 的 DTODO_TEST 日志已全部移除
+
+**批次 B 完成状态（提交链：54fab22→7cddd3f(test)→ed7993d(feat B-1)→392049b(B-3)→2478af3(B-4)；全量 348 单测 + 37 E2E + CI 绿）**：
+- B-1 ✓ 三窗真实化（PanelWindow/cluster-windows 生产重写/AppShell 退场/DTODO_CLUSTER_SPIKE 开关移除）
+- B-2 ✓ 数据跨窗同步 E2E（勾选完成→已完成窗行/计数实时更新；主题三窗一致——sync.spec）
+- B-3 ✓ 几何迁移（clampAnchorForEdges 幂等钳制 #31/#32/#33；吸附/光标轮询按主窗所在屏 workArea——双屏修正；启动/恢复/分辨率变化共用）
+- B-4 ✓ 渲染层定稿（时钟整块行内 38px、按钮 32×32、列表放宽+缝隙滑块；「10 项满载无滚动」E2E 已替换为滑块断言）
+- B-5 ✓ 批量模式跨窗广播（uiBatchState IPC；enterBatch/exitBatch 上报、applyRemoteBatch 接收防环路；E2E：快捷进批量→主/已完成窗冻结）
+
+**批次 B 真机验收清单（用户执行）**：
+1. 拖动三窗整体（含快速甩动/跨 DPI 双屏往返——回归 §9.8 已修的复利放大）
+2. 缩放：拖待办窗右下角 grip → 三窗等比、待办窗自身不动；放大至半屏上限停
+3. 吸附：拖到屏幕顶 → 吸附+缩进（侧窗消失、胶囊居中）；划过弹出
+4. 边界：左右拖——侧窗悬挂屏外、不回弹；主窗≥90px 可见
+5. 开关面板：⚡/☑ → 侧窗整窗显隐，待办窗不动
+6. 数据同步：新建/完成/主题切换 → 侧窗实时一致
+7. 批量：快捷窗进批量 → 主/已完成窗置灰冻结；返回解冻
+8. 列表放宽：10 条满载出滚动条（滑块在缝隙带、不挤压行）；时钟 38px 整块行内；按钮 32×32
+9. 托盘：显隐含全部窗口；置顶含全部窗口
