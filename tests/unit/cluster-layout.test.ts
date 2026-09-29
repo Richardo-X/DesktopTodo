@@ -12,7 +12,8 @@ import {
   quickOffsetPx,
   windowBoundsForAnchor,
   anchorForWindowX,
-  threeWindowBoundsForAnchor
+  threeWindowBoundsForAnchor,
+  clampAnchorForEdges
 } from '../../src/core/utils/cluster-layout'
 import { MIN_SCALE } from '../../src/core/constants'
 
@@ -235,5 +236,49 @@ describe('threeWindowBoundsForAnchor 三窗逐窗 bounds（批次 A）', () => {
       expect(b[k]!.x - a[k]!.x).toBe(120)
       expect(b[k]!.y - a[k]!.y).toBe(60)
     }
+  })
+})
+
+/**
+ * 决策 #31/#32/#33：拖动边界=OS 窗口行为——左右边缘不阻挡（侧窗可悬挂屏外）、
+ * 拖动/点击都不自动移回；仅主窗保留 ≥90px 可见；y 在工作区内（底部留 50px）。
+ * 启动/恢复/分辨率变化共用本钳制（幂等=原样恢复）。
+ */
+describe('clampAnchorForEdges 拖动边界钳制（批次 B-3，#31/#32/#33）', () => {
+  const wa = { x: 0, y: 40, width: 1920, height: 1040 }
+  const mainW = 470
+
+  it('正常位置原样返回（幂等）', () => {
+    const a = { x: 800, y: 200 }
+    expect(clampAnchorForEdges(a, mainW, wa)).toEqual(a)
+  })
+
+  it('侧窗悬挂屏外不阻挡：主窗右缘距屏右 ≥90 即允许（锚点可远超旧钳制）', () => {
+    // 主窗右缘贴屏右-90：锚点=1920-90-470=1360；侧窗（+476）完全悬挂屏外仍允许
+    const a = { x: 1360, y: 200 }
+    expect(clampAnchorForEdges(a, mainW, wa)).toEqual(a)
+  })
+
+  it('主窗左缘保留 ≥90px 可见：更左则钳回', () => {
+    const clamped = clampAnchorForEdges({ x: -1000, y: 200 }, mainW, wa)
+    expect(clamped.x).toBe(90 - mainW)
+  })
+
+  it('主窗右缘保留 ≥90px 可见：更右则钳回', () => {
+    const clamped = clampAnchorForEdges({ x: 2500, y: 200 }, mainW, wa)
+    expect(clamped.x).toBe(wa.width - 90)
+  })
+
+  it('y 钳制：顶部不越工作区、底部留 50px', () => {
+    expect(clampAnchorForEdges({ x: 800, y: -20 }, mainW, wa).y).toBe(wa.y)
+    const low = clampAnchorForEdges({ x: 800, y: 2000 }, mainW, wa)
+    expect(low.y).toBe(wa.y + wa.height - 50)
+  })
+
+  it('工作区偏移（副屏 x/y 非零）正确处理', () => {
+    const off = { x: -1920, y: 0, width: 1080, height: 1000 }
+    const clamped = clampAnchorForEdges({ x: -3000, y: -100 }, mainW, off)
+    expect(clamped.x).toBe(off.x + 90 - mainW)
+    expect(clamped.y).toBe(off.y)
   })
 })

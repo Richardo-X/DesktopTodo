@@ -145,6 +145,28 @@ describe('T25 批量删除模式', () => {
     expect(ui.selectedIds).toHaveLength(0)
   })
 
+  it('批次 B-5：applyRemoteBatch 应用跨窗广播（不再上报，防环路）', async () => {
+    const { api, ui } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
+    const calls = api.batchStateCalls.length
+    ui.applyRemoteBatch('templates')
+    expect(ui.batchTarget).toBe('templates')
+    expect(ui.selectedIds).toHaveLength(0)
+    expect(api.batchStateCalls.length).toBe(calls) // 接收端不再上报
+
+    ui.applyRemoteBatch(null)
+    expect(ui.batchTarget).toBeNull()
+  })
+
+  it('批次 B-5：enterBatch/exitBatch 上报批量状态（跨窗广播源）', async () => {
+    const { api, ui } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
+    const calls = api.batchStateCalls.length
+    ui.enterBatch('todos')
+    expect(api.batchStateCalls.length).toBe(calls + 1)
+    expect(api.batchStateCalls).toContain('todos')
+    ui.exitBatch()
+    expect(api.batchStateCalls).toContain(null)
+  })
+
   it('四轮5：全选后「全选」变「取消」（点击清空选择）；退出按钮改「返回」', async () => {
     const { wrapper } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
     await wrapper.find('[data-testid="op-batch"]').trigger('click')
