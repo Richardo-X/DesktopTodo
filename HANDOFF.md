@@ -311,3 +311,20 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - **B-4 渲染层 v3.2 定稿**：列表放宽（#36 间距/行高 44px/缝隙自绘滑块 useOverlayThumb）；时钟整块行内 38px/日期 15px（#37）；方形按钮 32×32（#35）
 - **B-5 E2E 重写**：窗口数 1→3（tuck/anchor/main-flow 布局类大面积重写）；删「10 项满载无滚动」改滚动条断言（溢出出现滑块/位置在缝隙/不挤压行宽）；spike spec 转正
 - **批次 C（B 后）**：缩进胶囊窗化（两侧窗 hide+主窗收缩胶囊）、托盘/置顶/模态/批量冻结遍历三窗（含 #27 蒙层渲染、#38 Win+D TOOLWINDOW）、收尾发版 v1.1.0
+
+### 9.9 批次 B-1 进行中快照（2026-09-28；防上下文丢失的关键状态）
+
+**架构事实（已实现，未提交）**：
+- 渲染根 `src/windows/PanelWindow.vue`：每窗=stage(令牌+data-theme 逐窗)+zoom 容器（470/310×640 ÷ scale）+面板；缩进胶囊仅待办窗；`?win=cluster&panel=quick|main|done` 路由；手写拖动=document capture 段 `.titlebar` 命中（排除 button）→ `getApi().clusterDragStart()`，window pointerup → clusterDragEnd
+- 主进程 `electron/main/cluster-windows.ts`（生产重写）：createClusterWindows/syncClusterBounds(commit 后单一入口，**不含 tucked**——运行时状态仅 setClusterTucked)/applyClusterBounds（**隐藏窗跳过 setBounds 并登记 pendingBounds，显示时 showSidePanel 先落位**——Windows 对隐藏窗 setBounds 会将其显示，用户实测点击隐藏又弹回）/ready-to-show 按 shouldShowPanel 决定显示（**迟到的 ready-to-show 不得复活已隐藏窗**——同为此实测 bug）/startClusterDrag 8ms 轮询/raiseClusterAll/detectSnap/startTuckCursorPoll(200ms 三窗并集)/hideCluster/showCluster/applyTopMostToCluster/repositionClusterToDisplays/getMainWindow/getClusterAnchor
+- index.ts：单窗 createWindow 已删，全部经 cluster-windows；commit→ctx.commit(data,anchor)+syncClusterBounds(data.uiState)+广播全窗口；settle/force-settle 广播全窗口；before-quit 用 getClusterAnchor 落盘；activate 重建三窗；lockNonChildWindows 用 setEnabled（三窗自动覆盖）
+- AppShell.vue/ClusterSpikePanel.vue 已删（git rm）；三面板 app-region CSS 已移除（拖动全走光标轮询）；preload 钩子=desktopTodoTest.clusterDragDelta → test:cluster-drag-delta
+- 测试：app-shell.test.ts→panel-window.test.ts（tuck 状态机/标题栏/令牌断言迁移，拖动接线用增量断言）；batch.test 跨面板用例改 ui.enterBatch 直派（跨窗同步属 B-2）；quick-panel.test 批量用例挂 quick 窗
+
+**E2E 适配状态（tests/e2e/）**：
+- helpers.launchApp：等待 win=cluster 三窗就绪，main=panel=main 页；AppHandle 待补 quick/done Page 字段
+- 已重写：anchor.spec（开关面板=侧窗整窗显隐+待办窗不动；重启恢复按主窗 bounds）、tuck-capsule.spec（胶囊+侧窗隐藏+还原）、cluster.spec（替代 spike：几何/同帧位移/focus）、main-flow 布局测试（视口=470×scale）
+- system.spec：置顶数组 [true,true,true,true]、托盘可见性 [false×3]/[true×3]；child-window.spec：设置窗按 URL 识别、可见性 4 元素；bubble.spec：mainX/moveMainTo 用 panel=main
+- **待修失败（根因已定位）**：主流程/子窗滚动条/import-export/limits 的跨窗交互——完成行、历史按钮、模板＋按钮现在分别在 done/quick 窗口页，spec 需取对应 Page（helpers 补 quick/done 字段）；cross-day/shadow 待查
+- **focus 测试**：Windows 前台锁——调用方无前台时 focus() 被拒；已改为先点主窗获前台再断言（待验证）
+- 调试遗留：tests/e2e/debug-toggle.spec.ts（临时，提交前删除）；cluster-windows.ts 的 DTODO_TEST 日志已全部移除
