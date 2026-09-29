@@ -150,4 +150,22 @@ export function threeWindowBoundsForAnchor(
   }
 }
 
+/**
+ * 决策 #31/#32/#33 拖动边界钳制：左右边缘不阻挡（侧窗可悬挂屏外）、拖动/点击都不自动移回；
+ * 仅主窗保留 ≥90px 可见（防整簇丢失）；y 在工作区内（底部留 50px）。
+ * 幂等：已合规的位置原样返回（=重启按记忆原样恢复 #32）；分辨率变化恢复亦用本函数（#33 主窗可见口径）。
+ */
+export function clampAnchorForEdges(
+  anchor: { x: number; y: number },
+  mainWidth: number,
+  wa: WorkArea
+): { x: number; y: number } {
+  const minX = wa.x + 90 - mainWidth
+  const maxX = wa.x + wa.width - 90
+  return {
+    x: Math.min(Math.max(anchor.x, minX), maxX),
+    y: Math.min(Math.max(anchor.y, wa.y), wa.y + wa.height - 50)
+  }
+}
+
 export type { WorkArea }
