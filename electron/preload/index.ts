@@ -61,7 +61,7 @@ contextBridge.exposeInMainWorld('desktopTodo', api)
 if (process.env.DTODO_TEST === '1') {
   contextBridge.exposeInMainWorld('desktopTodoTest', {
     forceSettle: (days: number) => ipcRenderer.invoke('test:force-settle', days),
-    spikeDragDelta: (dx: number, dy: number) => ipcRenderer.invoke('test:spike-drag-delta', { dx, dy })
+    clusterDragDelta: (dx: number, dy: number) => ipcRenderer.invoke('test:cluster-drag-delta', { dx, dy })
   })
 }
 

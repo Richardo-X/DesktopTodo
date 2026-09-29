@@ -331,7 +331,6 @@ async function onComplete(id: string): Promise<void> {
   align-items: center;
   padding-left: 12px;
   user-select: none;
-  -webkit-app-region: drag;
 }
 
 /* 品牌区：主题色圆角方块勾图标 + 应用名（原型 .tb-left/.tb-icon） */
@@ -364,7 +363,6 @@ async function onComplete(id: string): Promise<void> {
   margin-left: auto;
   display: flex;
   height: 100%;
-  -webkit-app-region: no-drag;
 }
 
 .wbtn {

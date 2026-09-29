@@ -6,27 +6,34 @@ import { SystemClock } from '../../src/core/interfaces/clock'
 import { OffsetClock } from './clock'
 import type { IClock } from '../../src/core/interfaces/clock'
 import { AppContext } from './context'
-import { defaultWindowOptions, effectiveClusterScale, initialPos } from './layout'
+import { effectiveClusterScale, initialPos } from './layout'
 import { acquireSingleInstanceLock } from './single-instance'
 import { buildTrayContextMenu, exitConfirmMessage } from './tray-menu'
 import { trayIconPng } from './icon'
 import { applyTopMost, refocusChildWindows } from './window-state'
 import { setAutoStart, syncAutoStartOnBoot } from './auto-start'
 import { showBubble, hideBubble, resizeBubble } from './bubble'
-import { ensureOnSomeDisplay, clampPosToWorkArea } from '../../src/core/utils/screen-clamp'
+import { clampPosToWorkArea } from '../../src/core/utils/screen-clamp'
 import { localDateKey } from '../../src/core/utils/date'
 import { IPC, type ChildKind } from '../../src/ipc/contract'
 import { GROUP_OF, childWindowOptions } from './child-windows'
-import { createSpikeCluster, registerSpikeIpc } from './cluster-windows'
 import {
-  tuckBarBounds,
-  windowBoundsForAnchor,
-  anchorForWindowX,
-  visibleClusterBounds
-} from '../../src/core/utils/cluster-layout'
-import { SNAP_THRESHOLD } from '../../src/core/constants'
+  createClusterWindows,
+  getMainWindow,
+  getAllClusterWindows,
+  getClusterAnchor,
+  syncClusterBounds,
+  setClusterTucked,
+  hideCluster,
+  showCluster,
+  applyTopMostToCluster,
+  repositionClusterToDisplays,
+  registerClusterIpc,
+  startTuckCursorPoll
+} from './cluster-windows'
+import { anchorForWindowX, visibleClusterBounds } from '../../src/core/utils/cluster-layout'
 
-/** 四轮定稿 B：锚点语义的屏幕钳制——锚点换算成窗口 bounds，钳制后换回锚点 */
+/** 锚点语义的屏幕钳制——锚点换算成窗口 bounds，钳制后换回锚点（启动/恢复用；批次 B-3 按所在屏细化） */
 function clampAnchorToWorkArea(
   anchor: { x: number; y: number },
   scale: number,
@@ -34,12 +41,17 @@ function clampAnchorToWorkArea(
   doneVisible: boolean,
   wa: { x: number; y: number; width: number; height: number }
 ): { x: number; y: number } {
-  const wb = windowBoundsForAnchor(anchor, scale, quickVisible, doneVisible)
+  const wb = {
+    x: anchor.x - (quickVisible ? Math.round(316 * scale) : 0),
+    y: anchor.y,
+    width: visibleClusterBounds(scale, quickVisible, doneVisible).width,
+    height: Math.round(640 * scale)
+  }
   const c = clampPosToWorkArea({ x: wb.x, y: wb.y }, { width: wb.width, height: wb.height }, wa)
-  return { x: anchorForWindowX(c.x, scale, quickVisible), y: c.y }
+  return { x: c.x + (quickVisible ? Math.round(316 * scale) : 0), y: c.y }
 }
 
-/** 首次启动锚点：沿用 initialPos 口径（窗口右缘距屏右 24、距顶 48），换算为待办左上角锚点 */
+/** 首次启动锚点：沿用 initialPos 口径（窗口右缘距屏右 24、距顶 48） */
 function initialAnchor(
   wa: { x: number; y: number; width: number; height: number },
   scale: number,
@@ -50,19 +62,10 @@ function initialAnchor(
   return { x: anchorForWindowX(wb.x, scale, quickVisible), y: wb.y }
 }
 
-let win: BrowserWindow | null = null
 let tray: Tray | null = null
-
-/** 窗口已销毁时返回 null，避免 "Object has been destroyed"（所有异步回调必须经此访问） */
-function safeWin(): BrowserWindow | null {
-  return win !== null && !win.isDestroyed() ? win : null
-}
 let visible = true
 let hasUnsavedEdits = false
 let lastSettleCheck = localDateKey(new Date())
-let tucked = false
-let snapped = false
-let currentPos: { x: number; y: number } | null = null
 let ctx: AppContext
 
 // E2E 夹具：临时 userData 目录（T44）；必须在单实例锁之前设置（锁文件位于 userData）
@@ -92,128 +95,26 @@ async function bootstrap(): Promise<void> {
   const repo = new FileRepository(join(app.getPath('userData'), 'data.json'))
   ctx = new AppContext(repo, makeClock())
   const data = await ctx.boot()
-  currentPos = data.uiState.pos
 
   // 三轮：自启加固——开关为开时重写登录项（路径始终指向当前 exe）
   syncAutoStartOnBoot(data.settings.autoStart)
 
-  // 批次 A spike（HANDOFF §9.5）：DTODO_CLUSTER_SPIKE=1 时以三个独立窗口启动，
-  // 验证手写整体拖动（光标轮询同帧 setBounds）+ z-order 绑定；默认单窗路径不受影响
-  if (process.env.DTODO_CLUSTER_SPIKE === '1') {
-    const wa = screen.getPrimaryDisplay().workArea
-    const q = data.uiState.quickVisible
-    const d = data.uiState.doneVisible
-    const scale = effectiveClusterScale(data.uiState.clusterScale, wa, q, d)
-    const anchor =
-      data.uiState.pos !== null
-        ? clampAnchorToWorkArea(data.uiState.pos, scale, q, d, wa)
-        : initialAnchor(wa, scale, q, d)
-    createSpikeCluster({ anchor, scale, quickVisible: q, doneVisible: d, topMost: data.uiState.topMost })
-    createTray()
-    registerIpc()
-    registerSpikeIpc(ipcMain)
-    startSettleTimer()
-    return
-  }
-
-  createWindow(data)
-  createTray()
-  registerIpc()
-  startSettleTimer()
-  watchDisplayChanges()
-  startCursorPoll()
-}
-
-/** 四轮二修：光标轮询权威判定缩进——每 200ms 检查系统光标是否在主窗 bounds 内，
- * 状态变化才推送渲染层。窗口尺寸变化引发的 DOM 伪 mouse-leave 不再影响缩进判定。 */
-function startCursorPoll(): void {
-  let lastInside = true
-  setInterval(() => {
-    const w = safeWin()
-    if (!w || !visible) return
-    const b = w.getBounds()
-    const pt = screen.getCursorScreenPoint()
-    const inside = pt.x >= b.x && pt.x <= b.x + b.width && pt.y >= b.y && pt.y <= b.y + b.height
-    if (inside !== lastInside) {
-      lastInside = inside
-      w.webContents.send(IPC.cursorInside, inside)
-    }
-  }, 200)
-}
-
-function createWindow(data: ReturnType<AppContext['current']>): void {
+  // 三窗分离（批次 B-1）：快捷添加/待办/已完成 = 三个常驻 BrowserWindow
   const wa = screen.getPrimaryDisplay().workArea
   const q = data.uiState.quickVisible
   const d = data.uiState.doneVisible
-  // 决策#23：初始缩放按所在屏钳制（高度≤半屏、宽度≤屏宽），窗口与渲染层 zoom 1:1；
-  // 四轮定稿 B：钳制基准=可见面板并集（隐藏面板不占位）
   const scale = effectiveClusterScale(data.uiState.clusterScale, wa, q, d)
-  // 四轮定稿 B：pos=待办左上角锚点；窗口 bounds 由锚点推导（快捷可见时窗口左缘在锚点左侧）
   const anchor =
-    data.uiState.pos !== null
-      ? clampAnchorToWorkArea(data.uiState.pos, scale, q, d, wa)
-      : initialAnchor(wa, scale, q, d)
-  const bounds = windowBoundsForAnchor(anchor, scale, q, d)
-
-  const win_ = new BrowserWindow({
-    ...defaultWindowOptions(bounds),
-    x: bounds.x,
-    y: bounds.y,
-    alwaysOnTop: data.uiState.topMost, // 8.2-2：构造期即带置顶（Windows 上 show 前的 setAlwaysOnTop 可能被覆盖，双保险）
-    webPreferences: {
-      ...defaultWindowOptions(bounds).webPreferences,
-      preload: join(__dirname, '../preload/index.js')
-    }
-  })
-  win = win_
+    data.uiState.pos !== null ? clampAnchorToWorkArea(data.uiState.pos, scale, q, d, wa) : initialAnchor(wa, scale, q, d)
+  createClusterWindows({ anchor, scale, quickVisible: q, doneVisible: d, topMost: data.uiState.topMost })
   visible = true
-  currentPos = anchor
 
-  win_.on('ready-to-show', () => {
-    win_!.show()
-    // 8.2-2：show 之后再应用置顶（构造期 setAlwaysOnTop 在部分场景会被 show 重置）
-    applyTopMost(win_!, data.uiState.topMost)
-  })
-  // 三轮8.2-1：窗口移动期间节流通知渲染层（moving 抑制自动缩进，修拖动中伪 leave 误缩回）
-  let lastMoveSent = 0
-  win_.on('move', () => {
-    // 缩进态的 setBounds 自身会触发 move——回传会让渲染层用旧状态把窗口弹回（反馈环），必须跳过
-    if (tucked) return
-    const now = Date.now()
-    if (now - lastMoveSent < 150) return
-    lastMoveSent = now
-    win_?.webContents.send(IPC.windowMoving, now)
-  })
-  win_.on('moved', () => {
-    // 三轮8.2-1：缩进态 setBounds 会改 x——不得污染位置记忆，也不做吸附判定
-    if (tucked) return
-    const b = win_!.getBounds()
-    // 四轮定稿 B：pos=待办左上角锚点（快捷可见时窗口左缘在锚点左侧）
-    if (!ctx) {
-      currentPos = { x: b.x, y: b.y }
-    } else {
-      const ui = ctx.current().uiState
-      const scale = effectiveClusterScale(ui.clusterScale, screen.getPrimaryDisplay().workArea, ui.quickVisible, ui.doneVisible)
-      currentPos = { x: anchorForWindowX(b.x, scale, ui.quickVisible), y: b.y }
-    }
-    detectSnap()
-  })
-  win_.on('closed', () => {
-    if (win === win_) win = null
-  })
-  win_.on('close', (e) => {
-    // 唯一退出途径是托盘菜单；点 × 等同缩小到通知栏（PRD §2.1）
-    if (!isQuitting) {
-      e.preventDefault()
-      hideToTray()
-    }
-  })
-
-  if (process.env.ELECTRON_RENDERER_URL) {
-    void win_.loadURL(process.env.ELECTRON_RENDERER_URL)
-  } else {
-    void win_.loadFile(join(__dirname, '../renderer/index.html'))
-  }
+  createTray()
+  registerIpc()
+  registerClusterIpc(ipcMain)
+  startSettleTimer()
+  watchDisplayChanges()
+  startTuckCursorPoll()
 }
 
 function createTray(): void {
@@ -239,22 +140,20 @@ function toggleVisibility(): void {
 
 function showWindow(): void {
   visible = true
-  safeWin()?.show()
+  showCluster()
   // 决策#9：显示=组件整体恢复（含全部二级窗口）
   for (const c of childWindows) {
     if (!c.isDestroyed()) c.show()
   }
-  // 8.2-2：恢复后重新应用置顶（Windows hide/show 可能重置 z-order）
   reaplyTopMostAll()
   refreshTrayMenu()
 }
 
-/** 置顶=整个组件（8.2-2）：主窗+全部二级窗口统一应用当前 uiState.topMost */
+/** 置顶=整个组件（三窗+全部二级窗口） */
 function reaplyTopMostAll(): void {
   if (!ctx) return
   const enabled = ctx.current().uiState.topMost
-  const w = safeWin()
-  if (w) applyTopMost(w, enabled)
+  applyTopMostToCluster(enabled)
   for (const c of childWindows) {
     if (!c.isDestroyed()) applyTopMost(c, enabled)
   }
@@ -262,7 +161,7 @@ function reaplyTopMostAll(): void {
 
 function hideToTray(): void {
   visible = false
-  safeWin()?.hide()
+  hideCluster()
   // 决策#9：托盘隐藏=组件整体隐藏（含全部二级窗口）
   for (const c of childWindows) {
     if (!c.isDestroyed()) c.hide()
@@ -287,7 +186,7 @@ function refreshTrayMenu(): void {
 
 /** 唯一退出途径：托盘菜单 → 确认框 → 退出（PRD §2.2/速查 #3） */
 async function confirmExit(): Promise<void> {
-  const w = safeWin()
+  const w = getMainWindow()
   if (!w) return quitNow()
   const r = await dialog.showMessageBox(w, {
     type: 'question',
@@ -305,64 +204,14 @@ function quitNow(): void {
 
 const childWindows = new Set<BrowserWindow>()
 
-/** 按 uiState（缩放/缩进）同步主窗口尺寸（T38/T39/T43）；
- * 缩放经决策#23 钳制；面板开关在恒定槽位内显隐，不改变窗口几何（二轮反馈：主窗居中零残影） */
-function syncMainBounds(): void {
-  const w = safeWin()
-  if (!w || !ctx) return
-  const d = ctx.current()
-  const wa = screen.getPrimaryDisplay().workArea
-  const q = d.uiState.quickVisible
-  const done = d.uiState.doneVisible
-  // 四轮定稿 B：钳制基准=可见面板并集；pos=待办左上角锚点
-  const scale = effectiveClusterScale(d.uiState.clusterScale, wa, q, done)
-  const wb = windowBoundsForAnchor(currentPos ?? { x: 0, y: 0 }, scale, q, done)
-  if (tucked) {
-    // 三轮8.2-1：缩进=胶囊窗口（宽 160、水平居中于可见簇、贴顶）——感应区=胶囊本身
-    w.setBounds(tuckBarBounds({ x: wb.x, y: wb.y }, wb.width))
-    return
-  }
-  w.setBounds(wb)
-}
-
-/** 吸附检测（三轮8.2-1：SNAP_THRESHOLD=0——顶边真正触碰屏幕上边缘才吸附）：
- * 判定成立时把窗口贴齐 y=工作区顶（不再悬空），并通知渲染层状态机 */
-function detectSnap(): void {
-  const w = safeWin()
-  if (!w) return
-  const wa = screen.getPrimaryDisplay().workArea
-  const b = w.getBounds()
-  const now = b.y - wa.y <= SNAP_THRESHOLD
-  if (now && b.y !== wa.y) {
-    // 吸附成立：贴齐屏顶
-    w.setPosition(b.x, wa.y)
-    currentPos = { x: b.x, y: wa.y }
-    return
-  }
-  if (now !== snapped) {
-    snapped = now
-    w.webContents.send(IPC.snapChanged, snapped)
-  }
-}
-
-function childWebPreferences(): { preload: string; contextIsolation: boolean; nodeIntegration: boolean; sandbox: boolean } {
-  return {
-    preload: join(__dirname, '../preload/index.js'),
-    contextIsolation: true,
-    nodeIntegration: false,
-    sandbox: false
-  }
-}
-
-/** 模态锁定：任一子窗口打开期间禁用其余窗口（PRD §2.1/验收 38） */
+/** 模态锁定：任一子窗口打开期间禁用其余窗口（三窗自动被覆盖，PRD §2.1/验收 38） */
 function lockNonChildWindows(lock: boolean): void {
   for (const w of BrowserWindow.getAllWindows()) {
     if (!childWindows.has(w)) w.setEnabled(!lock)
   }
 }
 
-/** 打开子窗口：屏内居中级联、位置不记忆、高度≤半屏（速查 #7）；尺寸按组缩放（决策#5/#24）；
- * 置顶=整个组件（8.2-2）：主窗置顶时子窗口必须同层级，否则被模态锁定压在身后假死 */
+/** 打开子窗口：屏内居中级联、位置不记忆、高度≤半屏（速查 #7）；尺寸按组缩放（决策#5/#24） */
 function openChildWindow(kind: ChildKind, id?: string): void {
   const wa = screen.getPrimaryDisplay().workArea
   const groupScale = ctx.current().uiState.childScales[GROUP_OF[kind]] ?? 1
@@ -382,7 +231,12 @@ function openChildWindow(kind: ChildKind, id?: string): void {
     hasShadow: false,
     show: false,
     alwaysOnTop: topMost,
-    webPreferences: childWebPreferences()
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    }
   })
   childWindows.add(child)
   lockNonChildWindows(true)
@@ -403,7 +257,7 @@ function openChildWindow(kind: ChildKind, id?: string): void {
   child.on('closed', () => {
     childWindows.delete(child)
     if (childWindows.size === 0) lockNonChildWindows(false)
-    safeWin()?.webContents.send(IPC.childClosed)
+    getMainWindow()?.webContents.send(IPC.childClosed)
   })
 
   const query: Record<string, string> = { win: kind }
@@ -423,8 +277,7 @@ function registerIpc(): void {
     BrowserWindow.fromWebContents(e.sender)?.close()
   })
 
-  // 决策#7/#24→二轮反馈照原型：子窗口缩放=真窗口尺寸变化（内容流式 reflow 无 zoom）；
-  // 尺寸钳制同原型（屏幕放不下按 -24）。Windows 限制：resizable=false 时 setSize 缩小不生效 → 临时解除
+  // 决策#7/#24：子窗口缩放=真窗口尺寸变化；Windows 限制：resizable=false 时 setSize 缩小不生效 → 临时解除
   ipcMain.handle(IPC.resizeSelf, (e, p: { width: number; height: number }) => {
     const w = BrowserWindow.fromWebContents(e.sender)
     if (!w || w.isDestroyed()) return
@@ -438,15 +291,15 @@ function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.setTucked, (_e, v: boolean) => {
-    tucked = v
-    syncMainBounds()
+    setClusterTucked(v)
   })
   ipcMain.handle(IPC.getState, () => ctx.current())
 
   ipcMain.handle(IPC.commit, async (_e, data: Awaited<ReturnType<AppContext['boot']>>) => {
-    await ctx.commit(data, currentPos)
-    syncMainBounds()
-    // 广播到所有窗口：多窗口（子窗口编辑后主窗口）状态一致
+    const anchor = getClusterAnchor()
+    await ctx.commit(data, anchor)
+    syncClusterBounds(data.uiState)
+    // 广播到所有窗口：三窗+子窗口状态一致（跨窗同步主干，批次 B-2 复用）
     const latest = ctx.current()
     for (const w of BrowserWindow.getAllWindows()) {
       if (!w.isDestroyed()) w.webContents.send(IPC.stateUpdated, latest)
@@ -456,9 +309,8 @@ function registerIpc(): void {
   ipcMain.handle(IPC.flush, () => ctx.flush())
 
   ipcMain.handle(IPC.setTopMost, (_e, enabled: boolean) => {
-    // 8.2-2：置顶=整个组件（主窗+全部二级窗口）；渲染层已先 commit
-    const w = safeWin()
-    if (w) applyTopMost(w, enabled)
+    // 置顶=整个组件（三窗+全部二级窗口）；渲染层已先 commit
+    applyTopMostToCluster(enabled)
     for (const c of childWindows) {
       if (!c.isDestroyed()) applyTopMost(c, enabled)
     }
@@ -495,7 +347,7 @@ function registerIpc(): void {
         await writeFile(target, p.content, 'utf8')
         return target
       }
-      const w0 = safeWin()
+      const w0 = getMainWindow()
       if (!w0) return null
       const r = await dialog.showSaveDialog(w0, {
         defaultPath: p.fileName,
@@ -505,7 +357,7 @@ function registerIpc(): void {
       await writeFile(r.filePath, p.content, 'utf8')
       return r.filePath
     } finally {
-      // 8.2-4：对话框归还焦点到主窗后，抬升子窗口并聚焦发起窗口
+      // 8.2-4：对话框归还焦点后，抬升子窗口并聚焦发起窗口
       refocusChildWindows(childWindows, BrowserWindow.fromWebContents(e.sender) ?? undefined)
     }
   })
@@ -516,7 +368,7 @@ function registerIpc(): void {
       if (process.env.DTODO_TEST_IMPORT_FILE) {
         return readFile(process.env.DTODO_TEST_IMPORT_FILE, 'utf8')
       }
-      const w1 = safeWin()
+      const w1 = getMainWindow()
       if (!w1) return null
       const r = await dialog.showOpenDialog(w1, {
         properties: ['openFile'],
@@ -525,7 +377,6 @@ function registerIpc(): void {
       if (r.canceled || r.filePaths.length === 0) return null
       return readFile(r.filePaths[0], 'utf8')
     } finally {
-      // 8.2-4：对话框归还焦点到主窗后，抬升子窗口并聚焦发起窗口
       refocusChildWindows(childWindows, BrowserWindow.fromWebContents(e.sender) ?? undefined)
     }
   })
@@ -539,13 +390,17 @@ function registerIpc(): void {
   if (process.env.DTODO_TEST === '1') {
     ipcMain.handle('test:force-settle', async (_e, days: number) => {
       const r = await ctx.settleWith(new OffsetClock(Number(days) * 24))
-      if (r.changed) safeWin()?.webContents.send(IPC.stateUpdated, r.data)
+      if (r.changed) {
+        for (const w of getAllClusterWindows()) {
+          if (!w.isDestroyed()) w.webContents.send(IPC.stateUpdated, r.data)
+        }
+      }
       return r.changed
     })
   }
 }
 
-/** 运行中跨 0 点：静默结算并推送新状态（PRD §7.4） */
+/** 运行中跨 0 点：静默结算并推送新状态（三窗都需要刷新，PRD §7.4） */
 function startSettleTimer(): void {
   setInterval(() => {
     const nowKey = localDateKey(appClock.now())
@@ -554,28 +409,21 @@ function startSettleTimer(): void {
     void ctx
       .settleIfCrossed()
       .then((r) => {
-        if (r.changed) safeWin()?.webContents.send(IPC.stateUpdated, r.data)
+        if (r.changed) {
+          for (const w of getAllClusterWindows()) {
+            if (!w.isDestroyed()) w.webContents.send(IPC.stateUpdated, r.data)
+          }
+        }
       })
       .catch(() => {})
   }, 30_000)
 }
 
-/** 分辨率变化/拔显示器 → 组件回到主屏可见范围（PRD §10-40） */
+/** 分辨率变化/拔显示器 → 组件回到可见范围（#33：按主窗可见拉回） */
 function watchDisplayChanges(): void {
   const reposition = (): void => {
-    const w = safeWin()
-    if (!w || !ctx) return
-    const d = ctx.current()
-    const wa = screen.getPrimaryDisplay().workArea
-    const q = d.uiState.quickVisible
-    const done = d.uiState.doneVisible
-    // 四轮定稿 B：锚点语义——按窗口 bounds 跨屏钳制，再换算回锚点
-    const scale = effectiveClusterScale(d.uiState.clusterScale, wa, q, done)
-    const wb = windowBoundsForAnchor(currentPos ?? { x: 0, y: 0 }, scale, q, done)
-    const displays = screen.getAllDisplays().map((disp) => disp.workArea)
-    const next = ensureOnSomeDisplay({ x: wb.x, y: wb.y }, { width: wb.width, height: wb.height }, displays)
-    w.setPosition(next.x, next.y)
-    currentPos = { x: anchorForWindowX(next.x, scale, q), y: next.y }
+    if (!ctx) return
+    repositionClusterToDisplays(screen.getAllDisplays())
   }
   screen.on('display-removed', reposition)
   screen.on('display-metrics-changed', reposition)
@@ -589,9 +437,10 @@ app.on('before-quit', async (e) => {
   // 阻止本次退出，等落盘完成后再真正退出（否则异步 flush 会被进程退出截断）
   e.preventDefault()
   try {
-    if (ctx && currentPos) {
+    if (ctx) {
+      const anchor = getClusterAnchor()
       const d = ctx.current()
-      await ctx.commit({ ...d, uiState: { ...d.uiState, pos: currentPos } }, currentPos)
+      await ctx.commit({ ...d, uiState: { ...d.uiState, pos: anchor } }, anchor)
     }
     if (ctx) await ctx.flush()
   } catch {
@@ -605,5 +454,16 @@ app.on('window-all-closed', () => {
 })
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0 && ctx) createWindow(ctx.current())
+  if (BrowserWindow.getAllWindows().length === 0 && ctx) {
+    const wa = screen.getPrimaryDisplay().workArea
+    const d = ctx.current()
+    const scale = effectiveClusterScale(d.uiState.clusterScale, wa, d.uiState.quickVisible, d.uiState.doneVisible)
+    createClusterWindows({
+      anchor: d.uiState.pos ?? initialAnchor(wa, scale, d.uiState.quickVisible, d.uiState.doneVisible),
+      scale,
+      quickVisible: d.uiState.quickVisible,
+      doneVisible: d.uiState.doneVisible,
+      topMost: d.uiState.topMost
+    })
+  }
 })

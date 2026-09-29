@@ -159,7 +159,6 @@ function fmtDone(iso: string | null): string {
   align-items: center;
   padding-left: 12px;
   user-select: none;
-  -webkit-app-region: drag;
 }
 
 .tb-title {
@@ -172,7 +171,6 @@ function fmtDone(iso: string | null): string {
   margin-left: auto;
   display: flex;
   height: 100%;
-  -webkit-app-region: no-drag;
 }
 
 .wbtn {

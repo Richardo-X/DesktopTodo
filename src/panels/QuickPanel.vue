@@ -166,7 +166,6 @@ onUnmounted(() => {
   align-items: center;
   padding-left: 12px;
   user-select: none;
-  -webkit-app-region: drag;
 }
 
 .tb-title {
@@ -179,7 +178,6 @@ onUnmounted(() => {
   margin-left: auto;
   display: flex;
   height: 100%;
-  -webkit-app-region: no-drag;
 }
 
 .wbtn {

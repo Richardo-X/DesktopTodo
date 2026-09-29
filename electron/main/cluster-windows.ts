@@ -2,32 +2,47 @@ import { BrowserWindow, screen, type IpcMain } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyTopMost } from './window-state'
-import { threeWindowBoundsForAnchor, type WinBounds } from '../../src/core/utils/cluster-layout'
+import { SNAP_THRESHOLD } from '../../src/core/constants'
+import {
+  threeWindowBoundsForAnchor,
+  tuckBarBounds,
+  visibleClusterBounds,
+  quickOffsetPx,
+  effectiveClusterScale,
+  type WinBounds
+} from '../../src/core/utils/cluster-layout'
+import type { WorkArea } from '../../src/core/utils/cluster-layout'
 
 /**
- * 批次 A 技术验证（HANDOFF §9.5）：三窗分离 spike——快捷添加/待办/已完成 = 三个独立 BrowserWindow。
- * ①手写整体拖动：弃用 app-region 原生拖动，主进程 16ms（~60fps）光标轮询，
- *   每 tick 锚点+=光标位移，threeWindowBoundsForAnchor 逐窗 setBounds（同一 tick 内三窗=同帧定位）。
- * ②z-order 绑定：任一窗 focus → 三窗按固定顺序 moveTop 同升（防其他软件插入组件中间造成层级交错）。
- * 由 DTODO_CLUSTER_SPIKE=1 启用（bootstrap 分支），默认单窗路径不受影响；
- * 位置/缩放不在此持久化（批次 B 几何迁移落位）。拖动手感需真机验证（§9.3 质量标准 E/F）。
+ * 三窗分离架构（v1.1.0 批次 B-1，HANDOFF §9.5/§9.8）：
+ * 快捷添加/待办/已完成 = 三个常驻 BrowserWindow（?win=cluster&panel=X）。
+ * - 手写整体拖动：任一窗标题栏 pointerdown → 主进程 8ms 光标轮询，每帧 setBounds 重申
+ *   逻辑尺寸（跨 DPI 双屏防 Windows 建议矩形复利放大，用户实测）+ 三窗同帧定位
+ * - z-order 绑定：任一窗 focus → 三窗 moveTop 同升
+ * - 可见性：quickVisible/doneVisible → 侧窗 show/hide（隐藏不占位，锚点不动）
+ * - 缩进形态 B：tucked 时侧窗隐藏 + 待办窗收缩为胶囊（渲染层切 tuck-bar，窗口 bounds=胶囊）
+ * - 锚点=待办窗左上角（缩放/开关面板唯一不动点，pos 持久化语义=锚点）
  */
+export type ClusterPanel = 'quick' | 'main' | 'done'
 
-/** 拖动轮询间隔：8ms 对齐标准鼠标 125Hz 上报率——降低拖动滞后，手感更跟手 */
-export const SPIKE_DRAG_INTERVAL_MS = 8
+/** 拖动轮询间隔：8ms 对齐标准鼠标 125Hz 上报率 */
+export const CLUSTER_DRAG_INTERVAL_MS = 8
 
-interface SpikeState {
-  windows: { quick: BrowserWindow | null; main: BrowserWindow; done: BrowserWindow | null }
+interface ClusterState {
+  windows: { quick: BrowserWindow; main: BrowserWindow; done: BrowserWindow }
   anchor: { x: number; y: number }
   scale: number
   quickVisible: boolean
   doneVisible: boolean
+  tucked: boolean
+  snapped: boolean
+  topMost: boolean
+  visible: boolean
 }
 
-let spike: SpikeState | null = null
+let cluster: ClusterState | null = null
 let dragTimer: ReturnType<typeof setInterval> | null = null
 let dragStart: { cursor: { x: number; y: number }; anchor: { x: number; y: number } } | null = null
-/** 上次已应用锚点：光标静止时跳过冗余 setBounds（Windows 每次调用都是一次原生 SetWindowPos） */
 let lastAppliedAnchor: { x: number; y: number } | null = null
 
 function webPreferences(): { preload: string; contextIsolation: boolean; nodeIntegration: boolean; sandbox: boolean } {
@@ -39,17 +54,25 @@ function webPreferences(): { preload: string; contextIsolation: boolean; nodeInt
   }
 }
 
-function loadPage(w: BrowserWindow, panel: 'quick' | 'main' | 'done'): void {
+function loadPage(w: BrowserWindow, panel: ClusterPanel): void {
   if (process.env.ELECTRON_RENDERER_URL) {
     const u = new URL(process.env.ELECTRON_RENDERER_URL)
-    u.search = new URLSearchParams({ win: 'spike', panel }).toString()
+    u.search = new URLSearchParams({ win: 'cluster', panel }).toString()
     void w.loadURL(u.toString())
   } else {
-    void w.loadFile(join(__dirname, '../renderer/index.html'), { query: { win: 'spike', panel } })
+    void w.loadFile(join(__dirname, '../renderer/index.html'), { query: { win: 'cluster', panel } })
   }
 }
 
-function makeWindow(panel: 'quick' | 'main' | 'done', bounds: WinBounds, topMost: boolean): BrowserWindow {
+/** 窗口此刻是否应当可见（ready-to-show/恢复判定的单一来源；cluster 未就绪时视为可见） */
+function shouldShowPanel(panel: ClusterPanel): boolean {
+  if (!cluster) return true
+  if (panel === 'main') return !cluster.tucked
+  const visibleFlag = panel === 'quick' ? cluster.quickVisible : cluster.doneVisible
+  return cluster.visible && visibleFlag && !cluster.tucked
+}
+
+function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): BrowserWindow {
   const w = new BrowserWindow({
     x: bounds.x,
     y: bounds.y,
@@ -66,19 +89,40 @@ function makeWindow(panel: 'quick' | 'main' | 'done', bounds: WinBounds, topMost
     show: false,
     webPreferences: webPreferences()
   })
-  // 监听必须先于 loadPage 挂载：极快的小页面 file:// 加载会在 loadPage 返回前触发 ready-to-show
   w.on('ready-to-show', () => {
+    // 迟到的 ready-to-show 不得复活已被隐藏的窗口（用户实测：点击隐藏后又弹回）
+    if (!shouldShowPanel(panel)) return
+    applyClusterBounds(true) // 全窗强制落位（三窗 show:false 创建、页面加载有先后，可能全部处于待落位状态）
     w.show()
     if (topMost) applyTopMost(w, true)
   })
-  // z-order 绑定：任一窗激活 → 三窗同升
-  w.on('focus', () => raiseSpikeAll())
+  // z-order 绑定：任一窗激活 → 三窗同升（moveTop 不夺焦）
+  w.on('focus', () => raiseClusterAll())
+  if (panel === 'main') {
+    // 待办窗=锚点窗：外部移动（Win+方向键等）经 moved 回写锚点；
+    // 拖动（光标轮询自己 setBounds）与缩进胶囊 setBounds 不得污染位置记忆
+    let lastMoveThrottled = 0
+    w.on('move', () => {
+      if (dragTimer !== null) {
+        const now = Date.now()
+        if (now - lastMoveThrottled < 150) return
+        lastMoveThrottled = now
+        sendToMain(IPC.windowMoving, now)
+      }
+    })
+    w.on('moved', () => {
+      if (dragTimer !== null || !cluster || cluster.tucked) return
+      const b = w.getBounds()
+      cluster.anchor = { x: b.x, y: b.y }
+      detectSnap()
+    })
+  }
   loadPage(w, panel)
   return w
 }
 
-/** 创建 spike 三窗（锚点=待办左上角；隐藏侧窗不创建） */
-export function createSpikeCluster(opts: {
+/** 创建三窗（三窗常驻；侧窗按可见性 show/hide） */
+export function createClusterWindows(opts: {
   anchor: { x: number; y: number }
   scale: number
   quickVisible: boolean
@@ -87,61 +131,201 @@ export function createSpikeCluster(opts: {
 }): void {
   const b = threeWindowBoundsForAnchor(opts.anchor, opts.scale, opts.quickVisible, opts.doneVisible)
   const main = makeWindow('main', b.main, opts.topMost)
-  const quick = b.quick ? makeWindow('quick', b.quick, opts.topMost) : null
-  const done = b.done ? makeWindow('done', b.done, opts.topMost) : null
-  spike = {
+  const quick = makeWindow('quick', b.quick ?? b.main, opts.topMost)
+  const done = makeWindow('done', b.done ?? b.main, opts.topMost)
+  cluster = {
     windows: { quick, main, done },
     anchor: opts.anchor,
     scale: opts.scale,
     quickVisible: opts.quickVisible,
-    doneVisible: opts.doneVisible
+    doneVisible: opts.doneVisible,
+    tucked: false,
+    snapped: false,
+    topMost: opts.topMost,
+    visible: true
+  }
+  if (!opts.quickVisible) quick.hide()
+  if (!opts.doneVisible) done.hide()
+}
+
+function safe(w: BrowserWindow | null | undefined): w is BrowserWindow {
+  return !!w && !w.isDestroyed()
+}
+
+/** 发消息给待办主窗（缩进状态机/吸附/光标轮询的唯一渲染层接收方） */
+function sendToMain(channel: string, payload?: unknown): void {
+  if (!cluster) return
+  const { main } = cluster.windows
+  if (safe(main)) main.webContents.send(channel, payload)
+}
+
+export function getMainWindow(): BrowserWindow | null {
+  return cluster && safe(cluster.windows.main) ? cluster.windows.main : null
+}
+
+export function getAllClusterWindows(): BrowserWindow[] {
+  if (!cluster) return []
+  return [cluster.windows.quick, cluster.windows.main, cluster.windows.done].filter(safe)
+}
+
+export function getClusterAnchor(): { x: number; y: number } | null {
+  return cluster ? { ...cluster.anchor } : null
+}
+
+export function isClusterVisible(): boolean {
+  return !!cluster && cluster.visible
+}
+
+/** 隐藏窗的待落位 bounds（Windows setBounds 会显示隐藏窗，故隐藏期间只登记） */
+const pendingBounds = new Map<number, WinBounds>()
+
+/** 显示侧窗：先落位（此时可能顺带显示）再确保可见，几何永远与锚点一致 */
+function showSidePanel(panel: ClusterPanel): void {
+  if (!cluster) return
+  const w = panel === 'quick' ? cluster.windows.quick : cluster.windows.done
+  if (!safe(w)) return
+  const b = threeWindowBoundsForAnchor(cluster.anchor, cluster.scale, cluster.quickVisible, cluster.doneVisible)
+  const bb = panel === 'quick' ? b.quick : b.done
+  if (!bb) return
+  pendingBounds.delete(w.id)
+  w.setBounds(bb)
+  if (!w.isVisible()) w.show()
+}
+
+/** 三窗同帧定位：一个锚点 → 同一 tick 内逐窗 setBounds（每帧重申逻辑尺寸，压制跨 DPI 复利放大）。
+ * placeAll=true（ready-to-show）：无视可见性强制全部落位——三窗 show:false 创建后页面加载有先后，
+ * 迟到的 ready-to-show 若只 show 不落位，窗口会出现在旧位置（用户实测） */
+export function applyClusterBounds(placeAll = false): void {
+  if (!cluster) return
+  if (lastAppliedAnchor && lastAppliedAnchor.x === cluster.anchor.x && lastAppliedAnchor.y === cluster.anchor.y) return
+  if (cluster.tucked) {
+    const wb = {
+      x: cluster.anchor.x - quickOffsetPx(cluster.scale, cluster.quickVisible),
+      y: cluster.anchor.y,
+      width: visibleClusterBounds(cluster.scale, cluster.quickVisible, cluster.doneVisible).width,
+      height: Math.round(640 * cluster.scale)
+    }
+    const cap = tuckBarBounds({ x: wb.x, y: wb.y }, wb.width)
+    if (safe(cluster.windows.main)) cluster.windows.main.setBounds(cap)
+    lastAppliedAnchor = { x: cluster.anchor.x, y: cluster.anchor.y }
+    return
+  }
+  const b = threeWindowBoundsForAnchor(cluster.anchor, cluster.scale, cluster.quickVisible, cluster.doneVisible)
+  const { quick, main, done } = cluster.windows
+  // 隐藏窗跳过 setBounds：Windows 上对隐藏窗口 setBounds 会将其显示（用户实测点击隐藏后又弹回）；
+  // 几何登记到 pendingBounds，showSidePanel 显示时先落位
+  for (const [w, bb] of [
+    [quick, b.quick ?? b.main],
+    [main, b.main],
+    [done, b.done ?? b.main]
+  ] as const) {
+    if (!safe(w)) continue
+    if (!placeAll && !w.isVisible()) pendingBounds.set(w.id, bb)
+    else {
+      pendingBounds.delete(w.id)
+      w.setBounds(bb)
+    }
+  }
+  lastAppliedAnchor = { x: cluster.anchor.x, y: cluster.anchor.y }
+}
+
+/** z-order 绑定：任一窗激活 → 三窗按固定顺序 moveTop 同升 */
+export function raiseClusterAll(): void {
+  if (!cluster) return
+  for (const w of [cluster.windows.quick, cluster.windows.main, cluster.windows.done]) {
+    if (safe(w)) w.moveTop()
   }
 }
 
-/** 三窗同帧定位：一个锚点 → 同一 tick 内逐窗 setBounds。
- * 必须用 setBounds 而非 setPosition：跨 DPI 双屏拖动时 Windows 会对移入不同缩放比的
- * 窗口按"建议矩形"改写尺寸，且拖动中反复触发逐帧复利放大（用户实测）——
- * 每帧重申逻辑尺寸压制该行为；代价是跨越瞬间两侧窗短暂尺寸不一致（瞬态，完全过界后自愈） */
-export function applySpikeBounds(anchor: { x: number; y: number }): void {
-  if (!spike) return
-  if (lastAppliedAnchor && lastAppliedAnchor.x === anchor.x && lastAppliedAnchor.y === anchor.y) return
-  const b = threeWindowBoundsForAnchor(anchor, spike.scale, spike.quickVisible, spike.doneVisible)
-  spike.anchor = anchor
-  lastAppliedAnchor = { x: anchor.x, y: anchor.y }
-  const { quick, main, done } = spike.windows
-  if (quick && b.quick && !quick.isDestroyed()) quick.setBounds(b.quick)
-  if (!main.isDestroyed()) main.setBounds(b.main)
-  if (done && b.done && !done.isDestroyed()) done.setBounds(b.done)
+/**
+ * 按 uiState 同步三窗（commit 后的单一入口）：
+ * 缩放（决策#23 按待办窗所在屏钳制）、面板可见性（show/hide，锚点不动）。
+ * tucked 是运行时状态（不经 uiState 持久化），仅由 setClusterTucked 改写，此处不触碰。
+ */
+export function syncClusterBounds(ui: {
+  clusterScale: number
+  quickVisible: boolean
+  doneVisible: boolean
+}): void {
+  if (!cluster) return
+  const mainBounds = safe(cluster.windows.main) ? cluster.windows.main.getBounds() : null
+  const wa: WorkArea = mainBounds
+    ? screen.getDisplayMatching(mainBounds).workArea
+    : screen.getPrimaryDisplay().workArea
+  cluster.scale = effectiveClusterScale(ui.clusterScale, wa, ui.quickVisible, ui.doneVisible)
+  cluster.quickVisible = ui.quickVisible
+  cluster.doneVisible = ui.doneVisible
+  const { quick, done } = cluster.windows
+  if (safe(quick)) {
+    if (ui.quickVisible && cluster.visible && !cluster.tucked) showSidePanel('quick')
+    else quick.hide()
+  }
+  if (safe(done)) {
+    if (ui.doneVisible && cluster.visible && !cluster.tucked) showSidePanel('done')
+    else done.hide()
+  }
+  lastAppliedAnchor = null
+  applyClusterBounds()
 }
 
-/** z-order 绑定：任一窗激活 → 三窗按固定顺序 moveTop 同升（moveTop 不夺焦，不产生焦点抖动） */
-export function raiseSpikeAll(): void {
-  if (!spike) return
-  for (const w of [spike.windows.quick, spike.windows.main, spike.windows.done]) {
-    if (w && !w.isDestroyed()) w.moveTop()
+/** 缩进切换（渲染层状态机经 IPC setTucked） */
+export function setClusterTucked(v: boolean): void {
+  if (!cluster) return
+  cluster.tucked = v
+  const { quick, done } = cluster.windows
+  if (safe(quick)) {
+    if (v || !cluster.quickVisible || !cluster.visible) quick.hide()
+    else showSidePanel('quick')
+  }
+  if (safe(done)) {
+    if (v || !cluster.doneVisible || !cluster.visible) done.hide()
+    else showSidePanel('done')
+  }
+  lastAppliedAnchor = null
+  applyClusterBounds()
+}
+
+/** 吸附检测：待办窗顶边触碰工作区顶 → 三窗贴齐；状态变化通知待办窗状态机 */
+export function detectSnap(): void {
+  if (!cluster || cluster.tucked) return
+  const { main } = cluster.windows
+  if (!safe(main)) return
+  const wa = screen.getPrimaryDisplay().workArea
+  const b = main.getBounds()
+  const now = b.y - wa.y <= SNAP_THRESHOLD
+  if (now && b.y !== wa.y) {
+    cluster.anchor = { x: cluster.anchor.x, y: wa.y }
+    lastAppliedAnchor = null
+    applyClusterBounds()
+    return
+  }
+  if (now !== cluster.snapped) {
+    cluster.snapped = now
+    sendToMain(IPC.snapChanged, now)
   }
 }
 
 /** 手写整体拖动开始：记录光标/锚点起点，8ms 轮询系统光标 */
-export function startSpikeDrag(): void {
-  if (!spike || dragTimer !== null) return
-  dragStart = { cursor: screen.getCursorScreenPoint(), anchor: { ...spike.anchor } }
+export function startClusterDrag(): void {
+  if (!cluster || dragTimer !== null) return
+  dragStart = { cursor: screen.getCursorScreenPoint(), anchor: { ...cluster.anchor } }
   lastAppliedAnchor = null
   dragTimer = setInterval(() => {
     if (dragStart === null) {
-      stopSpikeDrag()
+      stopClusterDrag()
       return
     }
     const pt = screen.getCursorScreenPoint()
-    applySpikeBounds({
+    applyAnchor({
       x: dragStart.anchor.x + (pt.x - dragStart.cursor.x),
       y: dragStart.anchor.y + (pt.y - dragStart.cursor.y)
     })
-  }, SPIKE_DRAG_INTERVAL_MS)
+    detectSnap()
+  }, CLUSTER_DRAG_INTERVAL_MS)
 }
 
-/** 拖动结束（渲染层 window pointerup / 页面卸载） */
-export function stopSpikeDrag(): void {
+/** 拖动结束（渲染层 window pointerup） */
+export function stopClusterDrag(): void {
   if (dragTimer !== null) {
     clearInterval(dragTimer)
     dragTimer = null
@@ -149,38 +333,103 @@ export function stopSpikeDrag(): void {
   dragStart = null
 }
 
-/** E2E 钩子：跳过真实光标，经同一 applySpikeBounds 路径平移锚点（验证"三窗同帧位移"几何不变量） */
-export function spikeDragDeltaBy(dx: number, dy: number): void {
-  if (!spike) return
-  applySpikeBounds({ x: spike.anchor.x + dx, y: spike.anchor.y + dy })
+function applyAnchor(anchor: { x: number; y: number }): void {
+  if (!cluster) return
+  cluster.anchor = anchor
+  lastAppliedAnchor = null
+  applyClusterBounds()
 }
 
-/** 读取三窗当前 OS bounds（E2E 断言用） */
-export function getSpikeBounds(): { quick: WinBounds | null; main: WinBounds | null; done: WinBounds | null } {
-  if (!spike) return { quick: null, main: null, done: null }
-  const read = (w: BrowserWindow | null): WinBounds | null =>
-    w && !w.isDestroyed() ? w.getBounds() : null
-  return { quick: read(spike.windows.quick), main: read(spike.windows.main), done: read(spike.windows.done) }
+/** E2E 钩子：跳过真实光标，经同一 applyClusterBounds 路径平移锚点 */
+export function clusterDragDeltaBy(dx: number, dy: number): void {
+  if (!cluster) return
+  applyAnchor({ x: cluster.anchor.x + dx, y: cluster.anchor.y + dy })
 }
 
-export function isSpikeActive(): boolean {
-  return spike !== null
+/** 托盘隐藏=组件整体隐藏（决策#9） */
+export function hideCluster(): void {
+  if (!cluster) return
+  cluster.visible = false
+  for (const w of getAllClusterWindows()) w.hide()
 }
 
-export function closeSpikeWindows(): void {
-  stopSpikeDrag()
-  if (!spike) return
-  for (const w of [spike.windows.quick, spike.windows.main, spike.windows.done]) {
-    if (w && !w.isDestroyed()) w.destroy()
-  }
-  spike = null
+/** 显示=整体恢复（含置顶重应用——hide/show 可能重置 z-order） */
+export function showCluster(): void {
+  if (!cluster) return
+  cluster.visible = true
+  lastAppliedAnchor = null
+  applyClusterBounds()
+  const { quick, main, done } = cluster.windows
+  if (safe(quick) && cluster.quickVisible && !cluster.tucked) showSidePanel('quick')
+  if (safe(main)) main.show()
+  if (safe(done) && cluster.doneVisible && !cluster.tucked) showSidePanel('done')
+  applyTopMostToCluster(cluster.topMost)
 }
 
-/** spike 专属 IPC：拖动开始/结束（渲染层标题栏）+ E2E 位移钩子（仅 DTODO_TEST=1） */
-export function registerSpikeIpc(ipcMain: IpcMain): void {
-  ipcMain.handle(IPC.clusterDragStart, () => startSpikeDrag())
-  ipcMain.handle(IPC.clusterDragEnd, () => stopSpikeDrag())
+/** 置顶=整个组件（三窗统一应用；子窗口由 index.ts 一并处理） */
+export function applyTopMostToCluster(enabled: boolean): void {
+  if (!cluster) return
+  cluster.topMost = enabled
+  for (const w of getAllClusterWindows()) applyTopMost(w, enabled)
+}
+
+/** 分辨率变化/拔显示器：按主窗可见拉回（#33），锚点随位移更新 */
+export function repositionClusterToDisplays(displays: { workArea: WinBounds }[]): void {
+  if (!cluster) return
+  const main = cluster.windows.main
+  if (!safe(main)) return
+  const b = main.getBounds()
+  const next = ((): { x: number; y: number } => {
+    let best: { x: number; y: number } | null = null
+    for (const d of displays) {
+      const wa = d.workArea
+      const x = Math.min(Math.max(b.x, wa.x), wa.x + wa.width - Math.min(b.width, wa.width))
+      const y = Math.min(Math.max(b.y, wa.y), wa.y + wa.height - Math.min(b.height, wa.height))
+      const inside = b.x + b.width > wa.x && b.x < wa.x + wa.width && b.y + b.height > wa.y && b.y < wa.y + wa.height
+      if (inside) return { x: b.x, y: b.y }
+      if (best === null) best = { x, y }
+    }
+    return best ?? { x: b.x, y: b.y }
+  })()
+  if (next.x === b.x && next.y === b.y) return
+  applyAnchor(next)
+}
+
+/** 缩进判定光标轮询：光标是否在可见组件范围内（缩进态=胶囊窗本体）；
+ * 状态变化推送待办窗（权威驱动，DOM 事件不参与——三轮8.2-1） */
+export function startTuckCursorPoll(): void {
+  let lastInside = true
+  setInterval(() => {
+    if (!cluster || !cluster.visible) return
+    const pt = screen.getCursorScreenPoint()
+    let inside = false
+    if (cluster.tucked) {
+      const m = cluster.windows.main
+      inside = safe(m) && contains(m.getBounds(), pt)
+    } else {
+      for (const w of [cluster.windows.quick, cluster.windows.main, cluster.windows.done]) {
+        if (safe(w) && w.isVisible() && contains(w.getBounds(), pt)) {
+          inside = true
+          break
+        }
+      }
+    }
+    if (inside !== lastInside) {
+      lastInside = inside
+      sendToMain(IPC.cursorInside, inside)
+    }
+  }, 200)
+}
+
+function contains(b: WinBounds, pt: { x: number; y: number }): boolean {
+  return pt.x >= b.x && pt.x <= b.x + b.width && pt.y >= b.y && pt.y <= b.y + b.height
+}
+
+/** spike→生产：拖动 IPC（标题栏）+ E2E 位移钩子（仅 DTODO_TEST=1） */
+export function registerClusterIpc(ipcMain: IpcMain): void {
+  ipcMain.handle(IPC.clusterDragStart, () => startClusterDrag())
+  ipcMain.handle(IPC.clusterDragEnd, () => stopClusterDrag())
   if (process.env.DTODO_TEST === '1') {
-    ipcMain.handle('test:spike-drag-delta', (_e, p: { dx: number; dy: number }) => spikeDragDeltaBy(p.dx, p.dy))
+    ipcMain.handle('test:cluster-drag-delta', (_e, p: { dx: number; dy: number }) => clusterDragDeltaBy(p.dx, p.dy))
   }
 }
