@@ -1,4 +1,4 @@
-import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+import { _electron as electron, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -6,7 +6,12 @@ import { defaultAppData, type AppData } from '../../src/core/models'
 
 export interface AppHandle {
   app: ElectronApplication
+  /** 待办主窗页面（panel=main） */
   main: Page
+  /** 快捷添加窗页面（panel=quick） */
+  quick: Page
+  /** 已完成窗页面（panel=done） */
+  done: Page
   userData: string
   close(): Promise<void>
 }
@@ -22,11 +27,9 @@ export interface LaunchOptions {
   exportDir?: string
   /** 测试模式导入文件（文件选择旁路） */
   importFile?: string
-  /** 批次 A spike：三窗分离技术验证（DTODO_CLUSTER_SPIKE=1） */
-  spike?: boolean
 }
 
-/** T44：启动 Electron 应用（临时 userData、时钟偏移、测试钩子） */
+/** T44：启动 Electron 应用（临时 userData、时钟偏移、测试钩子；批次 B-1 起默认三窗） */
 export async function launchApp(opts: LaunchOptions = {}): Promise<AppHandle> {
   const userData = opts.userData ?? mkdtempSync(join(tmpdir(), 'dtodo-e2e-'))
   if (opts.seed) {
@@ -38,7 +41,6 @@ export async function launchApp(opts: LaunchOptions = {}): Promise<AppHandle> {
   if (opts.clockOffsetHours) env.DTODO_CLOCK_OFFSET_H = String(opts.clockOffsetHours)
   if (opts.exportDir) env.DTODO_TEST_EXPORT_DIR = opts.exportDir
   if (opts.importFile) env.DTODO_TEST_IMPORT_FILE = opts.importFile
-  if (opts.spike) env.DTODO_CLUSTER_SPIKE = '1'
 
   const app: ElectronApplication = await electron.launch({
     args: ['out/main/index.js'],
@@ -46,41 +48,47 @@ export async function launchApp(opts: LaunchOptions = {}): Promise<AppHandle> {
     env
   })
 
-  if (opts.spike) {
-    // 三窗 spike：等待 quick/main/done 三个 spike 页面就绪（firstWindow 可能是任意一个）
-    const deadline = Date.now() + 30_000
-    let pages: Page[] = []
-    while (Date.now() < deadline) {
-      pages = app.windows().filter((w) => w.url().includes('win=spike'))
-      if (pages.length >= 3) break
-      await new Promise((resolve) => setTimeout(resolve, 200))
-    }
-    if (pages.length < 3) throw new Error(`spike windows incomplete: ${pages.length}/3`)
-    const main = pages.find((w) => w.url().includes('panel=main'))
-    if (!main) throw new Error('spike main page missing')
-    await main.waitForLoadState('domcontentloaded')
-    await main.locator('[data-testid="spike-panel"]').waitFor({ state: 'visible', timeout: 30_000 })
-    let closed = false
-    return {
-      app,
-      main,
-      userData,
-      async close() {
-        if (closed) return
-        closed = true
-        await app.close()
-      }
-    }
+  // 三窗架构：等待 quick/main/done 三个组件窗口就绪（firstWindow 可能是任意一个）
+  const deadline = Date.now() + 30_000
+  let pages: Page[] = []
+  while (Date.now() < deadline) {
+    pages = app.windows().filter((w) => w.url().includes('win=cluster'))
+    if (pages.length >= 3) break
+    await new Promise((resolve) => setTimeout(resolve, 200))
   }
-
-  const main = await app.firstWindow()
+  if (pages.length < 3) throw new Error(`cluster windows incomplete: ${pages.length}/3`)
+  const main = pages.find((w) => w.url().includes('panel=main'))
+  if (!main) throw new Error('cluster main page missing')
   await main.waitForLoadState('domcontentloaded')
   await main.locator('[data-testid="home-panel"]').waitFor({ state: 'visible', timeout: 30_000 })
+
+  // 等 OS 层三窗真正 show（ready-to-show 与页面加载无先后保证；系统繁忙时明显滞后）。
+  // DOM 可见≠窗口已 show——不等这里会导致 setBounds 落位竞态（批次 B-1 实测）
+  const allVisible = (): Promise<boolean> =>
+    app.evaluate(({ BrowserWindow }) => {
+      const urls = ['panel=quick', 'panel=main', 'panel=done']
+      return urls.every((p) => {
+        const w = BrowserWindow.getAllWindows().find(
+          (x) => !x.isDestroyed() && x.webContents.getURL().includes(p)
+        )
+        return w ? w.isVisible() : false
+      })
+    })
+  await expect.poll(allVisible, { timeout: 30_000 }).toBe(true)
+
+  const quick = pages.find((w) => w.url().includes('panel=quick'))!
+  const done = pages.find((w) => w.url().includes('panel=done'))!
+  await Promise.all([
+    quick.waitForLoadState('domcontentloaded'),
+    done.waitForLoadState('domcontentloaded')
+  ])
 
   let closed = false
   return {
     app,
     main,
+    quick,
+    done,
     userData,
     async close() {
       if (closed) return

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
-import AppShell from '../../src/panels/AppShell.vue'
+import PanelWindow from '../../src/windows/PanelWindow.vue'
 import { mountWithStore } from '../helpers/mount'
 import { useUiStore } from '../../src/stores/ui'
 import { createTodoItem } from '../../src/core/models'
@@ -18,7 +18,7 @@ function seedTodos() {
 /** T25 批量删除：多选状态机 + 确认后直接删除（PRD §5.2/验收 14；B1.5 起无回收站） */
 describe('T25 批量删除模式', () => {
   it('进入批量模式：批量条出现，点击行=选中/取消', async () => {
-    const { wrapper } = await mountWithStore(AppShell, seedTodos())
+    const { wrapper } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
     await wrapper.find('[data-testid="op-batch"]').trigger('click')
 
     expect(wrapper.find('[data-testid="batch-bar"]').exists()).toBe(true)
@@ -32,7 +32,7 @@ describe('T25 批量删除模式', () => {
   })
 
   it('全选 → 全部选中；取消 → 退出批量模式', async () => {
-    const { wrapper } = await mountWithStore(AppShell, seedTodos())
+    const { wrapper } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
     await wrapper.find('[data-testid="op-batch"]').trigger('click')
 
     await wrapper.find('[data-testid="batch-select-all"]').trigger('click')
@@ -45,7 +45,7 @@ describe('T25 批量删除模式', () => {
   })
 
   it('删除所选 → 确认框（提示不可恢复）→ 确认后直接删除并退出批量模式（B1.5）', async () => {
-    const { wrapper, store } = await mountWithStore(AppShell, seedTodos())
+    const { wrapper, store } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
     await wrapper.find('[data-testid="op-batch"]').trigger('click')
     const rows = wrapper.findAll('[data-testid="todo-row"]')
     await rows[0].trigger('click')
@@ -68,7 +68,7 @@ describe('T25 批量删除模式', () => {
   })
 
   it('删除所选 → 取消 → 不删除，保持批量模式', async () => {
-    const { wrapper, store } = await mountWithStore(AppShell, seedTodos())
+    const { wrapper, store } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
     await wrapper.find('[data-testid="op-batch"]').trigger('click')
     await wrapper.findAll('[data-testid="todo-row"]')[0].trigger('click')
 
@@ -81,7 +81,7 @@ describe('T25 批量删除模式', () => {
   })
 
   it('批量模式下勾选框为选中示意（决策#25）：点击切换选中，不触发完成', async () => {
-    const { wrapper, store } = await mountWithStore(AppShell, seedTodos())
+    const { wrapper, store } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
     await wrapper.find('[data-testid="op-batch"]').trigger('click')
     const cb = wrapper.findAll('[data-testid="row-checkbox"]')[0]
     expect(cb.exists()).toBe(true)
@@ -95,7 +95,7 @@ describe('T25 批量删除模式', () => {
   })
 
   it('未选中时「删除所选」置灰禁点（用户定稿 8.2-6）：不弹确认、不删除；选中一项后才可点', async () => {
-    const { wrapper, store } = await mountWithStore(AppShell, seedTodos())
+    const { wrapper, store } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
     await wrapper.find('[data-testid="op-batch"]').trigger('click')
 
     const del = wrapper.find('[data-testid="batch-delete"]')
@@ -118,7 +118,7 @@ describe('T25 批量删除模式', () => {
   })
 
   it('批量进行中禁用其余组件（8.2-7 全禁）：标题栏与操作区按钮置 frozen，批量条可用', async () => {
-    const { wrapper } = await mountWithStore(AppShell, seedTodos())
+    const { wrapper } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
     await wrapper.find('[data-testid="op-batch"]').trigger('click')
 
     for (const tid of ['tb-theme', 'tb-settings', 'tb-tucklock', 'tb-topmost', 'tb-minimize', 'op-quick-toggle', 'op-done-toggle', 'op-new', 'op-batch']) {
@@ -133,10 +133,11 @@ describe('T25 批量删除模式', () => {
   })
 
   it('四轮1：模板批量进行中待办主窗整面板冻结，行点选不影响批量选择（全禁补对称）', async () => {
-    const { wrapper } = await mountWithStore(AppShell, seedTodos())
+    // 三窗架构（B-1）：本窗渲染层对批量状态的冻结响应——批量状态经 B-2 广播跨窗同步
+    const { wrapper } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
     const ui = useUiStore()
-    await wrapper.find('[data-testid="quick-batch"]').trigger('click')
-    expect(ui.batchTarget).toBe('templates')
+    ui.enterBatch('templates')
+    await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="home-panel"]').classes()).toContain('frozen')
 
     // 待办行点击/勾选不再切换批量选中（模板批量的选择集不受污染）
@@ -145,7 +146,7 @@ describe('T25 批量删除模式', () => {
   })
 
   it('四轮5：全选后「全选」变「取消」（点击清空选择）；退出按钮改「返回」', async () => {
-    const { wrapper } = await mountWithStore(AppShell, seedTodos())
+    const { wrapper } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
     await wrapper.find('[data-testid="op-batch"]').trigger('click')
     const sel = wrapper.find('[data-testid="batch-select-all"]')
     expect(sel.text()).toBe('全选')

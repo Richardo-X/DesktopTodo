@@ -36,10 +36,8 @@ async function waitForFileContent(file: string, timeoutMs = 8000): Promise<strin
 test('验收24（生成部分）：导出 CSV 文件名与内容正确', async () => {
   const exportDir = mkdtempSync(join(tmpdir(), 'dtodo-exp-'))
   const h: AppHandle = await launchApp({ seed: baseSeed(), exportDir })
-  const main = h.main
-
   const histPromise = h.app.waitForEvent('window')
-  await main.click('[data-testid="done-history"]')
+  await h.done.click('[data-testid="done-history"]')
   const hist = await histPromise
   await hist.waitForSelector('[data-testid="hist-export-from"]')
 
@@ -93,7 +91,7 @@ test('验收25：覆盖导入完全替换（B1.5：被清掉的旧数据直接�
 
   // 原历史被替换：历史窗口只显示导入的一条
   const histPromise = h.app.waitForEvent('window')
-  await main.click('[data-testid="done-history"]')
+  await h.done.click('[data-testid="done-history"]')
   const hist = await histPromise
   await hist.waitForSelector('[data-testid="hist-count"]')
   // 导入的记录完成日在两天前 → 导航到该日期查看
@@ -146,7 +144,7 @@ test('验收26/27：合并导入三元组去重并按完成日落位', async () 
 
   // 历史页：重复的只保留当前一条 + 新增一条 = 2 条
   const histPromise = h.app.waitForEvent('window')
-  await main.click('[data-testid="done-history"]')
+  await h.done.click('[data-testid="done-history"]')
   const hist = await histPromise
   await hist.waitForSelector('[data-testid="hist-count"]')
   // 两条记录完成日都在昨天 → 导航到昨天查看

@@ -81,7 +81,7 @@ test('8.2-2：置顶时打开的子窗口同步置顶', async () => {
       .map((w) => w.isAlwaysOnTop())
       .sort()
   )
-  expect(flags).toEqual([true, true])
+  expect(flags).toEqual([true, true, true, true]) // 三窗 + 设置子窗
   await h.close()
 })
 
@@ -112,14 +112,14 @@ test('8.2-2：托盘隐藏再恢复后置顶保持', async () => {
     (await h.app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed()).map((w) => w.isVisible())
     )).sort()
-  await expect.poll(visibles, { timeout: 10_000 }).toEqual([false])
+  await expect.poll(visibles, { timeout: 10_000 }).toEqual([false, false, false])
 
   // 单实例二次唤起（等价托盘"显示"路径）
   const second = spawn(ELECTRON_EXE, [APP_MAIN], {
     env: { ...process.env, DTODO_USER_DATA: h.userData, DTODO_TEST: '1' },
     stdio: 'ignore'
   })
-  await expect.poll(visibles, { timeout: 20_000 }).toEqual([true])
+  await expect.poll(visibles, { timeout: 20_000 }).toEqual([true, true, true])
   second.kill()
   await h.main.waitForTimeout(400)
 

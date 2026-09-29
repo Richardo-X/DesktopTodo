@@ -7,16 +7,18 @@ test('8.2-5/7：面板无投影、无背景模糊层（日夜两主题）', asyn
   const h = await launchApp()
   await h.main.waitForSelector('[data-testid="home-panel"]')
 
-  const measure = async (): Promise<{ panelShadow: string; sideShadow: string; panelBackdrop: string }> =>
-    h.main.evaluate(() => {
+  // 三窗架构：主窗/侧窗分属不同页面——投影/模糊在各自窗口测量
+  const measure = async (): Promise<{ panelShadow: string; sideShadow: string; panelBackdrop: string }> => {
+    const panel = await h.main.evaluate(() => {
       const panel = document.querySelector('[data-testid="home-panel"]') as HTMLElement
-      const side = document.querySelector('[data-testid="quick-panel"]') as HTMLElement
-      return {
-        panelShadow: getComputedStyle(panel).boxShadow,
-        sideShadow: getComputedStyle(side).boxShadow,
-        panelBackdrop: getComputedStyle(panel).backdropFilter
-      }
+      return { boxShadow: getComputedStyle(panel).boxShadow, backdropFilter: getComputedStyle(panel).backdropFilter }
     })
+    const side = await h.quick.evaluate(() => {
+      const el = document.querySelector('[data-testid="quick-panel"]') as HTMLElement
+      return { boxShadow: getComputedStyle(el).boxShadow }
+    })
+    return { panelShadow: panel.boxShadow, sideShadow: side.boxShadow, panelBackdrop: panel.backdropFilter }
+  }
 
   // 白天主题
   const day = await measure()

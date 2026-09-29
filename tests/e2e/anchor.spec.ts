@@ -1,85 +1,75 @@
 import { test, expect } from '@playwright/test'
-import { launchApp } from './helpers'
+import { launchApp, type AppHandle } from './helpers'
 import { defaultAppData } from '../../src/core/models'
 
-/** 四轮定稿 B：动态窗口——锚点=待办窗口左上角（缩放/开关面板不动）；
- * 隐藏面板不再占位（窗口宽度=可见面板并集） */
+/** 批次 B-1 三窗口径：锚点=待办窗左上角；开关面板=侧窗显隐，待办窗自身纹丝不动（#31 隐藏不占位） */
 
-/** 等待主窗真正 show（ready-to-show 晚于 DOM ready；isVisible 才可信） */
 async function waitMainVisible(h: { app: import('@playwright/test').ElectronApplication }): Promise<void> {
   await expect
     .poll(
       async () =>
         h.app.evaluate(({ BrowserWindow }) =>
-          BrowserWindow.getAllWindows().some((w) => !w.isDestroyed() && w.isVisible())
+          BrowserWindow.getAllWindows().some((w) => !w.isDestroyed() && w.isVisible() && w.webContents.getURL().includes('panel=main'))
         ),
       { timeout: 10_000 }
     )
     .toBe(true)
 }
 
-/** 屏幕锚点 = 窗口左上 + 待办面板视口偏移（含 zoom） */
-async function anchorOf(h: { app: import('@playwright/test').ElectronApplication; main: import('@playwright/test').Page }): Promise<{ x: number; y: number }> {
-  const [b, probe] = await Promise.all([
-    h.app.evaluate(({ BrowserWindow }) => {
-      const w = BrowserWindow.getAllWindows().find((win) => !win.isDestroyed() && win.isVisible())
-      const r = w ? w.getBounds() : { x: -99999, y: -99999 }
-      return { x: r.x, y: r.y }
-    }),
-    h.main.evaluate(() => {
-      const r = (document.querySelector('[data-testid="home-panel"]') as HTMLElement).getBoundingClientRect()
-      return { left: Math.round(r.left), top: Math.round(r.top) }
-    })
-  ])
-  return { x: b.x + probe.left, y: b.y + probe.top }
+async function mainBounds(h: AppHandle): Promise<{ x: number; y: number; width: number; height: number }> {
+  return h.app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find(
+      (win) => !win.isDestroyed() && win.webContents.getURL().includes('panel=main')
+    )!
+    return w.getBounds()
+  })
 }
 
-test('开关面板：待办窗口屏幕锚点不动，窗口宽随可见面板收缩', async () => {
+test('开关面板：待办窗自身纹丝不动，侧窗整窗显隐', async () => {
   const h = await launchApp()
   await h.main.waitForSelector('[data-testid="home-panel"]')
   await waitMainVisible(h)
 
-  const snapshot = async (): Promise<{ anchorProbe: number; quickInDom: boolean }> =>
-    h.main.evaluate(() => {
-      const home = document.querySelector('[data-testid="home-panel"]') as HTMLElement
-      const homeRect = home.getBoundingClientRect()
-      return {
-        anchorProbe: Math.round(homeRect.left),
-        quickInDom: document.querySelector('[data-testid="quick-panel"]') !== null
-      }
-    })
+  const before = await mainBounds(h)
 
-  // 屏幕锚点 = 窗口x + 待办面板视口偏移（含 zoom）
-  const anchorOf = async (): Promise<number> => {
-    const [b, probe] = await Promise.all([
-      h.app.evaluate(({ BrowserWindow }) => {
-        const w = BrowserWindow.getAllWindows().find((win) => !win.isDestroyed() && win.isVisible())
-        return w ? w.getBounds().x : -99999
-      }),
-      h.main.evaluate(() => Math.round((document.querySelector('[data-testid="home-panel"]') as HTMLElement).getBoundingClientRect().left))
-    ])
-    return b + probe
-  }
+  // 关闭已完成面板（主窗操作区按钮）→ 已完成窗口整窗隐藏，待办窗 bounds 不变
+  await h.main.click('[data-testid="op-done-toggle"]')
+  await expect
+    .poll(
+      async () =>
+        h.app.evaluate(({ BrowserWindow }) => {
+          const w = BrowserWindow.getAllWindows().find(
+            (win) => !win.isDestroyed() && win.webContents.getURL().includes('panel=done')
+          )
+          return w ? w.isVisible() : false
+        }),
+      { timeout: 5_000 }
+    )
+    .toBe(false)
 
-  const anchorBefore = await anchorOf()
-  expect((await snapshot()).quickInDom).toBe(true)
+  const afterHide = await mainBounds(h)
+  expect(afterHide.x).toBe(before.x)
+  expect(afterHide.y).toBe(before.y)
+  expect(afterHide.width).toBe(before.width)
+  expect(afterHide.height).toBe(before.height)
 
-  await h.main.click('[data-testid="quick-close"]')
-  await h.main.waitForTimeout(300)
-  expect((await snapshot()).quickInDom).toBe(false)
-  const anchorAfter = await anchorOf()
-  expect(Math.abs(anchorAfter - anchorBefore)).toBeLessThanOrEqual(2) // 锚点不动（±2px 取整容差）
-
-  // 窗口宽收缩为可见并集（待办+已完成：786×scale）
-  const scale = await h.main.evaluate(() => {
-    const home = (document.querySelector('[data-testid="home-panel"]') as HTMLElement).getBoundingClientRect()
-    return home.width / 470
-  })
-  const winW = await h.app.evaluate(({ BrowserWindow }) => {
-    const w = BrowserWindow.getAllWindows().find((win) => !win.isDestroyed() && win.isVisible())
-    return w!.getBounds().width
-  })
-  expect(Math.abs(winW - Math.round(786 * scale))).toBeLessThanOrEqual(4)
+  // 重新打开 → 已完成窗口在原位恢复
+  await h.main.click('[data-testid="op-done-toggle"]')
+  await expect
+    .poll(
+      async () =>
+        h.app.evaluate(({ BrowserWindow }) => {
+          const w = BrowserWindow.getAllWindows().find(
+            (win) => !win.isDestroyed() && win.webContents.getURL().includes('panel=done')
+          )
+          return w ? w.isVisible() : false
+        }),
+      { timeout: 5_000 }
+    )
+    .toBe(true)
+  const afterShow = await mainBounds(h)
+  expect(afterShow.x).toBe(before.x)
+  expect(afterShow.y).toBe(before.y)
   await h.close()
 })
 
@@ -91,18 +81,18 @@ test('重启恢复：pos 语义=待办左上角锚点（待办窗口屏幕位置
   await waitMainVisible(h)
   await h.main.waitForTimeout(300)
 
-  const anchor1 = await anchorOf(h)
+  const b1 = await mainBounds(h)
   await h.close()
 
   const seed = defaultAppData()
-  seed.uiState.pos = { x: anchor1.x, y: anchor1.y }
+  seed.uiState.pos = { x: b1.x, y: b1.y }
   const h2 = await launchApp({ seed })
   await h2.main.waitForSelector('[data-testid="home-panel"]')
   await waitMainVisible(h2)
   await h2.main.waitForTimeout(300)
 
-  const anchor2 = await anchorOf(h2)
-  expect(Math.abs(anchor2.x - anchor1.x), `anchor1=${JSON.stringify(anchor1)} anchor2=${JSON.stringify(anchor2)}`).toBeLessThanOrEqual(2)
-  expect(Math.abs(anchor2.y - anchor1.y)).toBeLessThanOrEqual(2)
+  const b2 = await mainBounds(h2)
+  expect(Math.abs(b2.x - b1.x), `b1=${JSON.stringify(b1)} b2=${JSON.stringify(b2)}`).toBeLessThanOrEqual(2)
+  expect(Math.abs(b2.y - b1.y)).toBeLessThanOrEqual(2)
   await h2.close()
 })

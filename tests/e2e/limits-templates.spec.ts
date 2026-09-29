@@ -43,16 +43,15 @@ test('验收15：待办满上限时新建被拦截并提示', async () => {
 
 test('验收31：模板查重提示"已存在相同内容"', async () => {
   const h: AppHandle = await launchApp()
-  const main = h.main
   const wp = h.app.waitForEvent('window')
-  await main.click('[data-testid="quick-new"]')
+  await h.quick.click('[data-testid="quick-new"]')
   const tpl = await wp
   await tpl.fill('[data-testid="tpl-new-input"]', '喝水')
   await tpl.click('[data-testid="tpl-new-submit"]')
   await tpl.waitForEvent('close', { timeout: 5000 }).catch(() => {})
 
   const wp2 = h.app.waitForEvent('window')
-  await main.click('[data-testid="quick-new"]')
+  await h.quick.click('[data-testid="quick-new"]')
   const tpl2 = await wp2
   await tpl2.fill('[data-testid="tpl-new-input"]', '喝水')
   await tpl2.click('[data-testid="tpl-new-submit"]')
@@ -70,7 +69,7 @@ test('验收32/33：模板满 10 拒绝新建；一键添加保留模板', async
 
   // 满 10 → 新建被拒
   const wp = h.app.waitForEvent('window')
-  await main.click('[data-testid="quick-new"]')
+  await h.quick.click('[data-testid="quick-new"]')
   const tpl = await wp
   await tpl.fill('[data-testid="tpl-new-input"]', '第十一个')
   await tpl.click('[data-testid="tpl-new-submit"]')
@@ -78,10 +77,10 @@ test('验收32/33：模板满 10 拒绝新建；一键添加保留模板', async
   await tpl.close().catch(() => {})
 
   // 一键添加：待办末尾新增，模板保留
-  await main.locator('[data-testid="tpl-add"]').nth(2).click()
+  await h.quick.locator('[data-testid="tpl-add"]').nth(2).click()
   await expect(main.locator('[data-testid="todo-row"]')).toHaveCount(1)
   await expect(main.locator('[data-testid="row-content"]')).toContainText('模板2')
-  await expect(main.locator('[data-testid="tpl-row"]')).toHaveCount(10)
-  await expect(main.locator('[data-testid="quick-title"]')).toHaveText('模板 · 10/10')
+  await expect(h.quick.locator('[data-testid="tpl-row"]')).toHaveCount(10)
+  await expect(h.quick.locator('[data-testid="quick-title"]')).toHaveText('模板 · 10/10')
   await h.close()
 })

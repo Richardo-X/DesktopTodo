@@ -23,7 +23,7 @@ test.afterEach(async () => {
   await h.close()
 })
 
-test('布局：三面板 border-box 精确充满窗口，无裁切（二轮反馈#3）', async () => {
+test('布局：待办面板精确充满窗口视口，无裁切（批次 B-1 三窗口径）', async () => {
   const g = await h.main.evaluate(() => {
     const r = (sel: string) => {
       const el = document.querySelector(sel)
@@ -33,22 +33,20 @@ test('布局：三面板 border-box 精确充满窗口，无裁切（二轮反�
     }
     return {
       vw: window.innerWidth,
-      quick: r('[data-testid="quick-panel"]'),
-      home: r('[data-testid="home-panel"]'),
-      done: r('[data-testid="done-panel"]')
+      vh: window.innerHeight,
+      home: r('[data-testid="home-panel"]')
     }
   })
-  if (!g?.quick || !g?.home || !g?.done) throw new Error('面板缺失')
-  // 视口=1102×有效缩放（CI 小屏会钳到 0.7 下限）→ 面板实测宽=基准×缩放（±1 取整）
-  const s = g.vw / 1102
+  if (!g?.home) throw new Error('面板缺失')
+  // 视口=470×有效缩放（CI 小屏会钳到 0.7 下限）→ 面板实测宽=基准×缩放（±1 取整）
+  const s = g.vw / 470
   const near = (actual: number, base: number): void => {
     expect(Math.abs(actual - Math.round(base * s))).toBeLessThanOrEqual(1)
   }
-  near(g.quick.width, 310)
   near(g.home.width, 470)
-  near(g.done.width, 310)
-  // 无裁切：最右面板右缘 == 视口宽（±1 取整）
-  expect(Math.abs(g.done.right - g.vw)).toBeLessThanOrEqual(1)
+  near(g.vh, 640)
+  // 无裁切：面板右缘 == 视口宽（±1 取整）
+  expect(Math.abs(g.home.right - g.vw)).toBeLessThanOrEqual(1)
 })
 
 test('验收7：首次启动空列表并显示引导文案', async () => {
@@ -73,6 +71,7 @@ test('二轮反馈：10 项满载列表无滚动溢出（主窗）', async () =>
 
 test('主流程：新建→编辑→完成→反选→批量删除（B1.5：直接删除，无回收站）', async ({ }) => {
   const main = h.main
+  const done = h.done // 三窗架构：完成行/反选在已完成窗口页
 
   // 新建（末尾插入）
   await createTodo(main, 'E2E 事项一')
@@ -93,15 +92,15 @@ test('主流程：新建→编辑→完成→反选→批量删除（B1.5：直�
   await createTodo(main, 'E2E 事项三')
   await expect(main.locator('[data-testid="todo-row"]')).toHaveCount(3)
 
-  // 勾选完成 → 已完成页（动画后）
+  // 勾选完成 → 已完成窗口（三窗架构；跨窗广播经 stateUpdated）
   await main.locator('[data-testid="row-checkbox"]').first().click()
-  await expect(main.locator('[data-testid="done-row"]')).toHaveCount(1, { timeout: 5000 })
+  await expect(done.locator('[data-testid="done-row"]')).toHaveCount(1, { timeout: 5000 })
   await expect(main.locator('[data-testid="todo-row"]')).toHaveCount(2)
 
   // 反选退回（回到末尾）
-  await main.locator('[data-testid="done-check"]').first().click()
+  await done.locator('[data-testid="done-check"]').first().click()
   await expect(main.locator('[data-testid="todo-row"]')).toHaveCount(3)
-  await expect(main.locator('[data-testid="done-row"]')).toHaveCount(0)
+  await expect(done.locator('[data-testid="done-row"]')).toHaveCount(0)
 
   // 批量删除两条 → 确认（提示不可恢复）→ 直接消失，无回收站恢复入口
   await main.click('[data-testid="op-batch"]')

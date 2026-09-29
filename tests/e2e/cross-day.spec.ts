@@ -24,7 +24,8 @@ test('验收16/18：跨过0点 → 未完成挂逾期标签、昨日完成归档
   await child2.waitForEvent('close', { timeout: 5000 }).catch(() => {})
 
   await main.locator('[data-testid="row-checkbox"]').first().click()
-  await expect(main.locator('[data-testid="done-row"]')).toHaveCount(1, { timeout: 5000 })
+  // 三窗架构：完成行出现在已完成窗口
+  await expect(h.done.locator('[data-testid="done-row"]')).toHaveCount(1, { timeout: 5000 })
 
   // 强制跨天结算（+1 天偏移时钟，测试钩子）
   await main.evaluate(() => {
@@ -44,8 +45,9 @@ test('验收16/18：跨过0点 → 未完成挂逾期标签、昨日完成归档
   await expect(main.locator('[data-testid="done-row"]')).toHaveCount(0)
 
   // 历史记录里能看到归档条目（默认定位昨天=用户裁定；归档日=真实今天 → 显式导航）
+  // 三窗架构：「历史记录」按钮在已完成窗口
   const histPromise = h.app.waitForEvent('window')
-  await main.click('[data-testid="done-history"]')
+  await h.done.click('[data-testid="done-history"]')
   const hist = await histPromise
   await hist.waitForSelector('[data-testid="hist-count"]')
   await hist.fill('[data-testid="hist-date-input"]', dateKeyOffset(0))

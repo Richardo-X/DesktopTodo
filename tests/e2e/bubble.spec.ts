@@ -32,14 +32,14 @@ async function bubblePage(app: ElectronApplication): Promise<Page | null> {
 
 async function mainX(app: ElectronApplication): Promise<number> {
   return app.evaluate(({ BrowserWindow }) => {
-    const w = BrowserWindow.getAllWindows().find((win) => win.webContents.getURL().includes('win=') === false)
+    const w = BrowserWindow.getAllWindows().find((win) => win.webContents.getURL().includes('panel=main'))
     return w!.getBounds().x
   })
 }
 
 async function moveMainTo(app: ElectronApplication, x: number): Promise<void> {
   await app.evaluate(({ BrowserWindow }, px) => {
-    const w = BrowserWindow.getAllWindows().find((win) => win.webContents.getURL().includes('win=') === false)
+    const w = BrowserWindow.getAllWindows().find((win) => win.webContents.getURL().includes('panel=main'))
     w!.setPosition(px, 100)
   }, x)
 }
@@ -79,13 +79,13 @@ test('8.2-4：气泡独立窗——待办行左弹、快捷行碰左缘翻右弹
 
   // —— 快捷模板行：窗口贴屏幕左缘 → 左弹必被切 → 翻转到行右侧（允许遮列表） ——
   await moveMainTo(h.app, 8)
-  await h.main.locator('[data-testid="tpl-row"] [data-testid="tpl-content"]').hover()
+  await h.quick.locator('[data-testid="tpl-row"] [data-testid="tpl-content"]').hover()
   await h.main.waitForTimeout(1200)
   await expect
     .poll(async () => (await bubbleBounds(h.app))?.visible === true, { timeout: 5000 })
     .toBe(true)
   const mainX1 = await mainX(h.app)
-  const tplRowRight = await h.main.evaluate(
+  const tplRowRight = await h.quick.evaluate(
     () => Math.round((document.querySelector('[data-testid="tpl-row"]') as HTMLElement).getBoundingClientRect().right)
   )
   const bb2 = (await bubbleBounds(h.app))!
@@ -93,21 +93,21 @@ test('8.2-4：气泡独立窗——待办行左弹、快捷行碰左缘翻右弹
   const page2 = (await bubblePage(h.app))!
   expect((await page2.locator('[data-testid="content-bubble"]').textContent())?.trim()).toBe(LONG)
 
-  // 移开 → 隐藏
-  await h.main.locator('[data-testid="clock-time"]').hover()
+  // 移开 → 隐藏（三窗：移动快捷窗自己的虚拟鼠标，跨窗 hover 不触发 mouseleave）
+  await h.quick.locator('[data-testid="quick-title"]').hover()
   await expect
     .poll(async () => (await bubbleBounds(h.app))?.visible === false, { timeout: 5000 })
     .toBe(true)
 
   // —— 同一模板行，窗口移回屏幕右侧 → 不碰左缘 → 保持左弹（逐窗独立判定） ——
   await moveMainTo(h.app, 1500)
-  await h.main.locator('[data-testid="tpl-row"] [data-testid="tpl-content"]').hover()
+  await h.quick.locator('[data-testid="tpl-row"] [data-testid="tpl-content"]').hover()
   await h.main.waitForTimeout(1200)
   await expect
     .poll(async () => (await bubbleBounds(h.app))?.visible === true, { timeout: 5000 })
     .toBe(true)
   const mainX2 = await mainX(h.app)
-  const tplRowLeft = await h.main.evaluate(
+  const tplRowLeft = await h.quick.evaluate(
     () => Math.round((document.querySelector('[data-testid="tpl-row"]') as HTMLElement).getBoundingClientRect().left)
   )
   const bb3 = (await bubbleBounds(h.app))!

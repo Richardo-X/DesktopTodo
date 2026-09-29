@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import QuickPanel from '../../src/panels/QuickPanel.vue'
-import AppShell from '../../src/panels/AppShell.vue'
+import PanelWindow from '../../src/windows/PanelWindow.vue'
 import { mountWithStore } from '../helpers/mount'
 import { useUiStore } from '../../src/stores/ui'
 import { createTemplateItem, createTodoItem } from '../../src/core/models'
@@ -116,7 +116,7 @@ describe('T29 快捷添加面板', () => {
   })
 
   it('批量删除：进多选、选择、删除所选直接删除（B1.5）', async () => {
-    const { wrapper, store } = await mountWithStore(AppShell, { templates: [tpl('a', '一'), tpl('b', '二')] })
+    const { wrapper, store } = await mountWithStore(PanelWindow, { templates: [tpl('a', '一'), tpl('b', '二')] }, { panel: 'quick' })
     await wrapper.find('[data-testid="quick-batch"]').trigger('click')
     expect(wrapper.find('[data-testid="batch-bar"]').exists()).toBe(true)
 
