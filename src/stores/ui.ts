@@ -70,6 +70,13 @@ export const useUiStore = defineStore('ui', () => {
     getApi().onBatchState((target) => applyRemoteBatch(target))
   }
 
+  /** 用户验收#5：子窗口数量跨窗同步——任一窗打开/关闭二级窗都驱动三窗状态机 childOpen 门 */
+  function registerChildCountSync(): void {
+    getApi().onChildCount((n) => {
+      dispatchTuck({ type: n > 0 ? 'child-open' : 'child-closed' })
+    })
+  }
+
   function mouseLeave(): void {
     dispatchTuck({ type: 'mouse-leave', now: Date.now() })
   }
@@ -139,6 +146,7 @@ export const useUiStore = defineStore('ui', () => {
     dispatchTuck,
     initSystemEvents,
     registerBatchSync,
+    registerChildCountSync,
     initTuckLockFromState,
     mouseLeave,
     mouseEnter,

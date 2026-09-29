@@ -31,7 +31,8 @@ export const IPC = {
   minimizeToTray: 'window:minimize-to-tray',
   clusterDragStart: 'spike:drag-start',
   clusterDragEnd: 'spike:drag-end',
-  uiBatchState: 'ui:batch-state'
+  uiBatchState: 'ui:batch-state',
+  childCount: 'app:child-count'
 } as const
 
 /** 子窗口种类（PRD §2.1；B1.5：回收站窗口已移除） */
@@ -95,4 +96,6 @@ export interface DesktopTodoApi {
   /** 批次 B-5：批量模式跨窗同步——发起窗上报，主进程广播三窗（瞬态状态不经持久化） */
   setBatchState(target: 'todos' | 'templates' | 'history' | null): Promise<void>
   onBatchState(cb: (target: 'todos' | 'templates' | 'history' | null) => void): () => void
+  /** 批次 B 验收修复（问题5）：子窗口数量跨窗广播——任一窗打开/关闭二级窗都同步三窗状态机 */
+  onChildCount(cb: (n: number) => void): () => void
 }

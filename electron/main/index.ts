@@ -19,6 +19,7 @@ import { IPC, type ChildKind } from '../../src/ipc/contract'
 import { GROUP_OF, childWindowOptions } from './child-windows'
 import {
   createClusterWindows,
+  clusterTucked,
   getMainWindow,
   getAllClusterWindows,
   getClusterAnchor,
@@ -197,6 +198,13 @@ function quitNow(): void {
 
 const childWindows = new Set<BrowserWindow>()
 
+/** 子窗口数量广播三窗（缩进状态机 childOpen 门跨窗同步） */
+function broadcastChildCount(): void {
+  for (const w of getAllClusterWindows()) {
+    if (!w.isDestroyed()) w.webContents.send(IPC.childCount, childWindows.size)
+  }
+}
+
 /** 模态锁定：任一子窗口打开期间禁用其余窗口（三窗自动被覆盖，PRD §2.1/验收 38） */
 function lockNonChildWindows(lock: boolean): void {
   for (const w of BrowserWindow.getAllWindows()) {
@@ -234,8 +242,13 @@ function openChildWindow(kind: ChildKind, id?: string): void {
   childWindows.add(child)
   lockNonChildWindows(true)
 
+  // 用户验收#5：打开二级窗=组件聚焦该窗并禁用缩进——若已缩进立即弹出；
+  // 子窗数量广播三窗状态机（childOpen 门），侧窗发起的二级窗同样生效（跨窗）
+  if (clusterTucked()) setClusterTucked(false)
+  broadcastChildCount()
   child.on('ready-to-show', () => {
     child.show()
+    child.focus()
     applyTopMost(child, topMost)
   })
   child.on('moved', () => {
@@ -250,6 +263,7 @@ function openChildWindow(kind: ChildKind, id?: string): void {
   child.on('closed', () => {
     childWindows.delete(child)
     if (childWindows.size === 0) lockNonChildWindows(false)
+    broadcastChildCount()
     getMainWindow()?.webContents.send(IPC.childClosed)
   })
 
@@ -284,6 +298,8 @@ function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.setTucked, (_e, v: boolean) => {
+    // 用户验收#5：有二级窗口打开时禁用缩进（主进程权威拦截）
+    if (v && childWindows.size > 0) return
     setClusterTucked(v)
   })
 

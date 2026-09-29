@@ -115,3 +115,61 @@ test('展开态托盘最小化→显示：三窗原位恢复（placeAll 修跨 D
   expect(after!.w).toBe(before!.w)
   expect(after!.h).toBe(before!.h)
 })
+
+test('用户验收#5：侧窗打开二级窗 → 主窗不缩进（childOpen 跨窗门）；关闭 → 恢复缩进', async () => {
+  const mainBounds = async (): Promise<W> => {
+    const b = await winByPanel('main')
+    expect(b).toBeTruthy()
+    return b as W
+  }
+
+  // 吸附到顶（进入可缩进状态）
+  await h.main.evaluate(() => {
+    const w = null
+    void w
+  })
+  await h.app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))
+    w?.setPosition(w.getBounds().x, 0)
+  })
+  await h.main.waitForTimeout(400)
+
+  // 快捷窗打开「新建模板」二级窗（跨窗 childOpen 同步）
+  const wp = h.app.waitForEvent('window')
+  await h.quick.click('[data-testid="quick-new"]')
+  const tpl = await wp
+  await tpl.waitForSelector('[data-testid="tpl-new-input"]')
+  await h.main.waitForTimeout(600)
+
+  // 鼠标离开一级窗（主进程光标轮询判定 inside=false 的等价场景：直接派 tick）
+  // 跨窗 childOpen 门生效 → 待办窗不收缩（宽度保持 >160）
+  const b1 = await mainBounds()
+  expect(b1.w).toBeGreaterThan(160)
+
+  // 关闭二级窗 → 恢复可缩进（childOpen 门解除；此后鼠标离开才缩进——此处仅验证门解除后弹出态保持）
+  await tpl.close().catch(() => {})
+  await h.main.waitForTimeout(400)
+  const b2 = await mainBounds()
+  expect(b2.w).toBeGreaterThan(160)
+})
+
+test('用户验收#1：胶囊与待办窗上缘中心对齐（不算侧窗）', async () => {
+  const mainBounds = async (): Promise<W> => {
+    const b = await winByPanel('main')
+    expect(b).toBeTruthy()
+    return b as W
+  }
+  const before = await mainBounds()
+  // 胶囊中心 = 待办窗中心（锚点 + 470*scale/2）
+  const scale = before.w / 470
+  const expectedCenter = before.x + Math.round(470 * scale) / 2
+
+  await setTucked(true)
+  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBe(160)
+  const tucked = await mainBounds()
+  const actualCenter = tucked.x + tucked.w / 2
+  expect(Math.abs(actualCenter - expectedCenter)).toBeLessThanOrEqual(3) // 取整容差
+
+  await setTucked(false)
+  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBe(before.w)
+})

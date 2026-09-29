@@ -7,8 +7,6 @@ import {
   threeWindowBoundsForAnchor,
   clampAnchorForEdges,
   tuckBarBounds,
-  visibleClusterBounds,
-  quickOffsetPx,
   effectiveClusterScale,
   type WinBounds
 } from '../../src/core/utils/cluster-layout'
@@ -173,6 +171,10 @@ export function getClusterAnchor(): { x: number; y: number } | null {
   return cluster ? { ...cluster.anchor } : null
 }
 
+export function clusterTucked(): boolean {
+  return !!cluster && cluster.tucked
+}
+
 export function isClusterVisible(): boolean {
   return !!cluster && cluster.visible
 }
@@ -190,7 +192,7 @@ function showSidePanel(panel: ClusterPanel): void {
   if (!bb) return
   pendingBounds.delete(w.id)
   w.setBounds(bb)
-  if (!w.isVisible()) w.show()
+  if (!w.isVisible()) w.showInactive()
 }
 
 /** 三窗同帧定位：一个锚点 → 同一 tick 内逐窗 setBounds（每帧重申逻辑尺寸，压制跨 DPI 复利放大）。
@@ -200,13 +202,8 @@ export function applyClusterBounds(placeAll = false): void {
   if (!cluster) return
   if (lastAppliedAnchor && lastAppliedAnchor.x === cluster.anchor.x && lastAppliedAnchor.y === cluster.anchor.y) return
   if (cluster.tucked) {
-    const wb = {
-      x: cluster.anchor.x - quickOffsetPx(cluster.scale, cluster.quickVisible),
-      y: cluster.anchor.y,
-      width: visibleClusterBounds(cluster.scale, cluster.quickVisible, cluster.doneVisible).width,
-      height: Math.round(640 * cluster.scale)
-    }
-    const cap = tuckBarBounds({ x: wb.x, y: wb.y }, wb.width)
+    // 用户验收定稿：胶囊与待办窗口上边缘中心对齐（不算侧窗）——锚点=待办左上角
+    const cap = tuckBarBounds({ x: cluster.anchor.x, y: cluster.anchor.y }, Math.round(470 * cluster.scale))
     if (safe(cluster.windows.main)) cluster.windows.main.setBounds(cap)
     lastAppliedAnchor = { x: cluster.anchor.x, y: cluster.anchor.y }
     return
@@ -222,11 +219,11 @@ export function applyClusterBounds(placeAll = false): void {
       (Math.abs(actualMain.width - b.main.width) > 1 || Math.abs(actualMain.height - b.main.height) > 1))
   // 隐藏窗跳过 setBounds：Windows 上对隐藏窗口 setBounds 会将其显示（用户实测点击隐藏后又弹回）；
   // 几何登记到 pendingBounds，showSidePanel 显示时先落位。
-  // 落位顺序 done→quick→main：锚点窗最后落位，缝隙呈现不再错帧（用户实测快捷窗抖动较大）
+  // 落位顺序 done→main→quick：用户最敏感的快捷窗最后落位（缝隙错帧最后闭合）
   for (const [w, bb] of [
     [done, b.done ?? b.main],
-    [quick, b.quick ?? b.main],
-    [main, b.main]
+    [main, b.main],
+    [quick, b.quick ?? b.main]
   ] as const) {
     if (!safe(w)) continue
     if (!needPlaceAll && !w.isVisible()) pendingBounds.set(w.id, bb)
@@ -279,21 +276,26 @@ export function syncClusterBounds(ui: {
   applyClusterBounds()
 }
 
-/** 缩进切换（渲染层状态机经 IPC setTucked） */
+/** 缩进切换（渲染层状态机经 IPC setTucked）。
+ * 弹出（v=false）：先落位并显示侧窗，最后主窗从胶囊展开——三窗呈现同步（用户验收#4） */
 export function setClusterTucked(v: boolean): void {
   if (!cluster) return
   cluster.tucked = v
-  const { quick, done } = cluster.windows
-  if (safe(quick)) {
-    if (v || !cluster.quickVisible || !cluster.visible) quick.hide()
-    else showSidePanel('quick')
+  const { quick, done, main } = cluster.windows
+  if (v) {
+    // 缩进：先藏侧窗，主窗收胶囊
+    if (safe(quick)) quick.hide()
+    if (safe(done)) done.hide()
+    lastAppliedAnchor = null
+    applyClusterBounds()
+    return
   }
-  if (safe(done)) {
-    if (v || !cluster.doneVisible || !cluster.visible) done.hide()
-    else showSidePanel('done')
-  }
+  // 弹出：侧窗先落位显示（带完整内容），主窗最后从胶囊展开
+  if (safe(quick) && cluster.quickVisible && cluster.visible) showSidePanel('quick')
+  if (safe(done) && cluster.doneVisible && cluster.visible) showSidePanel('done')
   lastAppliedAnchor = null
   applyClusterBounds()
+  if (safe(main) && !main.isVisible()) main.show()
 }
 
 /** 吸附检测：待办窗顶边触碰工作区顶 → 三窗贴齐；状态变化通知待办窗状态机 */
@@ -322,6 +324,7 @@ export function startClusterDrag(): void {
   if (!cluster || dragTimer !== null) return
   dragStart = { cursor: screen.getCursorScreenPoint(), anchor: { ...cluster.anchor } }
   lastAppliedAnchor = null
+  let tick = 0
   dragTimer = setInterval(() => {
     if (dragStart === null) {
       stopClusterDrag()
@@ -332,7 +335,10 @@ export function startClusterDrag(): void {
       x: dragStart.anchor.x + (pt.x - dragStart.cursor.x),
       y: dragStart.anchor.y + (pt.y - dragStart.cursor.y)
     })
-    detectSnap()
+    // 原生调用降频：detectSnap/DPI 校验每 4 tick（32ms）一次——8ms 满频时原生调用
+    // 堆叠会拉长帧耗时，表现为缝隙错帧抖动（用户实测快捷窗最明显）
+    tick += 1
+    if (tick % 4 === 0) detectSnap()
   }, CLUSTER_DRAG_INTERVAL_MS)
 }
 
@@ -381,6 +387,7 @@ export function showCluster(): void {
   if (cluster.tucked) {
     applyClusterBounds()
     if (safe(main)) main.show()
+    return
   } else {
     applyClusterBounds(true)
     if (safe(main)) main.show()

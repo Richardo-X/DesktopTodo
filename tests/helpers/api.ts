@@ -27,6 +27,7 @@ export interface TestApi extends DesktopTodoApi {
   dragEndCalls: number[]
   batchStateCalls: Array<'todos' | 'templates' | 'history' | null>
   batchStateListeners: Array<(target: 'todos' | 'templates' | 'history' | null) => void>
+  childCountListeners: Array<(n: number) => void>
 }
 
 /**
@@ -58,6 +59,7 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
   const dragEndCalls: number[] = []
   const batchStateCalls: Array<'todos' | 'templates' | 'history' | null> = []
   const batchStateListeners: Array<(target: 'todos' | 'templates' | 'history' | null) => void> = []
+  const childCountListeners: Array<(n: number) => void> = []
 
   const booted: Promise<unknown> = ctx.boot()
 
@@ -82,6 +84,7 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     dragEndCalls,
     batchStateCalls,
     batchStateListeners,
+    childCountListeners,
     get minimizeCalls() {
       return minimizeCalls
     },
@@ -178,6 +181,10 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
     },
     onBatchState: (cb) => {
       batchStateListeners.push(cb)
+      return () => undefined
+    },
+    onChildCount: (cb) => {
+      childCountListeners.push(cb)
       return () => undefined
     }
   }
