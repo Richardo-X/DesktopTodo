@@ -77,6 +77,8 @@ onMounted(() => {
     ui.initTuckLockFromState(store.uiState.tuckLock)
   })
   ui.initSystemEvents()
+  // 批次 B-5：批量模式跨窗同步（其余窗口收到广播后冻结/解冻）
+  ui.registerBatchSync()
   document.addEventListener('pointerdown', onDocPointerDown, true)
   window.addEventListener('pointerup', onDocPointerUp)
 })

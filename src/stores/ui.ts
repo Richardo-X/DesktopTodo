@@ -65,6 +65,11 @@ export const useUiStore = defineStore('ui', () => {
     })
   }
 
+  /** 批次 B-5：接收批量模式跨窗广播（每个组件窗口在挂载时注册一次） */
+  function registerBatchSync(): void {
+    getApi().onBatchState((target) => applyRemoteBatch(target))
+  }
+
   function mouseLeave(): void {
     dispatchTuck({ type: 'mouse-leave', now: Date.now() })
   }
@@ -92,10 +97,19 @@ export const useUiStore = defineStore('ui', () => {
   function enterBatch(target: BatchTarget): void {
     batchTarget.value = target
     selectedIds.value = []
+    // 批次 B-5：跨窗同步——发起窗上报主进程，广播其余组件窗口（瞬态状态不经持久化）
+    void getApi().setBatchState(target)
   }
 
   function exitBatch(): void {
     batchTarget.value = null
+    selectedIds.value = []
+    void getApi().setBatchState(null)
+  }
+
+  /** 广播接收端：应用其他窗口同步来的批量状态（不再上报，防环路） */
+  function applyRemoteBatch(target: BatchTarget | null): void {
+    batchTarget.value = target
     selectedIds.value = []
   }
 
@@ -124,6 +138,7 @@ export const useUiStore = defineStore('ui', () => {
     tuck,
     dispatchTuck,
     initSystemEvents,
+    registerBatchSync,
     initTuckLockFromState,
     mouseLeave,
     mouseEnter,
@@ -133,6 +148,7 @@ export const useUiStore = defineStore('ui', () => {
     confirmState,
     confirm,
     answerConfirm,
+    applyRemoteBatch,
     enterBatch,
     exitBatch,
     toggleSelect,

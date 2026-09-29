@@ -5,6 +5,7 @@ import { applyTopMost } from './window-state'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
+  clampAnchorForEdges,
   tuckBarBounds,
   visibleClusterBounds,
   quickOffsetPx,
@@ -290,7 +291,8 @@ export function detectSnap(): void {
   if (!cluster || cluster.tucked) return
   const { main } = cluster.windows
   if (!safe(main)) return
-  const wa = screen.getPrimaryDisplay().workArea
+  // 主窗所在屏的工作区（双屏：副屏上的组件按副屏顶边吸附）
+  const wa = screen.getDisplayMatching(main.getBounds()).workArea
   const b = main.getBounds()
   const now = b.y - wa.y <= SNAP_THRESHOLD
   if (now && b.y !== wa.y) {
@@ -335,7 +337,12 @@ export function stopClusterDrag(): void {
 
 function applyAnchor(anchor: { x: number; y: number }): void {
   if (!cluster) return
-  cluster.anchor = anchor
+  const mainBounds = safe(cluster.windows.main) ? cluster.windows.main.getBounds() : null
+  const wa: WorkArea = mainBounds
+    ? screen.getDisplayMatching(mainBounds).workArea
+    : screen.getPrimaryDisplay().workArea
+  // #31/#32：拖动钳制——左右不阻挡、主窗≥90px；按主窗所在屏工作区
+  cluster.anchor = clampAnchorForEdges(anchor, Math.round(470 * cluster.scale), wa)
   lastAppliedAnchor = null
   applyClusterBounds()
 }

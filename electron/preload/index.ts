@@ -52,7 +52,13 @@ const api = {
     return () => ipcRenderer.removeListener(IPC.childClosed, listener)
   },
   clusterDragStart: () => ipcRenderer.invoke(IPC.clusterDragStart),
-  clusterDragEnd: () => ipcRenderer.invoke(IPC.clusterDragEnd)
+  clusterDragEnd: () => ipcRenderer.invoke(IPC.clusterDragEnd),
+  setBatchState: (target: 'todos' | 'templates' | 'history' | null) => ipcRenderer.invoke(IPC.uiBatchState, target),
+  onBatchState: (cb: (target: 'todos' | 'templates' | 'history' | null) => void) => {
+    const listener = (_e: unknown, target: 'todos' | 'templates' | 'history' | null): void => cb(target)
+    ipcRenderer.on(IPC.uiBatchState, listener)
+    return () => ipcRenderer.removeListener(IPC.uiBatchState, listener)
+  }
 }
 
 contextBridge.exposeInMainWorld('desktopTodo', api)

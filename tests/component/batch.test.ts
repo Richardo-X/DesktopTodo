@@ -146,7 +146,8 @@ describe('T25 批量删除模式', () => {
   })
 
   it('批次 B-5：applyRemoteBatch 应用跨窗广播（不再上报，防环路）', async () => {
-    const { api, ui } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
+    const { api } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
+    const ui = useUiStore()
     const calls = api.batchStateCalls.length
     ui.applyRemoteBatch('templates')
     expect(ui.batchTarget).toBe('templates')
@@ -158,7 +159,8 @@ describe('T25 批量删除模式', () => {
   })
 
   it('批次 B-5：enterBatch/exitBatch 上报批量状态（跨窗广播源）', async () => {
-    const { api, ui } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
+    const { api } = await mountWithStore(PanelWindow, seedTodos(), { panel: 'main' })
+    const ui = useUiStore()
     const calls = api.batchStateCalls.length
     ui.enterBatch('todos')
     expect(api.batchStateCalls.length).toBe(calls + 1)

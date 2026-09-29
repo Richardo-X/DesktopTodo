@@ -12,8 +12,8 @@ import { buildTrayContextMenu, exitConfirmMessage } from './tray-menu'
 import { trayIconPng } from './icon'
 import { applyTopMost, refocusChildWindows } from './window-state'
 import { setAutoStart, syncAutoStartOnBoot } from './auto-start'
-import { showBubble, hideBubble, resizeBubble } from './bubble'
 import { clampPosToWorkArea } from '../../src/core/utils/screen-clamp'
+import { showBubble, hideBubble, resizeBubble } from './bubble'
 import { localDateKey } from '../../src/core/utils/date'
 import { IPC, type ChildKind } from '../../src/ipc/contract'
 import { GROUP_OF, childWindowOptions } from './child-windows'
@@ -31,24 +31,17 @@ import {
   registerClusterIpc,
   startTuckCursorPoll
 } from './cluster-windows'
-import { anchorForWindowX, visibleClusterBounds } from '../../src/core/utils/cluster-layout'
+import { anchorForWindowX, visibleClusterBounds, clampAnchorForEdges } from '../../src/core/utils/cluster-layout'
 
-/** 锚点语义的屏幕钳制——锚点换算成窗口 bounds，钳制后换回锚点（启动/恢复用；批次 B-3 按所在屏细化） */
+/** 启动/恢复钳制（#31/#32/#33）：左右边缘不阻挡、主窗≥90px 可见、幂等（原样恢复） */
 function clampAnchorToWorkArea(
   anchor: { x: number; y: number },
   scale: number,
-  quickVisible: boolean,
-  doneVisible: boolean,
+  _quickVisible: boolean,
+  _doneVisible: boolean,
   wa: { x: number; y: number; width: number; height: number }
 ): { x: number; y: number } {
-  const wb = {
-    x: anchor.x - (quickVisible ? Math.round(316 * scale) : 0),
-    y: anchor.y,
-    width: visibleClusterBounds(scale, quickVisible, doneVisible).width,
-    height: Math.round(640 * scale)
-  }
-  const c = clampPosToWorkArea({ x: wb.x, y: wb.y }, { width: wb.width, height: wb.height }, wa)
-  return { x: c.x + (quickVisible ? Math.round(316 * scale) : 0), y: c.y }
+  return clampAnchorForEdges(anchor, Math.round(470 * scale), wa)
 }
 
 /** 首次启动锚点：沿用 initialPos 口径（窗口右缘距屏右 24、距顶 48） */
@@ -292,6 +285,13 @@ function registerIpc(): void {
 
   ipcMain.handle(IPC.setTucked, (_e, v: boolean) => {
     setClusterTucked(v)
+  })
+
+  // 批次 B-5：批量模式跨窗同步——发起窗上报 → 广播全部组件窗口（瞬态状态，不持久化）
+  ipcMain.handle(IPC.uiBatchState, (_e, target: 'todos' | 'templates' | 'history' | null) => {
+    for (const w of getAllClusterWindows()) {
+      if (!w.isDestroyed()) w.webContents.send(IPC.uiBatchState, target)
+    }
   })
   ipcMain.handle(IPC.getState, () => ctx.current())
 
