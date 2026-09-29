@@ -53,20 +53,30 @@ test('验收7：首次启动空列表并显示引导文案', async () => {
   await expect(h.main.locator('[data-testid="empty-state"]')).toContainText('今日做点什么好呢')
 })
 
-test('二轮反馈：10 项满载列表无滚动溢出（主窗）', async () => {
+test('批次 B-4（#36）：10 项满载溢出→缝隙自绘滑块，行宽零挤压', async () => {
   const todos = Array.from({ length: 10 }, (_, i) =>
     createTodoItem({ content: `事项${i + 1}`, now: new Date(), id: `t${i}` })
   )
   const h2 = await launchApp({ seed: { todos } })
   const m = await h2.main.evaluate(() => {
-    const el = document.querySelector('[data-testid="home-panel"] .scroll')
-    if (!el) return null
-    return { scrollH: el.scrollHeight, clientH: el.clientHeight }
+    const list = document.querySelector('[data-testid="home-panel"] .scroll') as HTMLElement | null
+    const row = document.querySelector('[data-testid="todo-row"]') as HTMLElement | null
+    const thumb = document.querySelector('[data-testid="todo-thumb"]') as HTMLElement | null
+    if (!list || !row || !thumb) return null
+    return {
+      scrollH: list.scrollHeight,
+      clientH: list.clientHeight,
+      clientW: list.clientWidth,
+      rowW: Math.round(row.getBoundingClientRect().width),
+      thumbShown: getComputedStyle(thumb).display !== 'none'
+    }
   })
-  expect(m).not.toBeNull()
-  // 满载 10 项：列表内容不得超出可视区（无滚动条）
-  expect(m!.scrollH).toBeLessThanOrEqual(m!.clientH)
+  if (!m) throw new Error('待办列表缺失')
   await h2.close()
+  // 撤销「10 项满载无滚动」旧规则：满载即溢出，滑块显示于缝隙带（行宽零挤压）
+  expect(m.scrollH).toBeGreaterThan(m.clientH)
+  expect(m.thumbShown).toBe(true)
+  expect(m.clientW - m.rowW).toBeGreaterThanOrEqual(10)
 })
 
 test('主流程：新建→编辑→完成→反选→批量删除（B1.5：直接删除，无回收站）', async ({ }) => {

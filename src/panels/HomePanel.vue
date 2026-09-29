@@ -5,6 +5,7 @@ import { useUiStore } from '../stores/ui'
 import TodoRow from '../components/TodoRow.vue'
 import BatchBar from '../components/BatchBar.vue'
 import { createDragSort } from '../components/useDragSort'
+import { useOverlayThumb } from '../components/useOverlayThumb'
 import { BASE_PANEL, visibleClusterWidth } from '../core/utils/cluster-layout'
 import { clampClusterScale } from '../core/utils/scale'
 import { fmtTime, fmtDateCN } from '../core/utils/date'
@@ -14,6 +15,8 @@ const store = useAppStore()
 const ui = useUiStore()
 
 const listEl = ref<HTMLElement | null>(null)
+// 批次 B-4（#36）：缝隙自绘滑块（复用已完成窗机制）
+const thumb = useOverlayThumb(listEl)
 
 // 长按手柄拖动排序（相邻增量交换，决策#13；批量模式下禁用）
 const drag = createDragSort({
@@ -259,48 +262,62 @@ async function onComplete(id: string): Promise<void> {
     </header>
 
     <div class="win-body">
-      <div class="clock">
-        <div class="clock-time" data-testid="clock-time">{{ timeText }}</div>
-        <div class="clock-date" data-testid="clock-date">{{ dateText }}</div>
-      </div>
-
+      <!-- 批次 B-4 定稿（#37）：时钟+日期整块行内——⚡/☑ 上缘对齐日期上缘 -->
       <div class="actions">
-        <button
-          class="icon-btn a-bolt"
-          data-testid="op-quick-toggle"
-          :class="{ on: store.uiState.quickVisible, frozen: ui.batchMode }"
-          title="快捷添加"
-          @click="toggleQuick"
-        >
-          ⚡
-        </button>
-        <button
-          class="icon-btn a-done"
-          data-testid="op-done-toggle"
-          :class="{ on: store.uiState.doneVisible, frozen: ui.batchMode }"
-          title="已完成"
-          @click="toggleDone"
-        >
-          ☑
-        </button>
-        <span class="cap-chip a-chip" data-testid="op-count">{{ countText }}</span>
-        <button class="btn sm a-batch" data-testid="op-batch" :class="{ frozen: ui.batchMode }" @click="ui.enterBatch('todos')">批量删除</button>
-        <button class="icon-btn accent a-add" data-testid="op-new" :class="{ frozen: ui.batchMode }" title="新建待办" @click="ui.openChild('todo-new')">＋</button>
+        <div class="row-top">
+          <button
+            class="icon-btn a-bolt"
+            data-testid="op-quick-toggle"
+            :class="{ on: store.uiState.quickVisible, frozen: ui.batchMode }"
+            title="快捷添加"
+            @click="toggleQuick"
+          >
+            ⚡
+          </button>
+          <div class="clock-inline">
+            <div class="clock-time" data-testid="clock-time">{{ timeText }}</div>
+            <div class="clock-date" data-testid="clock-date">{{ dateText }}</div>
+          </div>
+          <button
+            class="icon-btn a-done"
+            data-testid="op-done-toggle"
+            :class="{ on: store.uiState.doneVisible, frozen: ui.batchMode }"
+            title="已完成"
+            @click="toggleDone"
+          >
+            ☑
+          </button>
+        </div>
+        <div class="row-bottom">
+          <span class="cap-chip" data-testid="op-count">{{ countText }}</span>
+          <button class="btn sm" data-testid="op-batch" :class="{ frozen: ui.batchMode }" @click="ui.enterBatch('todos')">批量删除</button>
+          <button class="icon-btn accent" data-testid="op-new" :class="{ frozen: ui.batchMode }" title="新建待办" @click="ui.openChild('todo-new')">＋</button>
+        </div>
       </div>
 
-      <div v-if="store.todos.length > 0" ref="listEl" class="scroll">
-        <TodoRow
-          v-for="(t, i) in store.todos"
-          :key="t.id"
-          :item="t"
-          :batch-mode="ui.batchMode"
-          :selected="ui.selectedIds.includes(t.id)"
-          :leaving="leavingId === t.id"
-          :dragging="isDragging(i)"
-          @toggle="onComplete(t.id)"
-          @edit="ui.openChild('todo-edit', t.id)"
-          @select-toggle="onSelectToggle(t.id)"
-          @handle-down="drag.handleDown(i, $event)"
+      <!-- 批次 B-4 定稿（#36）：缝隙自绘滑块——原生滚动条移出布局，行宽零挤压 -->
+      <div v-if="store.todos.length > 0" class="list-wrap">
+        <div ref="listEl" class="scroll hide-native-bar">
+          <TodoRow
+            v-for="(t, i) in store.todos"
+            :key="t.id"
+            :item="t"
+            :batch-mode="ui.batchMode"
+            :selected="ui.selectedIds.includes(t.id)"
+            :leaving="leavingId === t.id"
+            :dragging="isDragging(i)"
+            @toggle="onComplete(t.id)"
+            @edit="ui.openChild('todo-edit', t.id)"
+            @select-toggle="onSelectToggle(t.id)"
+            @handle-down="drag.handleDown(i, $event)"
+          />
+        </div>
+        <div
+          v-show="thumb.state.visible"
+          class="list-thumb"
+          data-testid="todo-thumb"
+          :style="{ top: thumb.state.top + 'px', height: thumb.state.height + 'px' }"
+          @pointerdown="thumb.onThumbPointerDown"
         />
       </div>
       <div v-else class="empty" data-testid="empty-state">
@@ -403,39 +420,60 @@ async function onComplete(id: string): Promise<void> {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 0 14px 24px; /* 底部 24px：避让右下缩放角（原型 win-body）；顶部压缩给列表空间 */
+  padding: 10px 14px 24px; /* 底部 24px：避让右下缩放角；顶部 10px（#36 放宽） */
 }
 
-.clock {
+.clock-inline {
   text-align: center;
-  padding: 0 0 6px;
-  flex: none;
+  margin: 0 auto;
 }
 
 .clock-time {
-  font-size: 30px;
+  font-size: 38px; /* #37 定稿：整块行内 38px */
   font-weight: 600;
+  line-height: 1.1;
   letter-spacing: 1px;
 }
 
 .clock-date {
-  font-size: 12px;
+  font-size: 15px;
   color: var(--muted);
   margin-top: 2px;
 }
 
-/* ===== actions 两行网格（原型 .actions）；上移压缩给列表空间，保证 10 项满载无滚动 ===== */
+/* ===== 批次 B-4 定稿：操作区两行 flex——row-top=⚡|时钟块|☑（按钮上缘对齐日期上缘，#37）===== */
 .actions {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 6px 8px;
-  padding-bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 10px; /* #36 放宽 */
   flex: none;
 }
 
+.row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.row-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.row-bottom .cap-chip {
+  margin-right: auto;
+}
+
+/* 按钮上缘=日期上缘：按钮下推「时间行高+日期上边距」 */
+.row-top .icon-btn {
+  margin-top: calc(38px * 1.1 + 2px);
+}
+
 .icon-btn {
-  width: 30px;
-  height: 30px; /* 四轮5 定稿：36px 在小屏挤压满载列表（CI 实测溢出 8px）→ 回退 30×30 正方形 */
+  width: 32px; /* #35 定稿：全部方形按钮 32×32 */
+  height: 32px;
   padding: 0;
   border: 1px solid var(--btn-border);
   border-radius: 6px;
@@ -469,28 +507,6 @@ async function onComplete(id: string): Promise<void> {
   background: var(--accent-hover);
 }
 
-.a-bolt {
-  grid-area: 1 / 1 / 2 / 2;
-  justify-self: start;
-}
-
-.a-done {
-  grid-area: 1 / 3 / 2 / 4;
-}
-
-.cap-chip {
-  grid-area: 2 / 1 / 3 / 2;
-  align-self: center;
-}
-
-.a-batch {
-  grid-area: 2 / 2 / 3 / 3;
-}
-
-.a-add {
-  grid-area: 2 / 3 / 3 / 4;
-}
-
 .cap-chip {
   font-size: 11px;
   color: var(--muted);
@@ -515,16 +531,40 @@ async function onComplete(id: string): Promise<void> {
   background: var(--btn-hover);
 }
 
-/* ===== 列表（行距/间隙压缩：保证 10 项满载无滚动条，二轮反馈）；
- * 右侧 14px 专用带：滚动条不接触行 ===== */
+/* ===== 批次 B-4（#36）列表放宽：间隙 8px、缝隙自绘滑块（原生条移出布局，行宽零挤压） ===== */
 .scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
   padding: 2px;
+}
+
+.list-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.list-wrap > .hide-native-bar {
+  height: 100%;
+}
+
+.list-thumb {
+  position: absolute;
+  right: -11px; /* 行右缘与窗口边框之间的空隙带（win-body 右内边距 14px 内），不接触行 */
+  width: 5px;
+  border-radius: 99px;
+  background: var(--muted, #666);
+  opacity: 0.45;
+  cursor: pointer;
+  z-index: 5;
+}
+
+.list-thumb:hover {
+  opacity: 0.85;
 }
 
 .empty {
