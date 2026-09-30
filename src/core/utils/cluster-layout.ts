@@ -144,7 +144,9 @@ export function threeWindowBoundsForAnchor(
   const mainW = Math.round(BASE_PANEL.main * scale)
   const sideW = Math.round(BASE_PANEL.quick * scale)
   const height = Math.round(BASE_PANEL.height * scale)
-  const gap = Math.round(BASE_GAP * scale)
+  // 缝隙=固定常量（不参与缩放）：左窗右上角严格钉在主窗左缘-6、不随缩放漂移
+  // （缝隙是窗口间的桌面间隔，不是窗口内容——单窗时代 zoom 遗留的 ×scale 已移除）
+  const gap = BASE_GAP
   return {
     quick: quickVisible ? { x: anchor.x - sideW - gap, y: anchor.y, width: sideW, height } : null,
     main: { x: anchor.x, y: anchor.y, width: mainW, height },
