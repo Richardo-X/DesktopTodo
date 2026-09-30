@@ -39,7 +39,9 @@ test('缩进时待办窗收窄为胶囊、侧窗隐藏，弹出还原且位置�
   }
 
   setTucked(true)
-  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBe(160)
+  await expect
+    .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 })
+    .toBeLessThanOrEqual(1) // OS DPI 取整容差
   // Windows 系统最小高度约 39px 钳制（setMinimumSize 不豁免）；可见胶囊仍为热区顶部 6px
   const tucked = await mainBounds()
   expect(tucked.h).toBeGreaterThanOrEqual(12)
@@ -51,7 +53,9 @@ test('缩进时待办窗收窄为胶囊、侧窗隐藏，弹出还原且位置�
   expect(doneVis).toBe(false)
 
   setTucked(false)
-  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBe(before.w)
+  await expect
+    .poll(async () => Math.abs((await mainBounds()).w - before.w), { timeout: 5_000 })
+    .toBeLessThanOrEqual(1)
   const restored = await mainBounds()
   expect(restored.x).toBe(before.x) // 位置不被胶囊 x 污染
   expect(restored.y).toBe(before.y)

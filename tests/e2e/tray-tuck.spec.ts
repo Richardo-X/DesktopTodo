@@ -54,7 +54,9 @@ test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活�
 
   // ① 缩进：待办窗收胶囊、侧窗隐藏
   await setTucked(true)
-  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBe(160)
+  await expect
+    .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 })
+    .toBeLessThanOrEqual(1) // OS DPI 取整容差
   await expect.poll(async () => (await winByPanel('quick'))?.vis, { timeout: 5_000 }).toBe(false)
   await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(false)
 
@@ -81,13 +83,15 @@ test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活�
   )
   await expect.poll(async () => (await winByPanel('main'))?.vis, { timeout: 5_000 }).toBe(true)
   const tuckedMain = await mainBounds()
-  expect(tuckedMain.w).toBe(160)
+  expect(Math.abs(tuckedMain.w - 160)).toBeLessThanOrEqual(1)
   await expect.poll(async () => (await winByPanel('quick'))?.vis, { timeout: 5_000 }).toBe(false)
   await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(false)
 
   // ④ 弹出（setTucked(false) 等价触碰短条后光标进入）：待办窗还原原位、侧窗按开关恢复
   await setTucked(false)
-  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBe(before.w)
+  await expect
+    .poll(async () => Math.abs((await mainBounds()).w - before.w), { timeout: 5_000 })
+    .toBeLessThanOrEqual(1)
   const restored = await mainBounds()
   expect(restored.x).toBe(before.x)
   expect(restored.y).toBe(before.y)
@@ -165,11 +169,15 @@ test('用户验收#1：胶囊与待办窗上缘中心对齐（不算侧窗）', 
   const expectedCenter = before.x + Math.round(470 * scale) / 2
 
   await setTucked(true)
-  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBe(160)
+  await expect
+    .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 })
+    .toBeLessThanOrEqual(1)
   const tucked = await mainBounds()
   const actualCenter = tucked.x + tucked.w / 2
   expect(Math.abs(actualCenter - expectedCenter)).toBeLessThanOrEqual(3) // 取整容差
 
   await setTucked(false)
-  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBe(before.w)
+  await expect
+    .poll(async () => Math.abs((await mainBounds()).w - before.w), { timeout: 5_000 })
+    .toBeLessThanOrEqual(1)
 })

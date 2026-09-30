@@ -138,15 +138,17 @@ export function threeWindowBoundsForAnchor(
   quickVisible: boolean,
   doneVisible: boolean
 ): ClusterWindowsBounds {
-  const sideW = Math.round(BASE_PANEL.quick * scale)
+  // 侧窗位置从主窗整数值推导（而非独立 round(316s)/round(476s)）：缩放拖动时
+  // 两个独立取整的进位相位不同，缝隙每帧 ±1px 摆动（用户实测左窗抖动远大于右窗）——
+  // 推导式保证缝隙在任意 scale 下精确恒定（三窗相对对齐，#31 诉求）
   const mainW = Math.round(BASE_PANEL.main * scale)
+  const sideW = Math.round(BASE_PANEL.quick * scale)
   const height = Math.round(BASE_PANEL.height * scale)
-  const quickStep = Math.round((BASE_PANEL.quick + BASE_GAP) * scale)
-  const doneStep = Math.round((BASE_PANEL.main + BASE_GAP) * scale)
+  const gap = Math.round(BASE_GAP * scale)
   return {
-    quick: quickVisible ? { x: anchor.x - quickStep, y: anchor.y, width: sideW, height } : null,
+    quick: quickVisible ? { x: anchor.x - sideW - gap, y: anchor.y, width: sideW, height } : null,
     main: { x: anchor.x, y: anchor.y, width: mainW, height },
-    done: doneVisible ? { x: anchor.x + doneStep, y: anchor.y, width: sideW, height } : null
+    done: doneVisible ? { x: anchor.x + mainW + gap, y: anchor.y, width: sideW, height } : null
   }
 }
 
