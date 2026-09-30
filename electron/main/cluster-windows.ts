@@ -485,5 +485,6 @@ export function registerClusterIpc(ipcMain: IpcMain): void {
   if (process.env.DTODO_TEST === '1') {
     ipcMain.handle('test:cluster-drag-delta', (_e, p: { dx: number; dy: number }) => clusterDragDeltaBy(p.dx, p.dy))
     ipcMain.handle('test:cluster-state', () => clusterDebugState())
+    ipcMain.handle('test:drag-state', () => ({ dragging: dragTimer !== null }))
   }
 }

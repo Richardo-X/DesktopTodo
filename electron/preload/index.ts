@@ -58,6 +58,12 @@ const api = {
     const listener = (_e: unknown, target: 'todos' | 'templates' | 'history' | null): void => cb(target)
     ipcRenderer.on(IPC.uiBatchState, listener)
     return () => ipcRenderer.removeListener(IPC.uiBatchState, listener)
+  },
+  /** 用户验收#5：子窗口数量跨窗广播（任一窗打开/关闭二级窗都同步三窗缩进状态机） */
+  onChildCount: (cb: (n: number) => void) => {
+    const listener = (_e: unknown, n: number): void => cb(n)
+    ipcRenderer.on(IPC.childCount, listener)
+    return () => ipcRenderer.removeListener(IPC.childCount, listener)
   }
 }
 
@@ -68,7 +74,8 @@ if (process.env.DTODO_TEST === '1') {
   contextBridge.exposeInMainWorld('desktopTodoTest', {
     forceSettle: (days: number) => ipcRenderer.invoke('test:force-settle', days),
     clusterDragDelta: (dx: number, dy: number) => ipcRenderer.invoke('test:cluster-drag-delta', { dx, dy }),
-    clusterState: () => ipcRenderer.invoke('test:cluster-state')
+    clusterState: () => ipcRenderer.invoke('test:cluster-state'),
+    dragState: () => ipcRenderer.invoke('test:drag-state')
   })
 }
 
