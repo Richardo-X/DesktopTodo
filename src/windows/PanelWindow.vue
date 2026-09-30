@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import { TUCK_BAR_HEIGHT, TUCK_BAR_WIDTH } from '../core/constants'
@@ -47,13 +47,35 @@ const clusterScale = computed(() =>
 
 const baseWidth = computed(() => (props.panel === 'main' ? BASE_PANEL.main : BASE_PANEL.quick))
 
-/** zoom 容器尺寸=面板基准÷缩放（+2px 透明余量防取整裁切圆角） */
+/**
+ * 缩放抖动根治（批次 B 验收#2）：侧窗卡片缩放不再等跨进程广播——
+ * 窗口 resize 事件与 OS 尺寸变化同帧，从 innerHeight/640 反推缩放（±0.5px 精度），
+ * 卡片与窗口边缘同帧到位，缝隙不再先撑大后回缩。store 值作初值与回同步基准。
+ */
+const zoomValue = ref<number | null>(null)
+
+function syncZoomFromViewport(): void {
+  const s = window.innerHeight / BASE_PANEL.height
+  if (Number.isFinite(s) && s > 0.1 && s <= 3) zoomValue.value = s
+}
+
+function onWinResize(): void {
+  syncZoomFromViewport()
+}
+
+watch(clusterScale, (v) => {
+  zoomValue.value = v
+})
+
+const holderZoom = computed(() => zoomValue.value ?? clusterScale.value)
+
+/** zoom 容器尺寸=面板基准÷缩放（窗口=基准×缩放，二者 1:1 且可反推） */
 const holderStyle = computed(() => {
-  const s = clusterScale.value
+  const s = holderZoom.value
   return {
     zoom: String(s),
-    width: `calc(${baseWidth.value}px / ${s} + 2px)`,
-    height: `calc(${BASE_PANEL.height}px / ${s} + 2px)`
+    width: `calc(${baseWidth.value}px / ${s})`,
+    height: `calc(${BASE_PANEL.height}px / ${s})`
   }
 })
 
@@ -97,12 +119,15 @@ onMounted(() => {
   document.addEventListener('pointerdown', onDocPointerDown, true)
   window.addEventListener('pointerup', onDocPointerUp)
   window.addEventListener('blur', onWindowBlur)
+  window.addEventListener('resize', onWinResize)
+  syncZoomFromViewport()
 })
 
 onUnmounted(() => {
   document.removeEventListener('pointerdown', onDocPointerDown, true)
   window.removeEventListener('pointerup', onDocPointerUp)
   window.removeEventListener('blur', onWindowBlur)
+  window.removeEventListener('resize', onWinResize)
 })
 </script>
 

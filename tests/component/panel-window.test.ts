@@ -38,7 +38,7 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
   it('zoom 容器按面板基准尺寸定宽高（+2px 余量，zoom×尺寸=真窗口）', async () => {
     const { wrapper } = await mountMain()
     const style = wrapper.find('.cluster').attributes('style') ?? ''
-    expect(style).toMatch(/zoom: [\d.]+; width: calc\(470px \/ [\d.]+ \+ 2px\); height: calc\(640px \/ [\d.]+ \+ 2px\)/)
+    expect(style).toMatch(/zoom: [\d.]+; width: calc\(470px \/ [\d.]+\); height: calc\(640px \/ [\d.]+\)/)
   })
 
   it('主题属性注入：day/night（令牌逐窗应用）', async () => {
