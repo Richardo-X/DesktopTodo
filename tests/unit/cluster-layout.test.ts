@@ -196,22 +196,28 @@ describe('threeWindowBoundsForAnchor 三窗逐窗 bounds（批次 A）', () => {
     expect(b.main.x + b.main.width + BASE_GAP).toBe(b.done!.x)
   })
 
-  it('缩放等比（0.8）：偏移与尺寸各自取整，锚点不动', () => {
+  it('缩放等比（0.8）：侧窗位置从主窗整数值推导（缝隙恒定，消量化相位噪声），锚点不动', () => {
     const b = threeWindowBoundsForAnchor({ x: 500, y: 200 }, 0.8, true, true)
+    const mainW = Math.round(470 * 0.8) // 376
+    const sideW = Math.round(310 * 0.8) // 248
+    const gap = Math.round(6 * 0.8) // 5
     expect(b.main.x).toBe(500)
-    expect(b.main).toEqual({ x: 500, y: 200, width: Math.round(470 * 0.8), height: Math.round(640 * 0.8) })
-    expect(b.quick).toEqual({
-      x: 500 - Math.round(316 * 0.8),
-      y: 200,
-      width: Math.round(310 * 0.8),
-      height: Math.round(640 * 0.8)
-    })
-    expect(b.done).toEqual({
-      x: 500 + Math.round(476 * 0.8),
-      y: 200,
-      width: Math.round(310 * 0.8),
-      height: Math.round(640 * 0.8)
-    })
+    expect(b.main).toEqual({ x: 500, y: 200, width: mainW, height: Math.round(640 * 0.8) })
+    // 左窗右缘与主窗左缘的缝隙=精确 gap；右窗左缘与主窗右缘的缝隙=精确 gap
+    expect(b.quick).toEqual({ x: 500 - sideW - gap, y: 200, width: sideW, height: Math.round(640 * 0.8) })
+    expect(b.done).toEqual({ x: 500 + mainW + gap, y: 200, width: sideW, height: Math.round(640 * 0.8) })
+  })
+
+  it('缝隙在任意缩放下精确恒定（量化相位噪声回归）：0.7~1.3 步进扫描', () => {
+    for (let s = 0.7; s <= 1.301; s += 0.01) {
+      const b = threeWindowBoundsForAnchor({ x: 0, y: 0 }, s, true, true)
+      const gapL = b.main.x - (b.quick!.x + b.quick!.width)
+      const gapR = b.done!.x - (b.main.x + b.main.width)
+      expect(Math.abs(gapL - Math.round(6 * s))).toBeLessThanOrEqual(0)
+      expect(Math.abs(gapR - Math.round(6 * s))).toBeLessThanOrEqual(0)
+      expect(b.quick!.height).toBe(b.main.height)
+      expect(b.done!.height).toBe(b.main.height)
+    }
   })
 
   it('侧窗隐藏 → bounds=null（隐藏不占位）；主窗恒有 bounds', () => {
