@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import { TUCK_BAR_HEIGHT, TUCK_BAR_WIDTH } from '../core/constants'
-import { BASE_PANEL, effectiveClusterScale } from '../core/utils/cluster-layout'
+import { BASE_PANEL } from '../core/utils/cluster-layout'
 import { getApi } from '../services/api'
 import HomePanel from '../panels/HomePanel.vue'
 import QuickPanel from '../panels/QuickPanel.vue'
@@ -23,27 +23,8 @@ const store = useAppStore()
 const ui = useUiStore()
 
 const tucked = computed(() => ui.tuck.tucked)
-
-/** 渲染层工作区（happy-dom/测试环境兜底 1920×1080） */
-function rendererWorkArea(): { x: number; y: number; width: number; height: number } {
-  const s = window.screen as unknown as {
-    availLeft?: number
-    availTop?: number
-    availWidth?: number
-    availHeight?: number
-  }
-  return {
-    x: s.availLeft ?? 0,
-    y: s.availTop ?? 0,
-    width: s.availWidth ?? 1920,
-    height: s.availHeight ?? 1080
-  }
-}
-
-/** 窗口缩放：与主进程 syncClusterBounds 同一钳制口径（决策#23），zoom 与窗口 bounds 1:1（决策#7） */
-const clusterScale = computed(() =>
-  effectiveClusterScale(store.uiState.clusterScale, rendererWorkArea(), store.uiState.quickVisible, store.uiState.doneVisible)
-)
+/** DOM 形态跟随的 tucked：主进程窗口几何调整完成后才切换（先几何后 DOM，消弹出呼吸/闪烁） */
+const domTucked = ref(false)
 
 const baseWidth = computed(() => (props.panel === 'main' ? BASE_PANEL.main : BASE_PANEL.quick))
 
@@ -52,7 +33,7 @@ const baseWidth = computed(() => (props.panel === 'main' ? BASE_PANEL.main : BAS
  * 窗口 resize 事件与 OS 尺寸变化同帧，从 innerHeight/640 反推缩放（±0.5px 精度），
  * 卡片与窗口边缘同帧到位，缝隙不再先撑大后回缩。store 值作初值与回同步基准。
  */
-const zoomValue = ref<number | null>(null)
+const zoomValue = ref<number>(window.innerHeight / BASE_PANEL.height)
 
 function syncZoomFromViewport(): void {
   const s = window.innerHeight / BASE_PANEL.height
@@ -60,14 +41,12 @@ function syncZoomFromViewport(): void {
 }
 
 function onWinResize(): void {
+  // 单一缩放源：窗口 resize 与 OS 尺寸变化同帧——卡片与窗口边缘同帧到位。
+  // 不得混用广播值：双源每次 commit 触发两次重排（值有推导差）= 呼吸式抖动（用户实测）
   syncZoomFromViewport()
 }
 
-watch(clusterScale, (v) => {
-  zoomValue.value = v
-})
-
-const holderZoom = computed(() => zoomValue.value ?? clusterScale.value)
+const holderZoom = computed(() => zoomValue.value)
 
 /** zoom 容器尺寸=面板基准÷缩放（窗口=基准×缩放，二者 1:1 且可反推） */
 const holderStyle = computed(() => {
@@ -107,6 +86,11 @@ function onWindowBlur(): void {
   void getApi().clusterDragEnd()
 }
 
+watch(tucked, async (v) => {
+  await getApi().setTucked(v).catch(() => {})
+  domTucked.value = v
+})
+
 onMounted(() => {
   void store.init().then(() => {
     ui.initTuckLockFromState(store.uiState.tuckLock)
@@ -135,7 +119,7 @@ onUnmounted(() => {
   <div class="stage" :data-theme="store.uiState.theme">
     <!-- 待办主窗：缩进态切换为胶囊（形态 B；侧窗由主进程隐藏） -->
     <template v-if="props.panel === 'main'">
-      <div v-if="!tucked" class="cluster" :style="holderStyle" data-testid="cluster-holder">
+      <div v-if="!domTucked" class="cluster" :style="holderStyle" data-testid="cluster-holder">
         <HomePanel />
       </div>
       <div

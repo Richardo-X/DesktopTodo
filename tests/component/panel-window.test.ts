@@ -120,6 +120,7 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       ui.dispatchTuck({ type: 'snap' })
       ui.dispatchTuck({ type: 'mouse-leave', now: Date.now() })
       ui.dispatchTuck({ type: 'tick', now: Date.now() + 500 })
+      await flushPromises()
       await wrapper.vm.$nextTick()
       expect(ui.tuck.tucked).toBe(true)
 
@@ -183,6 +184,7 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       ui.dispatchTuck({ type: 'snap' })
       ui.dispatchTuck({ type: 'mouse-leave', now: Date.now() })
       ui.dispatchTuck({ type: 'tick', now: Date.now() + 500 })
+      await flushPromises()
       await wrapper.vm.$nextTick()
       expect(wrapper.find('.tuck-bar').exists()).toBe(true)
       expect(wrapper.find('.cluster').exists()).toBe(false)
