@@ -119,11 +119,18 @@ onUnmounted(() => {
   <div class="stage" :data-theme="store.uiState.theme">
     <!-- 待办主窗：缩进态切换为胶囊（形态 B；侧窗由主进程隐藏） -->
     <template v-if="props.panel === 'main'">
-      <div v-if="!domTucked" class="cluster" :style="holderStyle" data-testid="cluster-holder">
+      <!-- 用户验收：弹出/缩进同步无呼吸——面板常驻挂载（不销毁 DOM），缩进=透明度翻转
+           （display 切换会重排重建=慢半拍；opacity 翻转=合成器直完成） -->
+      <div
+        class="cluster"
+        :class="{ 'cluster-veiled': domTucked }"
+        :style="holderStyle"
+        data-testid="cluster-holder"
+      >
         <HomePanel />
       </div>
       <div
-        v-else
+        v-show="domTucked"
         class="tuck-bar"
         :style="{ height: TUCK_BAR_HEIGHT + 'px', width: TUCK_BAR_WIDTH + 'px' }"
         title="鼠标移到此条上弹出组件"
@@ -220,6 +227,12 @@ onUnmounted(() => {
 .cluster {
   display: flex;
   align-items: flex-start;
+}
+
+/* 缩进态：面板蒙纱隐藏（保挂载、零重排；pointer-events 交还胶囊） */
+.cluster-veiled {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ===== 缩进胶囊（160×12 热区含 6px 可见条；悬停弹出由主进程光标轮询判定） ===== */
