@@ -74,7 +74,9 @@ function applyFlip(el: HTMLElement | null, before: Map<Element, number>): void {
 
 // —— 等比缩放柄（右下弧线角，决策#16；缩放期间保持弹出） ——
 let scaleStart: { x: number; scale: number; baseWidth: number } | null = null
-let lastSentScale: number | null = null
+// 30ms 提交节流（连续小幅更新=平滑）
+let lastScaleSentAt = 0
+let pendingScale: number | null = null
 
 function rendererWorkArea(): { x: number; y: number; width: number; height: number } {
   const s = window.screen as unknown as {
@@ -93,7 +95,7 @@ function rendererWorkArea(): { x: number; y: number; width: number; height: numb
 
 function onGripDown(e: PointerEvent): void {
   ui.dispatchTuck({ type: 'resize-start' })
-  lastSentScale = store.uiState.clusterScale
+  lastScaleSentAt = 0
   const scale = store.uiState.clusterScale
   // 四轮定稿 B：拖拽比例基于可见簇宽（隐藏面板不占位，与主进程钳制口径一致）
   scaleStart = {
@@ -105,26 +107,24 @@ function onGripDown(e: PointerEvent): void {
   window.addEventListener('pointerup', onGripUp)
 }
 
-// 批次 B：缩放提交=量化粒度变化时立即发送（无节流定时器）；松手时提交最终值保证精度
-let pendingScale: number | null = null
 
 function onGripMove(e: PointerEvent): void {
   if (scaleStart === null) return
   // 比例跟随（原型 applyPanelScale）：s0 × (w0+dx)/w0，再按工作区钳制（决策#23；基准=可见簇宽）
   const dx = e.clientX - scaleStart.x
   const next = scaleStart.scale * ((scaleStart.baseWidth + dx) / scaleStart.baseWidth)
-  let clamped = clampClusterScale(
+  const clamped = clampClusterScale(
     next,
     { width: visibleClusterWidth(store.uiState.quickVisible, store.uiState.doneVisible), height: BASE_PANEL.height },
     rendererWorkArea()
   )
-  // 批次 B 验收（缩放抖动）：量化到 0.05 粒度（与二级窗组缩放同 granularity）——
-  // 步进更大、提交更少，三窗 setBounds 频次降为 1/5，缝隙错帧概率同步下降
-  clamped = Math.round(clamped * 20) / 20
   pendingScale = clamped
-  if (clamped === lastSentScale) return
-  lastSentScale = clamped
-  void store.updateUiState({ clusterScale: clamped })
+  // 30ms 节流：连续小幅更新=视觉平滑（量化大步长=冻结→跳→冻结，用户实测更差已回退）
+  const now = performance.now()
+  if (now - lastScaleSentAt >= 30) {
+    lastScaleSentAt = now
+    void store.updateUiState({ clusterScale: clamped })
+  }
 }
 
 function onGripUp(): void {
