@@ -314,12 +314,13 @@ function registerIpc(): void {
   ipcMain.handle(IPC.commit, async (_e, data: Awaited<ReturnType<AppContext['boot']>>) => {
     const anchor = getClusterAnchor()
     await ctx.commit(data, anchor)
-    syncClusterBounds(data.uiState)
-    // 广播到所有窗口：三窗+子窗口状态一致（跨窗同步主干，批次 B-2 复用）
+    // 广播先行（批次 B 验收#2）：侧窗卡片缩放重绘与 OS 窗口尺寸变化同帧到位——
+    // 若先 setBounds 后广播，侧窗卡片会滞后窗口边缘 1~2 帧（缩放时表现为缝隙挤压抖动）
     const latest = ctx.current()
     for (const w of BrowserWindow.getAllWindows()) {
       if (!w.isDestroyed()) w.webContents.send(IPC.stateUpdated, latest)
     }
+    syncClusterBounds(data.uiState)
   })
 
   ipcMain.handle(IPC.flush, () => ctx.flush())
