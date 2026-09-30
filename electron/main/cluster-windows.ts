@@ -342,6 +342,11 @@ export function startClusterDrag(): void {
   }, CLUSTER_DRAG_INTERVAL_MS)
 }
 
+/** 是否处于拖动/缩放热路径中（index.ts 据此决定提交是否免落盘） */
+export function isClusterDragging(): boolean {
+  return dragTimer !== null
+}
+
 /** 拖动结束（渲染层 window pointerup） */
 export function stopClusterDrag(): void {
   if (dragTimer !== null) {

@@ -7,9 +7,19 @@ import { createTodoItem } from '../../src/core/models'
 const T = new Date()
 const Y = T.getFullYear()
 const M = T.getMonth()
-const key = (mo: number, d: number): string => `${Y}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+/** 日期键：用日期算术（Date 自动处理跨月/跨年），禁止手拼 day-1（月初产生 10-00 非法键） */
+function key(mo: number, d: number): string {
+  return `${Y}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+function keyOffset(days: number): string {
+  const d = new Date(Y, M, T.getDate() + days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 const TODAY_KEY = key(M, T.getDate())
-const D10 = key(M, 10)
+// 全部用相对偏移：月初/月末自动安全（绝对 day 常量会翻滚成未来日期破坏导出/翻页断言）
+const D10 = keyOffset(-14)
+const D11 = keyOffset(-13)
+const YESTERDAY_KEY = keyOffset(-1)
 
 function done(id: string, content: string, dateKey: string, hour: number) {
   const [y, mo, d] = dateKey.split('-').map(Number)
@@ -38,7 +48,7 @@ describe('T33 历史记录窗口', () => {
 
   it('默认定位当天的前一天（历史口径：不显示今天；前一天为空就显示空）', async () => {
     const { wrapper } = await mountWithStore(HistoryWindow, seed())
-    const yesterdayKey = key(M, T.getDate() - 1)
+    const yesterdayKey = YESTERDAY_KEY
     expect(wrapper.find('[data-testid="hist-date-label"]').text()).toContain(yesterdayKey)
     expect(wrapper.find('[data-testid="hist-count"]').text()).toBe('0 条')
     expect(wrapper.find('[data-testid="hist-empty"]').text()).toBe('该日期暂无已完成事项')
@@ -90,7 +100,7 @@ describe('T33 历史记录窗口', () => {
     const { wrapper } = await mountWithStore(HistoryWindow, seed())
     await wrapper.find('[data-testid="hist-date-input"]').setValue(D10)
     await wrapper.find('[data-testid="hist-next"]').trigger('click')
-    expect(wrapper.find('[data-testid="hist-date-label"]').text()).toContain(key(M, 11))
+    expect(wrapper.find('[data-testid="hist-date-label"]').text()).toContain(D11)
 
     await wrapper.find('[data-testid="hist-today"]').trigger('click')
     expect(wrapper.find('[data-testid="hist-date-label"]').text()).toContain(TODAY_KEY)
@@ -125,8 +135,8 @@ describe('T33 历史记录窗口', () => {
 
   it('导出：区间无记录 → 错误提示', async () => {
     const { wrapper } = await mountWithStore(HistoryWindow, seed())
-    await wrapper.find('[data-testid="hist-export-from"]').setValue(key(M, 1))
-    await wrapper.find('[data-testid="hist-export-to"]').setValue(key(M, 2))
+    await wrapper.find('[data-testid="hist-export-from"]').setValue(keyOffset(-20))
+    await wrapper.find('[data-testid="hist-export-to"]').setValue(keyOffset(-19))
     await wrapper.find('[data-testid="hist-export"]').trigger('click')
     await flushPromises()
     expect(wrapper.find('[data-testid="hist-export-error"]').text()).toContain('该区间暂无记录')

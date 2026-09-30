@@ -73,6 +73,14 @@ export class AppContext {
     await this.repo.save(merged)
   }
 
+  /** 批次 B 验收（缩放热路径）：仅更新内存态、不落盘——拖动缩放期间每次提交
+   * 都同步写盘会产生 I/O 延迟尖峰，三窗 setBounds 以不规则节奏到达=缝隙抖动。
+   * 拖动结束时由调用方以 commit 正式落盘。 */
+  async commitTransient(data: AppData, pos: { x: number; y: number } | null): Promise<void> {
+    const merged: AppData = { ...data, uiState: { ...data.uiState, pos } }
+    this.#data = merged
+  }
+
   /** 退出前 flush（唯一退出途径经确认后调用） */
   async flush(): Promise<void> {
     await this.repo.flush()
