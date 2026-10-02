@@ -23,7 +23,7 @@ export const BASE_PANEL = {
 } as const
 
 /** 面板间隙（透明区，不响应桌面操作——决策#1；6px，决策#20） */
-export const BASE_GAP = 6
+export const BASE_GAP = 2
 
 /** 簇基准宽（scale=1，恒定三段槽位全开宽） */
 export function clusterBaseWidth(): number {

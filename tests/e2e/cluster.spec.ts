@@ -4,7 +4,7 @@ import { threeWindowBoundsForAnchor } from '../../src/core/utils/cluster-layout'
 
 /**
  * 三窗架构 E2E（批次 B-1，替代 spike spec）：
- * - 三窗常驻、逐窗 bounds 符合 threeWindowBoundsForAnchor（缝隙 6px、顶边对齐、等高）
+ * - 三窗常驻、逐窗 bounds 符合 threeWindowBoundsForAnchor（缝隙 2px、顶边对齐、等高）
  * - 拖动位移钩子走与拖动 tick 相同的 applyClusterBounds 路径 → 三窗同帧平移
  *   （真实光标拖动手感已真机验证 §9.8；CI 无法移动系统光标）
  * - focus 侧窗 → z-order 绑定触发（真实层叠顺序 Electron 无查询 API，真机验证）
@@ -47,7 +47,7 @@ test('三窗：恰好三个组件窗口（无多余窗口），三窗页面均�
   }
 })
 
-test('三窗：逐窗 bounds 符合纯函数（锚点=待办左上角、缝隙恰好 6px、三窗等高）', async () => {
+test('三窗：逐窗 bounds 符合纯函数（锚点=待办左上角、缝隙恰好 2px、三窗等高）', async () => {
   const b = await clusterBounds()
   expect(b.main).toBeTruthy()
   expect(b.quick).toBeTruthy()
@@ -64,9 +64,9 @@ test('三窗：逐窗 bounds 符合纯函数（锚点=待办左上角、缝隙�
   near(b.done!.width, expected.done!.width)
   expect(b.quick!.y).toBe(b.main!.y)
   expect(b.done!.y).toBe(b.main!.y)
-  // 相对几何核心不变量：缝隙恰好 6px（OS 调整容差 ±2）、三窗等高
-  near(b.quick!.x + b.quick!.width + 6, b.main!.x, 2)
-  near(b.main!.x + b.main!.width + 6, b.done!.x, 2)
+  // 相对几何核心不变量：缝隙恰好 2px（OS 调整容差 ±2）、三窗等高
+  near(b.quick!.x + b.quick!.width + 2, b.main!.x, 2)
+  near(b.main!.x + b.main!.width + 2, b.done!.x, 2)
   expect(b.quick!.height).toBe(b.main!.height)
   expect(b.done!.height).toBe(b.main!.height)
 })

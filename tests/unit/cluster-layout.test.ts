@@ -22,30 +22,30 @@ const WA = { x: 0, y: 40, width: 1920, height: 1040 }
 
 /**
  * B2 布局基准（决策#4/#18/#20 + 第二轮反馈裁定）：
- * 组件恒定三段槽位——快捷添加(-316)/待办主窗(0,0 居中锚)/已完成(+476)，
+ * 组件恒定三段槽位——快捷添加(-312)/待办主窗(0,0 居中锚)/已完成(+472)，
  * 面板开关只做槽位内显隐，**不再改变窗口几何**（主窗屏幕位置恒定，零残影）。
  */
 describe('BASE_PANEL / BASE_GAP 基准常量', () => {
-  it('主窗 470、两侧面板 310（决策#18）、簇高 640、间隙 6px（决策#20）', () => {
+  it('主窗 470、两侧面板 310（决策#18）、簇高 640、间隙 2px（决策#20；2026-10-02 定稿 6→2）', () => {
     expect(BASE_PANEL).toEqual({ quick: 310, done: 310, main: 470, height: 640 })
-    expect(BASE_GAP).toBe(6)
+    expect(BASE_GAP).toBe(2)
   })
 })
 
 describe('clusterBaseWidth 恒定簇基准宽（不再随面板开关变化）', () => {
-  it('恒为全开宽：470+310+310+6×2 = 1102（两侧槽位恒定留位）', () => {
-    expect(clusterBaseWidth()).toBe(1102)
+  it('恒为全开宽：470+310+310+2×2 = 1094（两侧槽位恒定留位）', () => {
+    expect(clusterBaseWidth()).toBe(1094)
   })
 })
 
 describe('clusterBounds 恒定簇尺寸（不含面板开关维度）', () => {
-  it('scale=1 → 1102×640', () => {
-    expect(clusterBounds(1)).toEqual({ width: 1102, height: 640 })
+  it('scale=1 → 1094×640', () => {
+    expect(clusterBounds(1)).toEqual({ width: 1094, height: 640 })
   })
 
   it('等比缩放（四舍五入）', () => {
     expect(clusterBounds(0.8)).toEqual({
-      width: Math.round(1102 * 0.8),
+      width: Math.round(1094 * 0.8),
       height: Math.round(640 * 0.8)
     })
   })
@@ -68,7 +68,7 @@ describe('effectiveClusterScale 初始/有效缩放（决策#23）', () => {
 
   it('宽度先触顶：窄屏按屏宽钳制', () => {
     const narrow = { x: 0, y: 0, width: 800, height: 2100 }
-    expect(effectiveClusterScale(1, narrow)).toBeCloseTo(800 / 1102, 6)
+    expect(effectiveClusterScale(1, narrow)).toBeCloseTo(800 / 1094, 6)
   })
 })
 
@@ -111,40 +111,40 @@ describe('clampChildGroupScale 原型组缩放规则', () => {
 /** 三轮8.2-1：缩进胶囊窗口 bounds——在原簇水平中心、贴顶、160×12 热区 */
 describe('tuckBarBounds', () => {
   it('缩进时窗口收窄为胶囊：水平居中于原簇，y 不变（贴顶）', () => {
-    const b = tuckBarBounds({ x: 500, y: 0 }, 1102)
+    const b = tuckBarBounds({ x: 500, y: 0 }, 1094)
     expect(b.width).toBe(160)
     expect(b.height).toBe(12)
-    expect(b.x).toBe(500 + Math.round((1102 - 160) / 2)) // 971
+    expect(b.x).toBe(500 + Math.round((1094 - 160) / 2)) // 971
     expect(b.y).toBe(0)
   })
 
   it('弹出时恢复：传回原簇左缘即还原全宽 bounds（restore 语义由调用方用原 pos）', () => {
     // 胶囊中心 = 簇中心：反解簇左缘 = 胶囊x - (clusterW-160)/2
     const pos = { x: 123, y: 40 }
-    const b = tuckBarBounds(pos, 1102)
-    expect(b.x - pos.x).toBe(Math.round((1102 - 160) / 2))
+    const b = tuckBarBounds(pos, 1094)
+    expect(b.x - pos.x).toBe(Math.round((1094 - 160) / 2))
   })
 })
 
 /** 四轮定稿 B（动态窗口）：pos=待办窗口左上角锚点；隐藏面板不再占位，
  * 窗口 bounds=可见面板并集；缩放/开关面板以待办左上角为唯一不动点 */
 describe('动态窗口几何（四轮：锚点=待办左上角）', () => {
-  it('visibleClusterWidth：可见面板并集宽（含 6px 缝隙）', () => {
-    expect(visibleClusterWidth(true, true)).toBe(1102)
-    expect(visibleClusterWidth(true, false)).toBe(786)
-    expect(visibleClusterWidth(false, true)).toBe(786)
+  it('visibleClusterWidth：可见面板并集宽（含 2px 缝隙）', () => {
+    expect(visibleClusterWidth(true, true)).toBe(1094)
+    expect(visibleClusterWidth(true, false)).toBe(782)
+    expect(visibleClusterWidth(false, true)).toBe(782)
     expect(visibleClusterWidth(false, false)).toBe(470)
   })
 
   it('visibleClusterBounds：随缩放取整', () => {
-    expect(visibleClusterBounds(1, true, true)).toEqual({ width: 1102, height: 640 })
+    expect(visibleClusterBounds(1, true, true)).toEqual({ width: 1094, height: 640 })
     expect(visibleClusterBounds(0.5, false, false)).toEqual({ width: 235, height: 320 })
   })
 
   it('quickOffsetPx：快捷可见时窗口左缘到待办左缘的偏移', () => {
-    expect(quickOffsetPx(1, true)).toBe(316)
+    expect(quickOffsetPx(1, true)).toBe(312)
     expect(quickOffsetPx(1, false)).toBe(0)
-    expect(quickOffsetPx(0.5, true)).toBe(158)
+    expect(quickOffsetPx(0.5, true)).toBe(156)
   })
 
   it('windowBoundsForAnchor / anchorForWindowX：往返一致（缩放锚点不变量）', () => {
@@ -180,17 +180,17 @@ describe('动态窗口几何（四轮：锚点=待办左上角）', () => {
  * 隐藏侧窗 bounds=null（独立 OS 窗口，不占位）。主进程 spike 拖动与批次 B 几何迁移共用。
  */
 describe('threeWindowBoundsForAnchor 三窗逐窗 bounds（批次 A）', () => {
-  const SIDE_STEP = BASE_PANEL.quick + BASE_GAP // 316
-  const DONE_STEP = BASE_PANEL.main + BASE_GAP // 476
+  const SIDE_STEP = BASE_PANEL.quick + BASE_GAP // 312
+  const DONE_STEP = BASE_PANEL.main + BASE_GAP // 472
 
-  it('scale=1 全开：快捷 -316、待办 0、已完成 +476，尺寸=基准，顶边同 y', () => {
+  it('scale=1 全开：快捷 -312、待办 0、已完成 +472，尺寸=基准，顶边同 y', () => {
     const b = threeWindowBoundsForAnchor({ x: 500, y: 200 }, 1, true, true)
     expect(b.main).toEqual({ x: 500, y: 200, width: 470, height: 640 })
     expect(b.quick).toEqual({ x: 500 - SIDE_STEP, y: 200, width: 310, height: 640 })
     expect(b.done).toEqual({ x: 500 + DONE_STEP, y: 200, width: 310, height: 640 })
   })
 
-  it('缝隙恰好 6px：快捷右缘+6=待办左缘；待办右缘+6=已完成左缘', () => {
+  it('缝隙恰好 2px：快捷右缘+6=待办左缘；待办右缘+6=已完成左缘', () => {
     const b = threeWindowBoundsForAnchor({ x: 500, y: 200 }, 1, true, true)
     expect(b.quick!.x + b.quick!.width + BASE_GAP).toBe(b.main.x)
     expect(b.main.x + b.main.width + BASE_GAP).toBe(b.done!.x)
@@ -202,20 +202,20 @@ describe('threeWindowBoundsForAnchor 三窗逐窗 bounds（批次 A）', () => {
     const sideW = Math.round(310 * 0.8) // 248
     expect(b.main.x).toBe(500)
     expect(b.main).toEqual({ x: 500, y: 200, width: mainW, height: Math.round(640 * 0.8) })
-    // 缝隙=固定 6px 常量（不参与缩放）：左窗右上角严格不动
-    expect(b.quick).toEqual({ x: 500 - sideW - 6, y: 200, width: sideW, height: Math.round(640 * 0.8) })
-    expect(b.done).toEqual({ x: 500 + mainW + 6, y: 200, width: sideW, height: Math.round(640 * 0.8) })
+    // 缝隙=固定 2px 常量（不参与缩放）：左窗右上角严格不动
+    expect(b.quick).toEqual({ x: 500 - sideW - 2, y: 200, width: sideW, height: Math.round(640 * 0.8) })
+    expect(b.done).toEqual({ x: 500 + mainW + 2, y: 200, width: sideW, height: Math.round(640 * 0.8) })
   })
 
-  it('缝隙=6px 常量（不参与缩放）+ 左窗右上角严格不动：0.7~1.3 步进扫描', () => {
+  it('缝隙=2px 常量（不参与缩放）+ 左窗右上角严格不动：0.7~1.3 步进扫描', () => {
     for (let s = 0.7; s <= 1.301; s += 0.01) {
       const b = threeWindowBoundsForAnchor({ x: 100, y: 50 }, s, true, true)
       const gapL = b.main.x - (b.quick!.x + b.quick!.width)
       const gapR = b.done!.x - (b.main.x + b.main.width)
-      expect(gapL).toBe(6)
-      expect(gapR).toBe(6)
-      // 左窗右上角 = (主窗左缘 - 6, 锚点 y)：缩放全程不动
-      expect(b.quick!.x + b.quick!.width).toBe(94)
+      expect(gapL).toBe(2)
+      expect(gapR).toBe(2)
+      // 左窗右上角 = (主窗左缘 - 2, 锚点 y)：缩放全程不动
+      expect(b.quick!.x + b.quick!.width).toBe(98)
       expect(b.quick!.y).toBe(50)
       expect(b.quick!.height).toBe(b.main.height)
       expect(b.done!.height).toBe(b.main.height)
@@ -262,7 +262,7 @@ describe('clampAnchorForEdges 拖动边界钳制（批次 B-3，#31/#32/#33）',
   })
 
   it('侧窗悬挂屏外不阻挡：主窗右缘距屏右 ≥90 即允许（锚点可远超旧钳制）', () => {
-    // 主窗右缘贴屏右-90：锚点=1920-90-470=1360；侧窗（+476）完全悬挂屏外仍允许
+    // 主窗右缘贴屏右-90：锚点=1920-90-470=1360；侧窗（+472）完全悬挂屏外仍允许
     const a = { x: 1360, y: 200 }
     expect(clampAnchorForEdges(a, mainW, wa)).toEqual(a)
   })

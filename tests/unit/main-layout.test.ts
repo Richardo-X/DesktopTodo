@@ -15,23 +15,23 @@ const WA = { x: 0, y: 40, width: 1920, height: 1040 }
 
 /** T13 主窗口配置（B2 起 layout.ts re-export src/core/utils/cluster-layout 单一来源） */
 describe('layout re-export：与 cluster-layout 单一来源一致', () => {
-  it('基准常量与簇尺寸同源（恒定 1102×640，面板开关不改变窗口几何）', () => {
+  it('基准常量与簇尺寸同源（恒定 1094×640，面板开关不改变窗口几何）', () => {
     expect(BASE_PANEL).toEqual({ quick: 310, done: 310, main: 470, height: 640 })
-    expect(BASE_GAP).toBe(6)
-    expect(clusterBaseWidth()).toBe(1102)
-    expect(clusterBounds(1)).toEqual({ width: 1102, height: 640 })
+    expect(BASE_GAP).toBe(2)
+    expect(clusterBaseWidth()).toBe(1094)
+    expect(clusterBounds(1)).toEqual({ width: 1094, height: 640 })
   })
 
   it('等比缩放（四舍五入）', () => {
     const b = clusterBounds(0.8)
-    expect(b.width).toBe(Math.round(1102 * 0.8))
+    expect(b.width).toBe(Math.round(1094 * 0.8))
     expect(b.height).toBe(Math.round(640 * 0.8))
   })
 })
 
 describe('四轮黑块：透明窗口衬底显式声明', () => {
   it('主窗构造选项：backgroundColor=#00000000 + thickFrame=false（Windows 透明窗黑块官方口径）', () => {
-    const o = defaultWindowOptions({ width: 1102, height: 640 })
+    const o = defaultWindowOptions({ width: 1094, height: 640 })
     expect(o.backgroundColor).toBe('#00000000')
     expect(o.thickFrame).toBe(false)
   })

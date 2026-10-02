@@ -191,7 +191,7 @@ describe('pos 锚点语义迁移（动态窗口）', () => {
       uiState: { pos: { x: 100, y: 50 }, clusterScale: 0.8, quickVisible: true, doneVisible: true }
     }
     const d = normalizeAppData(raw)
-    expect(d.uiState.pos).toEqual({ x: 100 + Math.round(316 * 0.8), y: 50 })
+    expect(d.uiState.pos).toEqual({ x: 100 + Math.round(312 * 0.8), y: 50 })
     expect(d.uiState.posIsTodoAnchor).toBe(true)
   })
 
