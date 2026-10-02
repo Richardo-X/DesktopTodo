@@ -85,6 +85,44 @@ test('8.2-2：置顶时打开的子窗口同步置顶', async () => {
   await h.close()
 })
 
+/** 置顶语义（用户定稿）：默认未置顶=普通窗口（被其他应用窗口遮挡）；
+ * 开置顶=三窗最上层；缩进→弹出保持当前置顶态（弹出路径不得强制置顶） */
+test('置顶语义：默认未置顶可被遮挡；开关后最上层；缩进弹出保持', async () => {
+  const h = await launchApp()
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+  await h.main.waitForTimeout(400)
+
+  const readFlags = (): Promise<boolean[]> =>
+    h.app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed()).map((w) => w.isAlwaysOnTop()).sort()
+    )
+
+  // 默认（uiState.topMost=false）：三窗均为普通窗口
+  expect(await readFlags()).toEqual([false, false, false])
+
+  // 开置顶 → 三窗同层最上
+  await h.main.click('[data-testid="tb-topmost"]')
+  await h.main.waitForTimeout(400)
+  expect(await readFlags()).toEqual([true, true, true])
+
+  // 缩进 → 弹出：置顶态保持（弹出路径不强制置顶）
+  await h.main.evaluate(() =>
+    (window as unknown as { desktopTodo: { setTucked(v: boolean): Promise<void> } }).desktopTodo.setTucked(true)
+  )
+  await h.main.waitForTimeout(600)
+  await h.main.evaluate(() =>
+    (window as unknown as { desktopTodo: { setTucked(v: boolean): Promise<void> } }).desktopTodo.setTucked(false)
+  )
+  await h.main.waitForTimeout(600)
+  expect(await readFlags()).toEqual([true, true, true])
+
+  // 关置顶 → 恢复普通窗口
+  await h.main.click('[data-testid="tb-topmost"]')
+  await h.main.waitForTimeout(400)
+  expect(await readFlags()).toEqual([false, false, false])
+  await h.close()
+})
+
 /** 8.2-2：重启后置顶保持——seed topMost=true 启动后主窗必须仍是置顶 */
 test('8.2-2：重启后置顶状态保持', async () => {
   const seeded = defaultAppData()

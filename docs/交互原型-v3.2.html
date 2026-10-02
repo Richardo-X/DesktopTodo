@@ -69,9 +69,10 @@ body{
 
 /* ---------- v3.2 组件簇：三个独立窗口（正式版=三个 BrowserWindow；本页以三张独立卡片模拟） ---------- */
 /* 位置语义：#cluster 左上角 = 待办窗左上角（缩放/开关面板的唯一不动点=锚点）；
- * 快捷窗 right 边钉在待办左缘 -6px、已完成窗 left 边钉在待办右缘 +6px（6px 缝隙=真实桌面） */
+ * 快捷窗 right 边钉在待办左缘 -6px、已完成窗 left 边钉在待办右缘 +6px；
+ * 缝隙固定 6px：缩放只作用于各窗内容（逐窗 zoom），缝隙不随缩放变化 */
 #cluster{position:absolute;z-index:10}
-#clusterZoom{zoom:1}
+#clusterZoom{zoom:1}/* 缩放不走整体 zoom（会把缝隙一起缩）；改在 layout() 逐窗 zoom */
 .win{
   position:absolute;display:flex;flex-direction:column;overflow:hidden;color:var(--text);
   background:var(--win-bg);
@@ -382,7 +383,9 @@ input[type="date"]{font-size:calc(11.5px * var(--fs))}
       <li><b>D 层级绑定</b>：任一窗激活 → 三窗同升（单页原型无法演示，正式版验证）</li>
     </ul>
     <b>② 缩放锚点＝待办窗左上角</b>：缩放/开关面板时<b>待办窗自身不动</b>，两侧窗向左/右伸展（抖动结构性根除）
-    <ul></ul>
+    <ul>
+      <li><b>缝隙固定（<span style="color:#7ee787">已定稿 ✓</span>）</b>：缩放只作用于各窗内容，窗口间 6px 缝隙<b>不随缩放变化</b>（任意缩放档位实测恒 6px）</li>
+    </ul>
     <b>③ 待办列表放宽（<span style="color:#7ee787">已通过 ✓</span>）</b>
     <ul>
       <li>时钟下间距 6→<b>10px</b>；操作区下间距 4→<b>10px</b>；win-body 顶内边距 0→<b>10px</b></li>
@@ -522,7 +525,6 @@ const CHAR_LIMIT=300, MAX_TPL=10;
 
 /* 三窗基准（cluster-layout 同源）：主窗 470、两侧 310、缝隙 6 */
 const BASE_MAIN=470, BASE_SIDE=310, BASE_GAP=6, BASE_H=640;
-const SIDE_STEP=BASE_SIDE+BASE_GAP;   /* 316：侧窗含缝隙的占位步进 */
 const TUCK_BAR_W=160, TUCK_BAR_H=12;
 
 /* ================= 状态 ================= */
@@ -862,14 +864,19 @@ function setGroupScale(group,v){
 /* ================= v3.2 三窗几何 ================= */
 /* 可见组件基准宽（scale=1）：主窗 + 可见侧窗（各含 6px 缝隙）——隐藏面板不占位 */
 function visibleBaseWidth(){
-  return BASE_MAIN + (S().quickVisible?SIDE_STEP:0) + (S().doneVisible?SIDE_STEP:0);
+  const n=(S().quickVisible?1:0)+(S().doneVisible?1:0);
+  return BASE_MAIN + n*BASE_SIDE;  /* 内容基准（缝隙 n×BASE_GAP 固定，另加不入缩放） */
 }
 /* v3.2 位置语义：#cluster 左上角 = 待办窗左上角锚点；侧窗位置恒定（快捷 -316 / 已完成 +476），
  * 开关面板/缩放都不改变待办窗在锚点处的位置（缩放抖动结构性根除） */
 function layout(){
-  const d=$('#doneWin'), q=$('#quickWin');
-  q.style.left=(-SIDE_STEP)+'px'; q.style.top='0px';
-  d.style.left=(BASE_MAIN+BASE_GAP)+'px'; d.style.top='0px';
+  const d=$('#doneWin'), q=$('#quickWin'), m=$('#mainWin');
+  const z=S().panelScale||1;
+  /* 缝隙固定：每窗各自 zoom（只缩窗内容）。注意 zoom 会连 left 偏移一起缩放，
+   * 故 left 按 1/z 补偿——视觉上窗口间缝隙恒为 BASE_GAP=6px，不随缩放变化 */
+  [m,q,d].forEach(w=>{ w.style.zoom=z; });
+  q.style.left=(-(BASE_SIDE+BASE_GAP/z))+'px'; q.style.top='0px';
+  d.style.left=(BASE_MAIN+BASE_GAP/z)+'px'; d.style.top='0px';
   q.style.display=S().quickVisible?'flex':'none';
   d.style.display=S().doneVisible?'flex':'none';
   if(S().quickVisible) renderQuick();
@@ -898,8 +905,9 @@ function clusterRect(){
 /* v3.2 缩放：单一 clusterScale（=原 panelScale）作用于 #clusterZoom；
  * 锚点=待办窗左上角 → 缩放时 #cluster 原点不动，待办窗自身零位移 */
 function applyPanelScale(v){
+  const n=(S().quickVisible?1:0)+(S().doneVisible?1:0);
   const baseW=visibleBaseWidth();
-  const maxW=(innerWidth-24)/baseW;
+  const maxW=(innerWidth-24-n*BASE_GAP)/baseW;  /* 布局宽=内容宽×z+固定缝隙 n×6 */
   const maxH=(innerHeight-24)/BASE_H;
   let maxV=Math.min(maxW,maxH);
   if(maxV<0.7) maxV=0.7;
@@ -910,7 +918,7 @@ function applyPanelScale(v){
     toast('已达最大尺寸（缩放不超过屏幕宽高）');
   }
   S().panelScale=v; save();
-  $('#clusterZoom').style.zoom=v;
+  layout();  /* 逐窗 zoom + 固定缝隙重排（整体 zoom 会把缝隙一起缩放，已废弃） */
   clampPos(); snapCheck(true); measureTrunc(document); updateDesktopExtent(); syncThumb();
 }
 
@@ -938,8 +946,9 @@ function tuck(){
   $('#doneWin').style.display='none';
   $('#mainWin').style.display='none';
   const z=S().panelScale||1;
-  const left0=(S().quickVisible?-SIDE_STEP:0)*z;   /* 可见范围左缘相对锚点（快捷窗在锚点左侧） */
-  const visW=visibleBaseWidth()*z;
+  const step=BASE_SIDE*z+BASE_GAP;                 /* 侧窗视觉宽+固定缝隙（缝隙不随缩放） */
+  const left0=S().quickVisible?-step:0;            /* 可见范围左缘相对锚点（快捷窗在锚点左侧） */
+  const visW=BASE_MAIN*z+(S().quickVisible?step:0)+(S().doneVisible?step:0);
   const tb=$('#tuckBar');
   tb.style.left=Math.max(0,Math.round(left0+(visW-TUCK_BAR_W)/2))+'px';
   tb.style.top='0px';
@@ -1949,7 +1958,6 @@ settle();
 bindChrome();
 applyPos();
 layout();
-$('#clusterZoom').style.zoom=S().panelScale||1;
 $('#pinBtn').classList.toggle('on',S().topMost);
 if(S().tuckLock) untuck();
 applyClockSize();
