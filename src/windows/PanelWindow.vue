@@ -237,8 +237,14 @@ onUnmounted(() => {
 
 /* ===== 缩进胶囊（160×12 热区含 6px 可见条；悬停弹出由主进程光标轮询判定） ===== */
 .tuck-bar {
-  border-radius: 99px;
+  /* 绝对定位脱文档流：胶囊态 zoom 容器恒 640px 高占位（常驻挂载+zoom 恒等式），
+     文档流白条会被挤到 y≈643——窗口只剩 38px 高，白条在可视区外（真机"白条消失"真因） */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   margin: 0 auto;
+  border-radius: 99px;
   cursor: pointer;
 }
 
