@@ -52,6 +52,7 @@ test('缩进时待办窗收窄为胶囊、侧窗隐藏，弹出还原且位置�
   expect(quickVis).toBe(false)
   expect(doneVis).toBe(false)
 
+
   setTucked(false)
   await expect
     .poll(async () => Math.abs((await mainBounds()).w - before.w), { timeout: 5_000 })
@@ -61,5 +62,61 @@ test('缩进时待办窗收窄为胶囊、侧窗隐藏，弹出还原且位置�
   expect(restored.y).toBe(before.y)
   await expect.poll(async () => (await winByPanel('quick'))?.vis, { timeout: 5_000 }).toBe(true)
   await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(true)
+  await h.close()
+})
+
+/** 真机"白条消失"回归（两段缺陷：①domTucked 间接层直接 IPC 不翻转→走渲染层状态机路径
+ * ②文档流白条被常驻 640px zoom 容器挤出 38px 胶囊窗→rect.y 必须≈0） */
+test('白条在胶囊态显示于窗口顶部可视区内（渲染层状态机路径）', async () => {
+  const h: AppHandle = await launchApp()
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+
+  const sendMain = (channel: string, val: unknown): Promise<void> =>
+    h.app.evaluate(
+      ({ BrowserWindow }, [ch, v]) => {
+        const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))
+        w?.webContents.send(ch as string, v)
+      },
+      [channel, val] as [string, unknown]
+    )
+
+  // 吸附（snap-state=true=主进程 detectSnap 翻转时发的同一信号）→ 光标离开（轮询同通道）
+  await sendMain('app:snap-state', true)
+  await h.main.waitForTimeout(200)
+  await sendMain('app:cursor-inside', false)
+  // 30ms tick 宿主 ×400ms 缩进延时 → tucked → setTucked IPC → 胶囊 + domTucked
+  await expect
+    .poll(
+      async () =>
+        h.app.evaluate(({ BrowserWindow }) => {
+          const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))
+          return w?.getBounds().width ?? 0
+        }),
+      { timeout: 5_000 }
+    )
+    .toBe(160)
+
+  const bar = await h.main.evaluate(() => {
+    const el = document.querySelector('.tuck-bar') as HTMLElement | null
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    return { display: getComputedStyle(el).display, y: Math.round(r.y), w: Math.round(r.width) }
+  })
+  expect(bar?.display).toBe('block')
+  expect(bar!.y).toBeLessThanOrEqual(2) // 窗口顶部可视区内（挤出窗外的缺陷抓不住=白条消失）
+  expect(bar!.w).toBe(160)
+
+  // 弹出（光标回到胶囊内=轮询 enter 同通道）
+  await sendMain('app:cursor-inside', true)
+  await expect
+    .poll(
+      async () =>
+        h.app.evaluate(({ BrowserWindow }) => {
+          const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))
+          return w?.getBounds().width ?? 0
+        }),
+      { timeout: 5_000 }
+    )
+    .toBeGreaterThan(160)
   await h.close()
 })
