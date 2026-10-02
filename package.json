@@ -37,6 +37,7 @@
     "vue-tsc": "3.3.11"
   },
   "dependencies": {
+    "koffi": "^3.3.2",
     "pinia": "4.0.3",
     "vue": "3.5.43"
   },
@@ -55,6 +56,9 @@
     },
     "files": [
       "out/**"
+    ],
+    "asarUnpack": [
+      "**/node_modules/koffi/**"
     ],
     "win": {
       "icon": "build/icon.ico",

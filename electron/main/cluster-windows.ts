@@ -2,6 +2,7 @@ import { BrowserWindow, screen, type IpcMain } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyClusterTopMost } from './window-state'
+import { sendWindowToBottom } from './win32'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -93,7 +94,7 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
     if (!shouldShowPanel(panel)) return
     applyClusterBounds(true) // 全窗强制落位（三窗 show:false 创建、页面加载有先后，可能全部处于待落位状态）
     w.show()
-    applyClusterTopMost(w, topMost)
+    applyWindowTopMost(w, topMost)
   })
   // z-order 绑定：任一窗激活 → 三窗同升（moveTop 不夺焦）
   w.on('focus', () => raiseClusterAll())
@@ -411,13 +412,19 @@ export function showCluster(): void {
 }
 
 /** 置顶=整个组件（三窗统一应用；子窗口由 index.ts 一并处理）。
- * 未置顶=不可激活（setFocusable false）：与其他窗口重叠时点击组件不激活、不浮上来 */
+ * 未置顶=不可激活挂件（setFocusable false）：与其他窗口重叠时点击组件不激活、不浮上来；
+ * 且整体立即沉底（HWND_BOTTOM，用户定稿"切换瞬间降到桌面层"，不等点击其他窗口才被覆盖） */
 export function applyTopMostToCluster(enabled: boolean): void {
   if (!cluster) return
   cluster.topMost = enabled
   for (const w of getAllClusterWindows()) {
-    if (safe(w)) applyClusterTopMost(w, enabled)
+    if (safe(w)) applyWindowTopMost(w, enabled)
   }
+}
+
+function applyWindowTopMost(w: BrowserWindow, enabled: boolean): void {
+  applyClusterTopMost(w, enabled)
+  if (!enabled && !w.isDestroyed()) sendWindowToBottom(w.getNativeWindowHandle())
 }
 
 /** 分辨率变化/拔显示器：按主窗可见拉回（#33），锚点随位移更新 */
