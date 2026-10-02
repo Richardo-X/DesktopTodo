@@ -76,8 +76,7 @@ if (process.env.DTODO_TEST === '1') {
     clusterDragDelta: (dx: number, dy: number) => ipcRenderer.invoke('test:cluster-drag-delta', { dx, dy }),
     clusterState: () => ipcRenderer.invoke('test:cluster-state'),
     dragState: () => ipcRenderer.invoke('test:drag-state'),
-    visibleZOrder: () => ipcRenderer.invoke('test:visible-z-order'),
-    zAfterTray: () => ipcRenderer.invoke('test:z-after-tray')
+
   })
 }
 

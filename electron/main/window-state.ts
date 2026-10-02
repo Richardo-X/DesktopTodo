@@ -12,10 +12,13 @@ export function applyTopMost(win: AlwaysOnTopWindow, enabled: boolean): void {
 /** 三窗置顶语义（用户定稿 2026-10-02）：
  * enabled=true  → 浮最上层（screen-saver 层）且可激活（键盘输入可用）
  * enabled=false → 桌面挂件态：普通 z 序 + 不可激活（WS_EX_NOACTIVATE 等价）——
- *                 与其他窗口重叠时点击组件不激活、不浮上来，保持被覆盖 */
+ *                 与其他窗口重叠时点击组件不激活、不浮上来，保持被覆盖
+ * 每次重申 skipTaskbar：样式变更（SetWindowLong）会触发 shell 重新评估窗口，
+ * 把构造时 skipTaskbar 删掉的任务栏 tab 又加回来（用户实测任务栏出现组件窗口） */
 export interface ClusterTopMostWindow extends AlwaysOnTopWindow {
   isDestroyed(): boolean
   setFocusable(focusable: boolean): void
+  setSkipTaskbar(skip: boolean): void
 }
 
 export function applyClusterTopMost(win: ClusterTopMostWindow, enabled: boolean): void {

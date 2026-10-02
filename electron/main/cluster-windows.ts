@@ -2,7 +2,7 @@ import { BrowserWindow, screen, type IpcMain } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyClusterTopMost } from './window-state'
-import { sendWindowToBottom, visibleZOrder, zAfterTray } from './win32'
+import { sendWindowToBottom } from './win32'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -101,6 +101,7 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
     } else {
       w.showInactive()
       applyClusterTopMost(w, false)
+      w.setSkipTaskbar(true) // 样式变更会触发 shell 回加任务栏 tab——重申后沉底收尾
       sendWindowToBottom(w.getNativeWindowHandle())
     }
     w.on('blur', () => onClusterWindowBlur())
@@ -459,13 +460,25 @@ function enterWidgetMode(): void {
   for (const w of getAllClusterWindows()) {
     if (safe(w)) applyClusterTopMost(w, false)
   }
+  // skipTaskbar 重申先于沉底：它的 shell 重排不能盖过沉底（沉底必须是最后动作）
+  const reassertSkipTaskbar = (): void => {
+    for (const w of getAllClusterWindows()) {
+      if (safe(w)) w.setSkipTaskbar(true)
+    }
+  }
   const sinkAll = (): void => {
     for (const w of getAllClusterWindows()) {
       if (safe(w)) sendWindowToBottom(w.getNativeWindowHandle())
     }
   }
-  setTimeout(sinkAll, 120)
-  setTimeout(sinkAll, 400)
+  setTimeout(() => {
+    reassertSkipTaskbar()
+    sinkAll()
+  }, 120)
+  setTimeout(() => {
+    reassertSkipTaskbar()
+    sinkAll()
+  }, 400)
 }
 
 /** 三窗 blur（点击其他非组件位置）→ 全失焦即沉底（判定第二段）。
@@ -557,7 +570,6 @@ export function registerClusterIpc(ipcMain: IpcMain): void {
     ipcMain.handle('test:cluster-state', () => clusterDebugState())
     ipcMain.handle('test:drag-state', () => ({ dragging: dragTimer !== null }))
     // 置顶判定 E2E：可见窗口 z 序链（顶到底）——沉底/置顶断言用
-    ipcMain.handle('test:visible-z-order', () => visibleZOrder())
-    ipcMain.handle('test:z-after-tray', () => zAfterTray())
+
   }
 }
