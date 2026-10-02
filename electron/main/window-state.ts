@@ -9,6 +9,20 @@ export function applyTopMost(win: AlwaysOnTopWindow, enabled: boolean): void {
   win.setAlwaysOnTop(enabled, 'screen-saver')
 }
 
+/** 三窗置顶语义（用户定稿 2026-10-02）：
+ * enabled=true  → 浮最上层（screen-saver 层）且可激活（键盘输入可用）
+ * enabled=false → 桌面挂件态：普通 z 序 + 不可激活（WS_EX_NOACTIVATE 等价）——
+ *                 与其他窗口重叠时点击组件不激活、不浮上来，保持被覆盖 */
+export interface ClusterTopMostWindow extends AlwaysOnTopWindow {
+  isDestroyed(): boolean
+  setFocusable(focusable: boolean): void
+}
+
+export function applyClusterTopMost(win: ClusterTopMostWindow, enabled: boolean): void {
+  win.setAlwaysOnTop(enabled, 'screen-saver')
+  if (!win.isDestroyed()) win.setFocusable(enabled)
+}
+
 /** 置顶=整个组件（8.2-2）：主窗与全部二级窗口同层级应用 */
 export function applyTopMostAll(wins: Iterable<AlwaysOnTopWindow>, enabled: boolean): void {
   for (const w of wins) w.setAlwaysOnTop(enabled, 'screen-saver')

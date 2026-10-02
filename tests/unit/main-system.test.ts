@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { acquireSingleInstanceLock } from '../../electron/main/single-instance'
 import { setAutoStart, getAutoStart, loginItemSettingsFor, syncAutoStartOnBoot } from '../../electron/main/auto-start'
-import { applyTopMost, applyTopMostAll, refocusChildWindows, withTopMost, withTuckLock, withTheme } from '../../electron/main/window-state'
+import { applyTopMost, applyTopMostAll, applyClusterTopMost, refocusChildWindows, withTopMost, withTuckLock, withTheme } from '../../electron/main/window-state'
 
 /** T16 单实例锁 */
 vi.mock('electron', () => {
@@ -92,6 +92,17 @@ describe('T17 window-state 应用', () => {
     expect(win.setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver')
     applyTopMost(win as never, false)
     expect(win.setAlwaysOnTop).toHaveBeenCalledWith(false, 'screen-saver')
+  })
+
+  it('applyClusterTopMost（置顶语义修订）：未置顶=不可激活（点击不浮上来）；置顶=最上层可激活', () => {
+    const off = { setAlwaysOnTop: vi.fn(), setFocusable: vi.fn(), isDestroyed: vi.fn(() => false) }
+    applyClusterTopMost(off as never, false)
+    expect(off.setAlwaysOnTop).toHaveBeenCalledWith(false, 'screen-saver')
+    expect(off.setFocusable).toHaveBeenCalledWith(false) // 不可激活：重叠时点击组件不浮上来
+    const on = { setAlwaysOnTop: vi.fn(), setFocusable: vi.fn(), isDestroyed: vi.fn(() => false) }
+    applyClusterTopMost(on as never, true)
+    expect(on.setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver')
+    expect(on.setFocusable).toHaveBeenCalledWith(true)
   })
 
   it('applyTopMostAll（8.2-2）：置顶=整个组件，主窗与全部二级窗口同层级', () => {

@@ -90,27 +90,21 @@ test('三窗：拖动位移钩子 → 三窗同帧同步平移（同一 applyClu
   expect(after.done!.y - before.done!.y).toBe(60)
 })
 
-test('三窗：focus 侧窗（z-order 绑定触发点）不抛错且三窗保持可见', async () => {
-  // Windows 前台锁：调用方进程无前台时 focus() 会被拒绝——先点主窗让应用获得前台
-  await h.main.click('[data-testid="clock-time"]')
-  await h.main.waitForTimeout(300)
-  await h.app.evaluate(({ BrowserWindow }) => {
-    BrowserWindow.getAllWindows()
-      .find((w) => !w.isDestroyed() && w.webContents.getURL().includes('panel=quick'))
-      ?.focus()
-  })
-  await expect
-    .poll(
-      async () =>
-        h.app.evaluate(({ BrowserWindow }) => {
-          const quick = BrowserWindow.getAllWindows().find(
-            (w) => !w.isDestroyed() && w.webContents.getURL().includes('panel=quick')
-          )
-          return quick ? quick.isFocused() : false
-        }),
-      { timeout: 15_000 }
-    )
-    .toBe(true)
+test('三窗 focus 语义：未置顶挂件态 focus 不激活（点击不浮上来）；置顶后 focus 可激活', async () => {
+  const quickWin = (): Promise<{ focused: boolean; focusable: boolean } | null> =>
+    h.app.evaluate(({ BrowserWindow }) => {
+      const w = BrowserWindow.getAllWindows().find(
+        (x) => !x.isDestroyed() && x.webContents.getURL().includes('panel=quick')
+      )
+      return w ? { focused: w.isFocused(), focusable: w.isFocusable() } : null
+    })
+
+  // 挂件态（未置顶）：不可激活窗口（isFocusable=false）——真实鼠标点击走 OS
+  // 激活流程被 WS_EX_NOACTIVATE 拒绝 → 点击不浮上来（真机验证）；
+  // Electron 显式 focus() 会绕过激活流程强设焦点，故此处不断言 focused
+  expect(await quickWin()).toMatchObject({ focusable: false })
+
+  // 三窗保持可见
   const allVisible = await h.app.evaluate(({ BrowserWindow }) =>
     ['quick', 'main', 'done'].every((panel) => {
       const w = BrowserWindow.getAllWindows().find(
@@ -120,4 +114,16 @@ test('三窗：focus 侧窗（z-order 绑定触发点）不抛错且三窗保持
     })
   )
   expect(allVisible).toBe(true)
+
+  // 置顶后：focus 可激活（键盘/前台行为恢复）
+  await h.main.click('[data-testid="tb-topmost"]')
+  await h.main.waitForTimeout(400)
+  await h.app.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()
+      .find((w) => !w.isDestroyed() && w.webContents.getURL().includes('panel=quick'))
+      ?.focus()
+  })
+  await expect
+    .poll(async () => (await quickWin())?.focused, { timeout: 15_000 })
+    .toBe(true)
 })

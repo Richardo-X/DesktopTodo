@@ -1,7 +1,7 @@
 import { BrowserWindow, screen, type IpcMain } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
-import { applyTopMost } from './window-state'
+import { applyClusterTopMost } from './window-state'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -93,7 +93,7 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
     if (!shouldShowPanel(panel)) return
     applyClusterBounds(true) // 全窗强制落位（三窗 show:false 创建、页面加载有先后，可能全部处于待落位状态）
     w.show()
-    if (topMost) applyTopMost(w, true)
+    applyClusterTopMost(w, topMost)
   })
   // z-order 绑定：任一窗激活 → 三窗同升（moveTop 不夺焦）
   w.on('focus', () => raiseClusterAll())
@@ -295,7 +295,8 @@ export function setClusterTucked(v: boolean): void {
   if (safe(done) && cluster.doneVisible && cluster.visible) showSidePanel('done')
   lastAppliedAnchor = null
   applyClusterBounds()
-  if (safe(main) && !main.isVisible()) main.show()
+  if (safe(main) && !main.isVisible() && cluster.topMost) main.show()
+  else if (safe(main) && !main.isVisible()) main.showInactive()
 }
 
 /** 吸附检测：待办窗顶边触碰工作区顶 → 三窗贴齐；状态变化通知待办窗状态机 */
@@ -391,11 +392,12 @@ export function showCluster(): void {
   const { quick, main, done } = cluster.windows
   if (cluster.tucked) {
     applyClusterBounds()
-    if (safe(main)) main.show()
+    if (safe(main)) (cluster.topMost ? main.show() : main.showInactive())
     return
   } else {
     applyClusterBounds(true)
-    if (safe(main)) main.show()
+    // 未置顶=挂件态：showInactive 显示不激活（show 会激活浮到最前）
+    if (safe(main)) (cluster.topMost ? main.show() : main.showInactive())
     if (safe(quick)) {
       if (cluster.quickVisible) showSidePanel('quick')
       else quick.hide()
@@ -408,11 +410,14 @@ export function showCluster(): void {
   applyTopMostToCluster(cluster.topMost)
 }
 
-/** 置顶=整个组件（三窗统一应用；子窗口由 index.ts 一并处理） */
+/** 置顶=整个组件（三窗统一应用；子窗口由 index.ts 一并处理）。
+ * 未置顶=不可激活（setFocusable false）：与其他窗口重叠时点击组件不激活、不浮上来 */
 export function applyTopMostToCluster(enabled: boolean): void {
   if (!cluster) return
   cluster.topMost = enabled
-  for (const w of getAllClusterWindows()) applyTopMost(w, enabled)
+  for (const w of getAllClusterWindows()) {
+    if (safe(w)) applyClusterTopMost(w, enabled)
+  }
 }
 
 /** 分辨率变化/拔显示器：按主窗可见拉回（#33），锚点随位移更新 */

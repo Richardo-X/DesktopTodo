@@ -85,27 +85,31 @@ test('8.2-2：置顶时打开的子窗口同步置顶', async () => {
   await h.close()
 })
 
-/** 置顶语义（用户定稿）：默认未置顶=普通窗口（被其他应用窗口遮挡）；
- * 开置顶=三窗最上层；缩进→弹出保持当前置顶态（弹出路径不得强制置顶） */
-test('置顶语义：默认未置顶可被遮挡；开关后最上层；缩进弹出保持', async () => {
+/** 置顶语义（用户定稿 2026-10-02 修订）：未置顶=不可激活挂件（被其他窗口遮挡，
+ * 重叠时点击组件不激活、不浮上来）；开置顶=三窗最上层且可激活；缩进→弹出保持 */
+test('置顶语义：默认不可激活挂件（点击不浮上来）；置顶=最上层；缩进弹出保持', async () => {
   const h = await launchApp()
   await h.main.waitForSelector('[data-testid="home-panel"]')
   await h.main.waitForTimeout(400)
 
-  const readFlags = (): Promise<boolean[]> =>
-    h.app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed()).map((w) => w.isAlwaysOnTop()).sort()
-    )
+  const readState = (): Promise<{ atop: boolean[]; focusable: boolean[] }> =>
+    h.app.evaluate(({ BrowserWindow }) => {
+      const ws = BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed())
+      return {
+        atop: ws.map((w) => w.isAlwaysOnTop()).sort(),
+        focusable: ws.map((w) => w.isFocusable()).sort()
+      }
+    })
 
-  // 默认（uiState.topMost=false）：三窗均为普通窗口
-  expect(await readFlags()).toEqual([false, false, false])
+  // 默认（uiState.topMost=false）：三窗挂件态——非置顶+不可激活（点击不浮上来）
+  expect(await readState()).toEqual({ atop: [false, false, false], focusable: [false, false, false] })
 
-  // 开置顶 → 三窗同层最上
+  // 开置顶 → 三窗同层最上且可激活
   await h.main.click('[data-testid="tb-topmost"]')
   await h.main.waitForTimeout(400)
-  expect(await readFlags()).toEqual([true, true, true])
+  expect(await readState()).toEqual({ atop: [true, true, true], focusable: [true, true, true] })
 
-  // 缩进 → 弹出：置顶态保持（弹出路径不强制置顶）
+  // 缩进 → 弹出：置顶态保持（弹出路径不强制置顶、不改激活性）
   await h.main.evaluate(() =>
     (window as unknown as { desktopTodo: { setTucked(v: boolean): Promise<void> } }).desktopTodo.setTucked(true)
   )
@@ -114,12 +118,12 @@ test('置顶语义：默认未置顶可被遮挡；开关后最上层；缩进�
     (window as unknown as { desktopTodo: { setTucked(v: boolean): Promise<void> } }).desktopTodo.setTucked(false)
   )
   await h.main.waitForTimeout(600)
-  expect(await readFlags()).toEqual([true, true, true])
+  expect(await readState()).toEqual({ atop: [true, true, true], focusable: [true, true, true] })
 
-  // 关置顶 → 恢复普通窗口
+  // 关置顶 → 恢复挂件态
   await h.main.click('[data-testid="tb-topmost"]')
   await h.main.waitForTimeout(400)
-  expect(await readFlags()).toEqual([false, false, false])
+  expect(await readState()).toEqual({ atop: [false, false, false], focusable: [false, false, false] })
   await h.close()
 })
 
