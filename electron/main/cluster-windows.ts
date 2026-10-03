@@ -2,7 +2,7 @@ import { BrowserWindow, screen, type IpcMain } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyClusterTopMost } from './window-state'
-import { isCloaked, sendWindowToBottom, sysShowWindow, uncloak } from './win32'
+import { isCloaked, makeToolWindow, sendWindowToBottom, sysShowWindow, uncloak } from './win32'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -111,6 +111,9 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
       if (w.isDestroyed() || dragTimer !== null) return
       w.restore()
     })
+    // C-1：工具窗口样式——Win+D（显示桌面）跳过 TOOLWINDOW 窗口（实测定论：
+    // Win+D 对普通顶层窗口的隐藏无事件不可拦，TOOLWINDOW 是系统级豁免）
+    makeToolWindow(w.getNativeWindowHandle())
     const dEvents: Array<'minimize' | 'restore' | 'hide' | 'close'> = ['minimize', 'restore', 'hide', 'close']
     for (const ev of dEvents) {
       w.on(ev as 'minimize', () => {

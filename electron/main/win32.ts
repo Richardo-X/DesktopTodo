@@ -42,6 +42,11 @@ export function uncloak(nativeHandle: Buffer): void {
   ShowWindowAsync2(nativeHandle.readBigUInt64LE(0), SW_SHOWNA)
 }
 
+const GetWindowLongW = user32.func('int32 __stdcall GetWindowLongW(intptr hWnd, int32 idx)')
+const SetWindowLongW = user32.func('int32 __stdcall SetWindowLongW(intptr hWnd, int32 idx, int32 val)')
+const GWL_EXSTYLE = -20
+const WS_EX_TOOLWINDOW = 0x00000080
+
 const HWND_BOTTOM = 1n
 const SWP_NOMOVE = 0x0002
 const SWP_NOSIZE = 0x0004
@@ -54,6 +59,16 @@ const ShowWindowAsync = user32.func('int32 __stdcall ShowWindowAsync(intptr hWnd
 export function sysShowWindow(nativeHandle: Buffer, cmd: number): void {
   if (process.platform !== 'win32' || nativeHandle.length < 8) return
   ShowWindowAsync(nativeHandle.readBigUInt64LE(0), cmd)
+}
+
+/** 工具窗口样式（批次 C-1）：Win+D 跳过 WS_EX_TOOLWINDOW 窗口（桌面小工具
+ * 同款豁免）——组件不被"显示桌面"隐藏/最小化。副作用均为期望行为：
+ * 不进任务栏、不进 Alt+Tab 列表 */
+export function makeToolWindow(nativeHandle: Buffer): void {
+  if (process.platform !== 'win32' || nativeHandle.length < 8) return
+  const hwnd = nativeHandle.readBigInt64LE(0)
+  const style = GetWindowLongW(hwnd, GWL_EXSTYLE)
+  SetWindowLongW(hwnd, GWL_EXSTYLE, style | WS_EX_TOOLWINDOW)
 }
 
 /** 把窗口压到 z 序最底（桌面之上、所有普通窗口之下），不移动不缩放不激活 */
