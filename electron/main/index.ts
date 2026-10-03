@@ -328,6 +328,13 @@ function registerIpc(): void {
 
   ipcMain.handle(IPC.flush, () => ctx.flush())
 
+  // 方案 A（内容冻结）：缩放手柄按下/松开 → 广播三窗渲染层冻结/解冻内容更新
+  ipcMain.handle(IPC.resizeFreeze, (_e, frozen: boolean) => {
+    for (const w of getAllClusterWindows()) {
+      if (!w.isDestroyed()) w.webContents.send(IPC.resizeFreeze, frozen)
+    }
+  })
+
   ipcMain.handle(IPC.setTopMost, (_e, enabled: boolean) => {
     // 置顶=整个组件（三窗+全部二级窗口）；渲染层已先 commit
     applyTopMostToCluster(enabled)
