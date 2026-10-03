@@ -83,6 +83,7 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
     backgroundColor: '#00000000',
     thickFrame: false,
     skipTaskbar: true,
+    minimizable: false,
     resizable: false,
     movable: true,
     hasShadow: false,
@@ -105,6 +106,11 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
       sendWindowToBottom(w.getNativeWindowHandle())
     }
     w.on('blur', () => onClusterWindowBlur())
+    // C-1 兜底：任何路径（含系统广播）导致最小化 → 立即恢复（组件不进任务栏/不消失）
+    w.on('minimize', () => {
+      if (w.isDestroyed() || dragTimer !== null) return
+      w.restore()
+    })
   })
   // z-order 绑定：任一窗激活 → 三窗同升（moveTop 不夺焦）
   w.on('focus', () => raiseClusterAll())
