@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { flushPromises } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import PanelWindow from '../../src/windows/PanelWindow.vue'
 import { mountWithStore } from '../helpers/mount'
+import { installTestApi, type TestApi } from '../helpers/api'
 import { defaultAppData } from '../../src/core/models'
 import { useUiStore } from '../../src/stores/ui'
+import { createPinia } from 'pinia'
 
 /**
  * 批次 B-1 三窗架构：每个 OS 窗口的渲染根 = PanelWindow。
@@ -113,28 +115,45 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
     })
   })
 
-  describe('方案 A：缩放内容冻结（拖影根除）', () => {
-    it('冻结时窗口 resize 不更新 zoom；解冻立即重推当前窗口缩放', async () => {
-      const { wrapper, api } = await mountMain()
-      const zoomBefore = (wrapper.find('.cluster').attributes('style') ?? '')
-      expect(zoomBefore).toContain('zoom')
+  describe('缩放呈现 v3.3：两侧窗内容底色代替', () => {
+    it('侧窗收到冻结信号 → 内容层隐藏（visibility）；解冻 → 恢复且 zoom 立即重推', async () => {
+      // mountWithStore 挂 quick 面板（PanelWindow 侧窗形态）
+      installTestApi()
+      const wrapper = mount(PanelWindow as any, {
+        props: { panel: 'quick' },
+        global: { plugins: [createPinia()] }
+      })
+      const api = (window as unknown as { desktopTodo: TestApi }).desktopTodo
+      await flushPromises()
 
-      // 冻结
+      // 冻结：cluster 内容隐藏（窗壳 window-card 保留）
       api.resizeFreezeListeners[0](true)
       await wrapper.vm.$nextTick()
+      expect(wrapper.find('.cluster').classes()).toContain('cluster-frozen')
+      // 主窗 grip 链路发送的信号由主窗侧验证；此处锁定侧窗响应
+
+      // 解冻：内容恢复 + zoom 按当前窗口重推
       Object.defineProperty(window, 'innerHeight', { value: 512, configurable: true })
       window.dispatchEvent(new Event('resize'))
       await wrapper.vm.$nextTick()
-      // 冻结中 zoom 不变（内容不追赶矩形）
-      expect((wrapper.find('.cluster').attributes('style') ?? '')).toBe(zoomBefore)
-
-      // 解冻 → 立即按当前窗口 512/640=0.8 重推
       api.resizeFreezeListeners[0](false)
       await wrapper.vm.$nextTick()
+      expect(wrapper.find('.cluster').classes()).not.toContain('cluster-frozen')
       expect((wrapper.find('.cluster').attributes('style') ?? '')).toContain('zoom: 0.8')
 
       Object.defineProperty(window, 'innerHeight', { value: 640, configurable: true })
       window.dispatchEvent(new Event('resize'))
+      wrapper.unmount()
+    })
+
+    it('主窗不参与冻结（保持原样缩放）', async () => {
+      const { wrapper, api } = await mountMain()
+      await flushPromises()
+      api.resizeFreezeListeners[0](true)
+      await wrapper.vm.$nextTick()
+      // 主窗 cluster 无 frozen class（内容照常渲染）
+      expect(wrapper.find('.cluster').classes()).not.toContain('cluster-frozen')
+      api.resizeFreezeListeners[0](false)
     })
 
     it('主窗 grip 按下/松开 → 发送冻结/解冻信号', async () => {

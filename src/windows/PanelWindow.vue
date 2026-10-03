@@ -40,20 +40,21 @@ function syncZoomFromViewport(): void {
   if (Number.isFinite(s) && s > 0.1 && s <= 3) zoomValue.value = s
 }
 
-/** 方案 A（内容冻结）：缩放中冻结内容（zoom 不随 resize 更新）——
- * 内容重绘晚于矩形 1~2 帧是缩放拖影的唯一来源（实测），冻结即无内容帧可追赶 */
-const contentFrozen = ref(false)
+/** 缩放呈现 v3.3（用户定稿）：缩放中两侧窗内容以底色代替（窗壳边框实时缩放），
+ * 松手恢复渲染——消灭侧窗"内容重绘晚于窗框"的拖影；待办主窗不参与（保持原样缩放）。
+ * zoom 在隐藏期间照常反推（解冻瞬间即就位，无需重排等待） */
+const sideFrozen = ref(false)
 
 function onResizeFreeze(frozen: boolean): void {
-  contentFrozen.value = frozen
-  // 解冻立即按当前窗口尺寸重推缩放（最终矩形可能在解冻信号前已到位）
+  if (props.panel === 'main') return
+  sideFrozen.value = frozen
   if (!frozen) syncZoomFromViewport()
 }
 
 function onWinResize(): void {
   // 单一缩放源：窗口 resize 与 OS 尺寸变化同帧——卡片与窗口边缘同帧到位。
   // 不得混用广播值：双源每次 commit 触发两次重排（值有推导差）= 呼吸式抖动（用户实测）
-  if (!contentFrozen.value) syncZoomFromViewport()
+  syncZoomFromViewport()
 }
 
 const holderZoom = computed(() => zoomValue.value)
@@ -148,7 +149,7 @@ onUnmounted(() => {
       />
     </template>
     <template v-else>
-      <div class="cluster" :style="holderStyle" data-testid="cluster-holder">
+      <div class="cluster" :class="{ 'cluster-frozen': sideFrozen }" :style="holderStyle" data-testid="cluster-holder">
         <QuickPanel v-if="props.panel === 'quick'" data-testid="quick-panel" />
         <DonePanel v-else data-testid="done-panel" />
       </div>
@@ -214,6 +215,11 @@ onUnmounted(() => {
 }
 
 /* ===== 面板外观与基准尺寸（原 AppShell :deep 规则迁入；窗口 bounds=面板基准×缩放） ===== */
+/* 缩放呈现 v3.3：两侧窗内容隐藏（window-card 底板/圆角边框保留=窗壳缩放观感） */
+.cluster-frozen {
+  visibility: hidden;
+}
+
 .stage :deep(.panel) {
   background: var(--win-bg);
   border: 1px solid rgba(255, 255, 255, 0.18);
