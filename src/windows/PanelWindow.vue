@@ -128,7 +128,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="stage" :class="{ 'side-frozen': sideFrozen }" :data-theme="store.uiState.theme">
+  <div class="stage" :data-theme="store.uiState.theme">
     <!-- 待办主窗：缩进态切换为胶囊（形态 B；侧窗由主进程隐藏） -->
     <template v-if="props.panel === 'main'">
       <!-- 用户验收：弹出/缩进同步无呼吸——面板常驻挂载（不销毁 DOM），缩进=透明度翻转
@@ -215,16 +215,17 @@ onUnmounted(() => {
 }
 
 /* ===== 面板外观与基准尺寸（原 AppShell :deep 规则迁入；窗口 bounds=面板基准×缩放） ===== */
-/* 缩放呈现 v3.3（用户定稿）：两侧窗冻结=窗壳观感。窗壳挂 stage（尺寸恒等于
- * 窗口，圆角天然落在窗口四角）——挂 zoom 容器时容器渲染尺寸恒为基准、超出
- * 窗口的部分被窗口边界裁切，实测出现"只有左上角圆角、其余三角直角"的畸变。
- * 主窗不参与冻结（onResizeFreeze 对 main 直接返回） */
-.stage.side-frozen {
+/* 缩放呈现 v3.3（用户定稿）：两侧窗冻结时=窗壳观感（背景+圆角边框可见），
+ * 内容子元素隐藏——visibility 只作用于直接子元素，容器自身成为窗壳
+ * （与原型 .win.freeze-content > * 同构；容器整体 hidden 会连背景一起
+ * 藏掉=侧窗整窗消失，实测教训） */
+.cluster-frozen {
   background: var(--win-bg);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 10px;
 }
 
-.stage.side-frozen .cluster > * {
+.cluster-frozen > * {
   visibility: hidden;
 }
 

@@ -126,12 +126,12 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       const api = (window as unknown as { desktopTodo: TestApi }).desktopTodo
       await flushPromises()
 
-      // 冻结：窗壳挂 stage（背景可见+圆角；窗壳挂 zoom 容器曾因容器渲染尺寸
-      // 恒为基准、超出窗口被裁=“只有左上角圆角”畸变，故必须挂 stage 层）
+      // 冻结：内容子元素隐藏 + 窗壳可见（背景非透明——回退版应用侧窗背景
+      // 在容器内部，容器整体 hidden 曾致侧窗整窗消失，此断言为回归防线）
       api.resizeFreezeListeners[0](true)
       await wrapper.vm.$nextTick()
-      expect(wrapper.find('.stage').classes()).toContain('side-frozen')
-      const bg = getComputedStyle(wrapper.find('.stage').element as HTMLElement).backgroundColor
+      expect(wrapper.find('.cluster').classes()).toContain('cluster-frozen')
+      const bg = getComputedStyle(wrapper.find('.cluster').element as HTMLElement).backgroundColor
       expect(bg).not.toBe('rgba(0, 0, 0, 0)')
       expect(bg).not.toBe('transparent')
       // 主窗 grip 链路发送的信号由主窗侧验证；此处锁定侧窗响应
@@ -142,7 +142,7 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       await wrapper.vm.$nextTick()
       api.resizeFreezeListeners[0](false)
       await wrapper.vm.$nextTick()
-      expect(wrapper.find('.stage').classes()).not.toContain('side-frozen')
+      expect(wrapper.find('.cluster').classes()).not.toContain('cluster-frozen')
       expect((wrapper.find('.cluster').attributes('style') ?? '')).toContain('zoom: 0.8')
 
       Object.defineProperty(window, 'innerHeight', { value: 640, configurable: true })
