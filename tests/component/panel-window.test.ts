@@ -121,14 +121,14 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       await flushPromises()
       // 初始无蒙层
       expect(wrapper.find('.modal-veil').exists()).toBe(false)
-      // 二级窗打开（跨窗广播 → tuck.childOpen）
-      api.childCountListeners[0](1)
+      // 二级窗打开（入口前置 veil 信号 → 主进程广播三窗）
+      api.veilListeners[0](true)
       await wrapper.vm.$nextTick()
       const veil = wrapper.find('.modal-veil')
       expect(veil.exists()).toBe(true)
       // 背景色断言在 E2E（happy-dom 不应用 scoped CSS，computed 为空）
       // 关闭 → 恢复
-      api.childCountListeners[0](0)
+      api.veilListeners[0](false)
       await wrapper.vm.$nextTick()
       expect(wrapper.find('.modal-veil').exists()).toBe(false)
     })
@@ -141,7 +141,7 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       })
       const api = (window as unknown as { desktopTodo: TestApi }).desktopTodo
       await flushPromises()
-      api.childCountListeners[0](1)
+      api.veilListeners[0](true)
       await wrapper.vm.$nextTick()
       expect(wrapper.find('.modal-veil').exists()).toBe(true)
       wrapper.unmount()

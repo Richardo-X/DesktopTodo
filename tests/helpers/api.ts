@@ -22,6 +22,8 @@ export interface TestApi extends DesktopTodoApi {
   tuckedCalls: boolean[]
   resizeFreezeListeners: ((frozen: boolean) => void)[]
   clusterResizeFreezeCalls: boolean[]
+  veilCalls: boolean[]
+  veilListeners: ((v: boolean) => void)[]
   snapListeners: Set<(snapped: boolean) => void>
   cursorInsideListeners: Array<(inside: boolean) => void>
   childCloseListeners: Set<() => void>
@@ -55,6 +57,8 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
   const unsavedCalls: boolean[] = []
   const tuckedCalls: boolean[] = []
   const clusterResizeFreezeCalls: boolean[] = []
+  const veilCalls: boolean[] = []
+  const veilListeners: ((v: boolean) => void)[] = []
   const snapListeners = new Set<(snapped: boolean) => void>()
   const cursorInsideListeners = Array<(inside: boolean) => void>()
   const childCloseListeners = new Set<() => void>()
@@ -83,6 +87,8 @@ const childCountListeners: Array<(n: number) => void> = []
     tuckedCalls,
     resizeFreezeListeners,
     clusterResizeFreezeCalls,
+    veilCalls,
+    veilListeners,
     snapListeners,
     cursorInsideListeners,
     childCloseListeners,
@@ -150,6 +156,14 @@ const childCountListeners: Array<(n: number) => void> = []
     clusterResizeFreeze: (frozen: boolean) => {
       clusterResizeFreezeCalls.push(frozen)
       return Promise.resolve()
+    },
+    setVeil: (v: boolean) => {
+      veilCalls.push(v)
+      return Promise.resolve()
+    },
+    onVeil: (cb: (v: boolean) => void) => {
+      veilListeners.push(cb)
+      return () => undefined
     },
     onResizeFreeze: (cb: (frozen: boolean) => void) => {
       resizeFreezeListeners.push(cb)

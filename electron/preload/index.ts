@@ -33,6 +33,12 @@ const api = {
     return () => ipcRenderer.removeListener(IPC.windowMoving, listener)
   },
   clusterResizeFreeze: (frozen: boolean) => ipcRenderer.invoke(IPC.resizeFreeze, frozen),
+  setVeil: (v: boolean) => ipcRenderer.invoke(IPC.setVeil, v),
+  onVeil: (cb: (v: boolean) => void) => {
+    const listener = (_e: unknown, v: boolean): void => cb(v)
+    ipcRenderer.on(IPC.veil, listener)
+    return () => ipcRenderer.removeListener(IPC.veil, listener)
+  },
   onResizeFreeze: (listener: (frozen: boolean) => void): (() => void) => {
     ipcRenderer.on(IPC.resizeFreeze, (_e, v) => listener(v))
     return () => ipcRenderer.removeAllListeners(IPC.resizeFreeze)
