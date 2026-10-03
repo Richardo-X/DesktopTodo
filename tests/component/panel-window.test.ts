@@ -126,10 +126,14 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       const api = (window as unknown as { desktopTodo: TestApi }).desktopTodo
       await flushPromises()
 
-      // 冻结：cluster 内容隐藏（窗壳 window-card 保留）
+      // 冻结：内容子元素隐藏 + 窗壳可见（背景非透明——回退版应用侧窗背景
+      // 在容器内部，容器整体 hidden 曾致侧窗整窗消失，此断言为回归防线）
       api.resizeFreezeListeners[0](true)
       await wrapper.vm.$nextTick()
       expect(wrapper.find('.cluster').classes()).toContain('cluster-frozen')
+      const bg = getComputedStyle(wrapper.find('.cluster').element as HTMLElement).backgroundColor
+      expect(bg).not.toBe('rgba(0, 0, 0, 0)')
+      expect(bg).not.toBe('transparent')
       // 主窗 grip 链路发送的信号由主窗侧验证；此处锁定侧窗响应
 
       // 解冻：内容恢复 + zoom 按当前窗口重推

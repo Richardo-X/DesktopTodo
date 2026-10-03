@@ -215,8 +215,17 @@ onUnmounted(() => {
 }
 
 /* ===== 面板外观与基准尺寸（原 AppShell :deep 规则迁入；窗口 bounds=面板基准×缩放） ===== */
-/* 缩放呈现 v3.3：两侧窗内容隐藏（window-card 底板/圆角边框保留=窗壳缩放观感） */
+/* 缩放呈现 v3.3（用户定稿）：两侧窗冻结时=窗壳观感（背景+圆角边框可见），
+ * 内容子元素隐藏——visibility 只作用于直接子元素，容器自身成为窗壳
+ * （与原型 .win.freeze-content > * 同构；容器整体 hidden 会连背景一起
+ * 藏掉=侧窗整窗消失，实测教训） */
 .cluster-frozen {
+  background: var(--win-bg);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+}
+
+.cluster-frozen > * {
   visibility: hidden;
 }
 
