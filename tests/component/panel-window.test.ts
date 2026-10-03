@@ -133,7 +133,7 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       expect(wrapper.find('.modal-veil').exists()).toBe(false)
     })
 
-    it('侧窗不显示蒙层（用户原话：蒙层在主窗上）', async () => {
+    it('侧窗同样显示蒙层（用户定稿 2026-10-03：三个一级窗口都蒙）', async () => {
       installTestApi()
       const wrapper = mount(PanelWindow as any, {
         props: { panel: 'quick' },
@@ -143,7 +143,7 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       await flushPromises()
       api.childCountListeners[0](1)
       await wrapper.vm.$nextTick()
-      expect(wrapper.find('.modal-veil').exists()).toBe(false)
+      expect(wrapper.find('.modal-veil').exists()).toBe(true)
       wrapper.unmount()
     })
   })

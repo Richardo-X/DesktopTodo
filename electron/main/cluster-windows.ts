@@ -111,6 +111,15 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
       if (w.isDestroyed() || dragTimer !== null) return
       w.restore()
     })
+    // C-1 诊断：Win+D 对组件窗口的实际效果追踪（hide 路径不触发 minimize）
+    const dEvents: Array<'minimize' | 'restore' | 'hide' | 'close'> = ['minimize', 'restore', 'hide', 'close']
+    for (const ev of dEvents) {
+      w.on(ev as 'minimize', () => {
+        if (process.env.DTODO_TEST === '1' || process.env.NODE_ENV !== 'production') {
+          console.log('[win-d-dbg]', panel, ev)
+        }
+      })
+    }
   })
   // z-order 绑定：任一窗激活 → 三窗同升（moveTop 不夺焦）
   w.on('focus', () => raiseClusterAll())

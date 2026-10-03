@@ -25,7 +25,7 @@ const ui = useUiStore()
 const tucked = computed(() => ui.tuck.tucked)
 /** DOM 形态跟随的 tucked：主进程窗口几何调整完成后才切换（先几何后 DOM，消弹出呼吸/闪烁） */
 const domTucked = ref(false)
-/** 批次 C-2（用户验收 38）：二级窗打开时主窗显示灰色半透明蒙层（原型 .blocked::before 同色） */
+/** 批次 C-2（用户定稿 2026-10-03）：二级窗打开时三个一级窗口都显示蒙层（示意不可操作） */
 const childOpen = computed(() => ui.tuck.childOpen)
 
 const baseWidth = computed(() => (props.panel === 'main' ? BASE_PANEL.main : BASE_PANEL.quick))
@@ -131,10 +131,10 @@ onUnmounted(() => {
 
 <template>
   <div class="stage" :class="{ 'side-frozen': sideFrozen }" :data-theme="store.uiState.theme">
+    <!-- 批次 C-2：模态锁定蒙层（三窗统一；示意一级窗口不可操作，纯视觉） -->
+    <div v-if="childOpen" class="modal-veil" data-testid="modal-veil" />
     <!-- 待办主窗：缩进态切换为胶囊（形态 B；侧窗由主进程隐藏） -->
     <template v-if="props.panel === 'main'">
-      <!-- 批次 C-2：模态锁定蒙层（视觉提示；窗口交互已由主进程 setEnabled 禁用） -->
-      <div v-if="childOpen" class="modal-veil" data-testid="modal-veil" />
       <!-- 用户验收：弹出/缩进同步无呼吸——面板常驻挂载（不销毁 DOM），缩进=透明度翻转
            （display 切换会重排重建=慢半拍；opacity 翻转=合成器直完成） -->
       <div
@@ -218,7 +218,7 @@ onUnmounted(() => {
   --dialog-fg: #e8eaf0;
 }
 
-/* ===== 批次 C-2：模态锁定蒙层（原型 .blocked::before 同色；纯视觉，窗口交互已禁用） ===== */
+/* ===== 批次 C-2：模态锁定蒙层（三窗统一；示意一级窗口不可操作，纯视觉） ===== */
 .modal-veil {
   position: absolute;
   inset: 0;
@@ -226,6 +226,7 @@ onUnmounted(() => {
   z-index: 50; /* 高于内容层，低于二级窗口（独立 OS 窗口天然在上） */
   pointer-events: none;
 }
+
 
 /* ===== 面板外观与基准尺寸（原 AppShell :deep 规则迁入；窗口 bounds=面板基准×缩放） ===== */
 /* 缩放呈现 v3.3（用户定稿）：两侧窗冻结=窗壳观感。窗壳挂 stage（尺寸恒等于

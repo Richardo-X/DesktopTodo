@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process'
 import { test, expect } from '@playwright/test'
 import { launchApp } from './helpers'
 
@@ -34,6 +35,21 @@ test('Win+D 等价：最小化路径组件保持可见（展开/缩进两态）'
     return main.getBounds()
   })
   expect(bounds.width).toBeGreaterThan(160)
+
+  // 系统级验证：ShowWindow(SW_MINIMIZE/SW_SHOWMINIMIZED) 直接走 Win32（等价 Win+D 的系统最小化）
+  const sysMin = await h.app.evaluate(({ BrowserWindow }) => {
+    const main = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))
+    return main ? main.getNativeWindowHandle().readBigUInt64LE(0).toString(16) : null
+  })
+  console.log('MAIN-HWND:', sysMin)
+  // Win32 系统级最小化（SW_MINIMIZE=6，等价 Win+D 对窗口的效果）
+  execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File C:/tmp/win-d-sys.ps1 -hwndHex ${sysMin} -cmd 6`, { timeout: 15_000 })
+  await h.main.waitForTimeout(800)
+  const sysState = await h.app.evaluate(({ BrowserWindow }) => {
+    const main = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))!
+    return { vis: main.isVisible(), mini: main.isMinimized() }
+  })
+  console.log('SYS-MIN-RESULT:', JSON.stringify(sysState))
 
   // 缩进态：主窗收胶囊后 minimize → 恢复胶囊可见
   await h.main.evaluate(() =>
