@@ -8,6 +8,7 @@ vi.mock('electron', () => {
   const handlers = new Map<string, () => void>()
   return {
     app: {
+      isPackaged: false,
       requestSingleInstanceLock: vi.fn(() => true),
       on: vi.fn((ev: string, cb: () => void) => handlers.set(ev, cb)),
       getPath: vi.fn(() => 'C:\\Program Files\\Desktop Todo\\桌面待办.exe'),
@@ -53,6 +54,7 @@ describe('T18 开机自启', () => {
   })
 
   it('setAutoStart(true/false) 透传', () => {
+    ;(app as unknown as { isPackaged: boolean }).isPackaged = true
     setAutoStart(true)
     expect(app.setLoginItemSettings).toHaveBeenCalledWith(expect.objectContaining({ openAtLogin: true }))
     setAutoStart(false)
@@ -65,6 +67,7 @@ describe('T18 开机自启', () => {
   })
 
   it('三轮：setAutoStart 返回真实生效状态（写后回读校验）', () => {
+    ;(app as unknown as { isPackaged: boolean }).isPackaged = true
     vi.mocked(app.setLoginItemSettings).mockClear()
     vi.mocked(app.getLoginItemSettings).mockReturnValue({ openAtLogin: true } as never)
     expect(setAutoStart(true)).toBe(true)
@@ -74,12 +77,26 @@ describe('T18 开机自启', () => {
   })
 
   it('三轮：syncAutoStartOnBoot——开关开启时重写登录项（防升级/移动目录后旧路径失效），关闭时不写', () => {
+    ;(app as unknown as { isPackaged: boolean }).isPackaged = true
     vi.mocked(app.setLoginItemSettings).mockClear()
     syncAutoStartOnBoot(true)
     expect(app.setLoginItemSettings).toHaveBeenCalledWith(expect.objectContaining({ openAtLogin: true }))
 
     vi.mocked(app.setLoginItemSettings).mockClear()
     syncAutoStartOnBoot(false)
+    expect(app.setLoginItemSettings).not.toHaveBeenCalled()
+  })
+})
+
+/** 批次 C-3：开发版（未打包）禁止写自启注册表——
+ * 此前开发版 electron.exe 曾把自身写进 Run 键（用户开机出现 Electron 空窗口） */
+describe('C-3 自启防护', () => {
+  it('未打包（app.isPackaged=false）时 setAutoStart 不写 LoginItem 且返回 false', async () => {
+    ;(app as unknown as { isPackaged: boolean }).isPackaged = false // T18 会改写，显式复位
+    vi.mocked(app.setLoginItemSettings).mockClear()
+    const { setAutoStart } = await import('../../electron/main/auto-start')
+    const ok = setAutoStart(true)
+    expect(ok).toBe(false)
     expect(app.setLoginItemSettings).not.toHaveBeenCalled()
   })
 })

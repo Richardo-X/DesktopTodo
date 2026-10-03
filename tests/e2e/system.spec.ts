@@ -43,7 +43,7 @@ test('验收39：置顶开关生效（isAlwaysOnTop）', async () => {
   await h.close()
 })
 
-test('验收44：开机自启开关写入系统登录项', async () => {
+test('验收44（C-3 修订）：开发版自启开关不写系统登录项（防护生效）', async () => {
   const h: AppHandle = await launchApp()
   const sp = h.app.waitForEvent('window')
   await h.main.click('[data-testid="tb-settings"]')
@@ -52,8 +52,9 @@ test('验收44：开机自启开关写入系统登录项', async () => {
 
   await settings.click('[data-testid="set-autostart-btn"]')
   await settings.waitForTimeout(500)
+  // C-3：E2E=开发版（未打包），setAutoStart 被防护拦截——注册表必须保持未写入
   const enabled = await h.app.evaluate((electron) => electron.app.getLoginItemSettings().openAtLogin)
-  expect(enabled).toBe(true)
+  expect(enabled).toBe(false)
 
   // 关闭还原
   await settings.click('[data-testid="set-autostart-btn"]')
