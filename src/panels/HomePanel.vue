@@ -95,6 +95,8 @@ function rendererWorkArea(): { x: number; y: number; width: number; height: numb
 
 function onGripDown(e: PointerEvent): void {
   ui.dispatchTuck({ type: 'resize-start' })
+  // 方案 A：缩放中三窗内容冻结（松手解冻），消灭"内容重绘晚于矩形"的拖影
+  void getApi().clusterResizeFreeze(true)
   lastScaleSentAt = 0
   const scale = store.uiState.clusterScale
   // 四轮定稿 B：拖拽比例基于可见簇宽（隐藏面板不占位，与主进程钳制口径一致）
@@ -134,6 +136,7 @@ function onGripUp(): void {
   window.removeEventListener('pointermove', onGripMove)
   window.removeEventListener('pointerup', onGripUp)
   ui.dispatchTuck({ type: 'resize-end' })
+  void getApi().clusterResizeFreeze(false)
 }
 
 // 顶部时钟：每秒刷新，显示精确到分钟（决策#2，PRD §3）

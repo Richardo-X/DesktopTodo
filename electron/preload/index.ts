@@ -32,6 +32,11 @@ const api = {
     ipcRenderer.on(IPC.windowMoving, listener)
     return () => ipcRenderer.removeListener(IPC.windowMoving, listener)
   },
+  clusterResizeFreeze: (frozen: boolean) => ipcRenderer.invoke(IPC.resizeFreeze, frozen),
+  onResizeFreeze: (listener: (frozen: boolean) => void): (() => void) => {
+    ipcRenderer.on(IPC.resizeFreeze, (_e, v) => listener(v))
+    return () => ipcRenderer.removeAllListeners(IPC.resizeFreeze)
+  },
   bubbleShow: (p: { text: string; theme: 'day' | 'night'; row: { left: number; top: number; right: number; bottom: number } }) =>
     ipcRenderer.invoke(IPC.bubbleShow, p),
   bubbleHide: () => ipcRenderer.invoke(IPC.bubbleHide),
