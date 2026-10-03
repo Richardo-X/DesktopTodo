@@ -33,6 +33,12 @@ const api = {
     return () => ipcRenderer.removeListener(IPC.windowMoving, listener)
   },
   clusterResizeFreeze: (frozen: boolean) => ipcRenderer.invoke(IPC.resizeFreeze, frozen),
+  setVeil: (v: boolean) => ipcRenderer.invoke(IPC.setVeil, v),
+  onVeil: (cb: (v: boolean) => void) => {
+    const listener = (_e: unknown, v: boolean): void => cb(v)
+    ipcRenderer.on(IPC.veil, listener)
+    return () => ipcRenderer.removeListener(IPC.veil, listener)
+  },
   onResizeFreeze: (listener: (frozen: boolean) => void): (() => void) => {
     ipcRenderer.on(IPC.resizeFreeze, (_e, v) => listener(v))
     return () => ipcRenderer.removeAllListeners(IPC.resizeFreeze)
@@ -81,6 +87,7 @@ if (process.env.DTODO_TEST === '1') {
     clusterDragDelta: (dx: number, dy: number) => ipcRenderer.invoke('test:cluster-drag-delta', { dx, dy }),
     clusterState: () => ipcRenderer.invoke('test:cluster-state'),
     dragState: () => ipcRenderer.invoke('test:drag-state'),
+    sysShowWindow: (cmd: number) => ipcRenderer.invoke('test:sys-show-window', cmd),
 
   })
 }

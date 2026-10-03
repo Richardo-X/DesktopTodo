@@ -50,7 +50,7 @@ async function toggleAutoStart(): Promise<void> {
   const r = await store.updateSettings({ autoStart: !store.settings.autoStart })
   // 三轮：系统登录项写入未生效（如被任务管理器禁用/策略拦截）→ 明确提示
   if (r.ok && r.autoStartApplied === false) {
-    autoStartError.value = '开机自启设置未生效，请检查任务管理器「启动应用」中「桌面待办」是否被禁用'
+    autoStartError.value = '开机自启设置未生效（开发版不支持自启；安装版请检查任务管理器「启动应用」中「桌面待办」是否被禁用）'
   }
 }
 

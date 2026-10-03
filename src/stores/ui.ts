@@ -136,6 +136,8 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   async function openChild(kind: ChildKind, id?: string): Promise<void> {
+  // 批次 C-2：蒙层前置广播（蒙层与二级窗同步出现，不等窗口创建+childCount 往返）
+  void getApi().setVeil(true)
     // 缩进状态机：打开子窗口立即弹出（I4）
     dispatchTuck({ type: 'child-open' })
     await getApi().openChild({ kind, id })

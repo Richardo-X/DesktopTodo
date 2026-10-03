@@ -2,7 +2,7 @@ import { BrowserWindow, screen, type IpcMain } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyClusterTopMost } from './window-state'
-import { sendWindowToBottom } from './win32'
+import { sendWindowToBottom, sysShowWindow } from './win32'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -83,6 +83,7 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
     backgroundColor: '#00000000',
     thickFrame: false,
     skipTaskbar: true,
+    minimizable: false,
     resizable: false,
     movable: true,
     hasShadow: false,
@@ -105,6 +106,19 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
       sendWindowToBottom(w.getNativeWindowHandle())
     }
     w.on('blur', () => onClusterWindowBlur())
+    // C-1 兜底：任何路径（含系统广播）导致最小化 → 立即恢复（组件不进任务栏/不消失）
+    w.on('minimize', () => {
+      if (w.isDestroyed() || dragTimer !== null) return
+      w.restore()
+    })
+    const dEvents: Array<'minimize' | 'restore' | 'hide' | 'close'> = ['minimize', 'restore', 'hide', 'close']
+    for (const ev of dEvents) {
+      w.on(ev as 'minimize', () => {
+        if (process.env.DTODO_TEST === '1' || process.env.NODE_ENV !== 'production') {
+          console.log('[win-d-dbg]', panel, ev)
+        }
+      })
+    }
   })
   // z-order 绑定：任一窗激活 → 三窗同升（moveTop 不夺焦）
   w.on('focus', () => raiseClusterAll())
@@ -568,6 +582,11 @@ export function registerClusterIpc(ipcMain: IpcMain): void {
   if (process.env.DTODO_TEST === '1') {
     ipcMain.handle('test:cluster-drag-delta', (_e, p: { dx: number; dy: number }) => clusterDragDeltaBy(p.dx, p.dy))
     ipcMain.handle('test:cluster-state', () => clusterDebugState())
+    ipcMain.handle('test:sys-show-window', (_e, cmd: number) => {
+      const m = cluster?.windows.main
+      if (m && safe(m)) sysShowWindow(m.getNativeWindowHandle(), cmd)
+      return true
+    })
     ipcMain.handle('test:drag-state', () => ({ dragging: dragTimer !== null }))
     // 置顶判定 E2E：可见窗口 z 序链（顶到底）——沉底/置顶断言用
 

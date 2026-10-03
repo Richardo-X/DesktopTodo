@@ -115,6 +115,39 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
     })
   })
 
+  describe('批次 C-2：模态蒙层（用户验收 38）', () => {
+    it('二级窗打开（childOpen）→ 主窗显示灰色半透明蒙层；侧窗无蒙层；关闭恢复', async () => {
+      const { wrapper, api } = await mountMain()
+      await flushPromises()
+      // 初始无蒙层
+      expect(wrapper.find('.modal-veil').exists()).toBe(false)
+      // 二级窗打开（入口前置 veil 信号 → 主进程广播三窗）
+      api.veilListeners[0](true)
+      await wrapper.vm.$nextTick()
+      const veil = wrapper.find('.modal-veil')
+      expect(veil.exists()).toBe(true)
+      // 背景色断言在 E2E（happy-dom 不应用 scoped CSS，computed 为空）
+      // 关闭 → 恢复
+      api.veilListeners[0](false)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.modal-veil').exists()).toBe(false)
+    })
+
+    it('侧窗同样显示蒙层（用户定稿 2026-10-03：三个一级窗口都蒙）', async () => {
+      installTestApi()
+      const wrapper = mount(PanelWindow as any, {
+        props: { panel: 'quick' },
+        global: { plugins: [createPinia()] }
+      })
+      const api = (window as unknown as { desktopTodo: TestApi }).desktopTodo
+      await flushPromises()
+      api.veilListeners[0](true)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.modal-veil').exists()).toBe(true)
+      wrapper.unmount()
+    })
+  })
+
   describe('缩放呈现 v3.3：两侧窗内容底色代替', () => {
     it('侧窗收到冻结信号 → 内容层隐藏（visibility）；解冻 → 恢复且 zoom 立即重推', async () => {
       // mountWithStore 挂 quick 面板（PanelWindow 侧窗形态）
