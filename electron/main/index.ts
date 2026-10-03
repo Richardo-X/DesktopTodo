@@ -164,13 +164,6 @@ function hideToTray(): void {
   refreshTrayMenu()
 }
 
-/** 二级窗关闭：蒙层解除广播（三窗；打开由入口前置 setVeil(true)） */
-function broadcastVeilOff(): void {
-  for (const w of getAllClusterWindows()) {
-    if (!w.isDestroyed()) w.webContents.send(IPC.veil, false)
-  }
-}
-
 function refreshTrayMenu(): void {
   if (!tray) return
   tray.setContextMenu(
@@ -269,7 +262,6 @@ function openChildWindow(kind: ChildKind, id?: string): void {
     lockNonChildWindows(false)
   })
   child.on('closed', () => {
-    broadcastVeilOff()
     childWindows.delete(child)
     if (childWindows.size === 0) lockNonChildWindows(false)
     broadcastChildCount()
@@ -340,13 +332,6 @@ function registerIpc(): void {
   ipcMain.handle(IPC.resizeFreeze, (_e, frozen: boolean) => {
     for (const w of getAllClusterWindows()) {
       if (!w.isDestroyed()) w.webContents.send(IPC.resizeFreeze, frozen)
-    }
-  })
-
-  // 批次 C-2：蒙层前置信号——打开入口先广播蒙层再创建二级窗（蒙层与窗口同步出现）
-  ipcMain.handle(IPC.setVeil, (_e, v: boolean) => {
-    for (const w of getAllClusterWindows()) {
-      if (!w.isDestroyed()) w.webContents.send(IPC.veil, v)
     }
   })
 

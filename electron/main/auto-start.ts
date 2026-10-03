@@ -9,9 +9,6 @@ export function loginItemSettingsFor(enabled: boolean): { openAtLogin: boolean; 
 }
 
 export function setAutoStart(enabled: boolean): boolean {
-  // 批次 C-3：开发版（未打包）禁止写自启注册表——此前开发版 electron.exe
-  // 曾把自身写进 HKCU Run 键，用户开机出现 Electron 空窗口（实测事故）
-  if (!app.isPackaged) return false
   app.setLoginItemSettings(loginItemSettingsFor(enabled))
   // 三轮：写后回读校验——Windows 策略可能拦截（任务管理器禁用启动应用等）
   try {

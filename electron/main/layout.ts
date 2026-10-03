@@ -30,7 +30,6 @@ export interface WindowOptions {
   /** 四轮黑块修复：去掉 WS_THICKFRAME 系统衬底层 */
   thickFrame: boolean
   skipTaskbar: boolean
-  minimizable: boolean
   resizable: boolean
   movable: boolean
   hasShadow: boolean
@@ -59,8 +58,6 @@ export function defaultWindowOptions(bounds: Bounds): WindowOptions {
     backgroundColor: '#00000000',
     thickFrame: false,
     skipTaskbar: true,
-    // 批次 C-1：Win+D 不影响组件——不可最小化窗口不被 Win+D 最小化/隐藏
-    minimizable: false,
     resizable: false,
     movable: true,
     hasShadow: false,

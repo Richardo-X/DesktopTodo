@@ -22,8 +22,6 @@ export const IPC = {
   snapChanged: 'app:snap-state',
   windowMoving: 'window:moving',
   resizeFreeze: 'window:resize-freeze',
-  veil: 'window:veil',
-  setVeil: 'window:set-veil',
   bubbleShow: 'bubble:show',
   bubbleHide: 'bubble:hide',
   bubbleResize: 'bubble:resize',
@@ -83,8 +81,6 @@ export interface DesktopTodoApi {
   setTucked(tucked: boolean): Promise<void>
   onWindowMoving(cb: (now: number) => void): () => void
   clusterResizeFreeze(frozen: boolean): Promise<void>
-  setVeil(v: boolean): Promise<void>
-  onVeil(cb: (v: boolean) => void): () => void
   onResizeFreeze(cb: (frozen: boolean) => void): () => void
   /** 四轮：气泡独立小窗口（渲染层传行视口矩形，主进程换算屏幕坐标并承载/定尺寸） */
   bubbleShow(p: { text: string; theme: 'day' | 'night'; row: { left: number; top: number; right: number; bottom: number } }): Promise<void>

@@ -25,14 +25,6 @@ const SWP_NOSIZE = 0x0004
 const SWP_NOACTIVATE = 0x0010
 const SWP_NOOWNERZORDER = 0x0200
 
-/** Win32 ShowWindow 直发（E2E 系统级最小化等价物；DTODO_TEST 钩子用） */
-const ShowWindowAsync = user32.func('int32 __stdcall ShowWindowAsync(intptr hWnd, int32 cmd)')
-
-export function sysShowWindow(nativeHandle: Buffer, cmd: number): void {
-  if (process.platform !== 'win32' || nativeHandle.length < 8) return
-  ShowWindowAsync(nativeHandle.readBigUInt64LE(0), cmd)
-}
-
 /** 把窗口压到 z 序最底（桌面之上、所有普通窗口之下），不移动不缩放不激活 */
 export function sendWindowToBottom(nativeHandle: Buffer): void {
   try {

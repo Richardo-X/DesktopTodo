@@ -174,30 +174,3 @@ test('表单类子窗口提交按钮右对齐', async () => {
   expect(gap).toBeLessThanOrEqual(20) // 仅 footer 内边距量级，非贴左
   await h.close()
 })
-
-/** 批次 C-2（用户验收 38）：二级窗打开时主窗显示灰色半透明蒙层（computed 背景断言） */
-test('C-2：模态锁定时主窗显示灰色半透明蒙层，关闭后消失', async () => {
-  const h = await launchApp()
-  h.main.on('console', (m) => console.log('PAGE:', m.text().slice(0, 120)))
-  await h.main.waitForSelector('[data-testid="home-panel"]')
-
-  const veilBg = (): Promise<string | null> =>
-    h.main.evaluate(() => {
-      const v = document.querySelector('[data-testid="modal-veil"]') as HTMLElement | null
-      return v ? getComputedStyle(v).backgroundColor : null
-    })
-
-  expect(await veilBg()).toBeNull() // 无二级窗：无蒙层
-
-  const wp = h.app.waitForEvent('window')
-  await h.main.click('[data-testid="tb-settings"]')
-  const settings = await wp
-  await settings.waitForSelector('[data-testid="set-max"]').catch(() => {})
-  await h.main.waitForTimeout(400)
-  expect(await veilBg()).toBe('rgba(20, 20, 25, 0.2)') // 蒙层（原型 .blocked::before 同色）
-
-  await settings.close()
-  await h.main.waitForTimeout(500)
-  expect(await veilBg()).toBeNull()
-  await h.close()
-})

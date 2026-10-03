@@ -34,8 +34,6 @@ describe('四轮黑块：透明窗口衬底显式声明', () => {
     const o = defaultWindowOptions({ width: 1094, height: 640 })
     expect(o.backgroundColor).toBe('#00000000')
     expect(o.thickFrame).toBe(false)
-    // 批次 C-1：Win+D 不影响组件——不可最小化窗口不被 Win+D 最小化
-    expect(o.minimizable).toBe(false)
   })
 })
 
