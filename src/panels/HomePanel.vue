@@ -99,11 +99,12 @@ function onGripDown(e: PointerEvent): void {
   void getApi().clusterResizeFreeze(true)
   lastScaleSentAt = 0
   const scale = store.uiState.clusterScale
-  // 四轮定稿 B：拖拽比例基于可见簇宽（隐藏面板不占位，与主进程钳制口径一致）
+  // 灵敏度定稿（用户 2026-10-03）：拖动距离=主窗边缘位移 1:1——分母=主窗宽
+  // （拖手柄在主窗右下角；旧簇宽分母把缩放"稀释"约 2.3 倍=拖远才缩一点）
   scaleStart = {
     x: e.clientX,
     scale,
-    baseWidth: visibleClusterWidth(store.uiState.quickVisible, store.uiState.doneVisible) * scale
+    baseWidth: BASE_PANEL.main * scale
   }
   window.addEventListener('pointermove', onGripMove)
   window.addEventListener('pointerup', onGripUp)
@@ -332,7 +333,7 @@ async function onComplete(id: string): Promise<void> {
       <BatchBar v-if="ui.batchTarget === 'todos'" target="todos" />
     </div>
 
-    <span class="resize-grip" title="拖动缩放" @pointerdown.stop.prevent="onGripDown" />
+    <span class="resize-grip" data-testid="resize-grip" title="拖动缩放" @pointerdown.stop.prevent="onGripDown" />
   </section>
 </template>
 

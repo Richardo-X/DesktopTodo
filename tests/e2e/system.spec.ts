@@ -50,17 +50,18 @@ test('验收44（C-3 修订）：开发版自启开关不写系统登录项（�
   const settings = await sp
   await settings.waitForSelector('[data-testid="set-autostart-btn"]')
 
+  const enabledBefore = await h.app.evaluate((electron) => electron.app.getLoginItemSettings().openAtLogin)
   await settings.click('[data-testid="set-autostart-btn"]')
   await settings.waitForTimeout(500)
-  // C-3：E2E=开发版（未打包），setAutoStart 被防护拦截——注册表必须保持未写入
+  // C-3：E2E=开发版（未打包），setAutoStart 被防护拦截——注册表保持调用前状态（不写入）
   const enabled = await h.app.evaluate((electron) => electron.app.getLoginItemSettings().openAtLogin)
-  expect(enabled).toBe(false)
+  expect(enabled).toBe(enabledBefore)
 
-  // 关闭还原
+  // 第二次点击（关闭方向）：防护同样拦截——注册表保持不变
   await settings.click('[data-testid="set-autostart-btn"]')
   await settings.waitForTimeout(500)
   const disabled = await h.app.evaluate((electron) => electron.app.getLoginItemSettings().openAtLogin)
-  expect(disabled).toBe(false)
+  expect(disabled).toBe(enabledBefore)
   await h.close()
 })
 
