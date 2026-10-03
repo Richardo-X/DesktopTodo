@@ -20,8 +20,6 @@ export interface TestApi extends DesktopTodoApi {
   unsavedCalls: boolean[]
   openCsvCalls: number
   tuckedCalls: boolean[]
-  resizeFreezeListeners: ((frozen: boolean) => void)[]
-  clusterResizeFreezeCalls: boolean[]
   snapListeners: Set<(snapped: boolean) => void>
   cursorInsideListeners: Array<(inside: boolean) => void>
   childCloseListeners: Set<() => void>
@@ -54,7 +52,6 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
   let openCsvCalls = 0
   const unsavedCalls: boolean[] = []
   const tuckedCalls: boolean[] = []
-  const clusterResizeFreezeCalls: boolean[] = []
   const snapListeners = new Set<(snapped: boolean) => void>()
   const cursorInsideListeners = Array<(inside: boolean) => void>()
   const childCloseListeners = new Set<() => void>()
@@ -62,8 +59,7 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
   const dragEndCalls: number[] = []
   const batchStateCalls: Array<'todos' | 'templates' | 'history' | null> = []
   const batchStateListeners: Array<(target: 'todos' | 'templates' | 'history' | null) => void> = []
-  const resizeFreezeListeners: ((frozen: boolean) => void)[] = []
-const childCountListeners: Array<(n: number) => void> = []
+  const childCountListeners: Array<(n: number) => void> = []
 
   const booted: Promise<unknown> = ctx.boot()
 
@@ -81,8 +77,6 @@ const childCountListeners: Array<(n: number) => void> = []
     openChildCalls,
     topMostCalls,
     tuckedCalls,
-    resizeFreezeListeners,
-    clusterResizeFreezeCalls,
     snapListeners,
     cursorInsideListeners,
     childCloseListeners,
@@ -147,14 +141,6 @@ const childCountListeners: Array<(n: number) => void> = []
       resizeSelfCalls.push(params)
     },
     onWindowMoving: (_cb: (now: number) => void) => () => {},
-    clusterResizeFreeze: (frozen: boolean) => {
-      clusterResizeFreezeCalls.push(frozen)
-      return Promise.resolve()
-    },
-    onResizeFreeze: (cb: (frozen: boolean) => void) => {
-      resizeFreezeListeners.push(cb)
-      return () => undefined
-    },
     bubbleShow: async (p) => {
       bubbleShowCalls.push(p)
     },

@@ -40,20 +40,10 @@ function syncZoomFromViewport(): void {
   if (Number.isFinite(s) && s > 0.1 && s <= 3) zoomValue.value = s
 }
 
-/** 方案 A（内容冻结）：缩放中冻结内容（zoom 不随 resize 更新）——
- * 内容重绘晚于矩形 1~2 帧是缩放拖影的唯一来源（实测），冻结即无内容帧可追赶 */
-const contentFrozen = ref(false)
-
-function onResizeFreeze(frozen: boolean): void {
-  contentFrozen.value = frozen
-  // 解冻立即按当前窗口尺寸重推缩放（最终矩形可能在解冻信号前已到位）
-  if (!frozen) syncZoomFromViewport()
-}
-
 function onWinResize(): void {
   // 单一缩放源：窗口 resize 与 OS 尺寸变化同帧——卡片与窗口边缘同帧到位。
   // 不得混用广播值：双源每次 commit 触发两次重排（值有推导差）= 呼吸式抖动（用户实测）
-  if (!contentFrozen.value) syncZoomFromViewport()
+  syncZoomFromViewport()
 }
 
 const holderZoom = computed(() => zoomValue.value)
@@ -114,7 +104,6 @@ onMounted(() => {
   window.addEventListener('pointerup', onDocPointerUp)
   window.addEventListener('blur', onWindowBlur)
   window.addEventListener('resize', onWinResize)
-  getApi().onResizeFreeze(onResizeFreeze)
   syncZoomFromViewport()
 })
 

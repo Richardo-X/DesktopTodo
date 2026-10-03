@@ -113,41 +113,6 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
     })
   })
 
-  describe('方案 A：缩放内容冻结（拖影根除）', () => {
-    it('冻结时窗口 resize 不更新 zoom；解冻立即重推当前窗口缩放', async () => {
-      const { wrapper, api } = await mountMain()
-      const zoomBefore = (wrapper.find('.cluster').attributes('style') ?? '')
-      expect(zoomBefore).toContain('zoom')
-
-      // 冻结
-      api.resizeFreezeListeners[0](true)
-      await wrapper.vm.$nextTick()
-      Object.defineProperty(window, 'innerHeight', { value: 512, configurable: true })
-      window.dispatchEvent(new Event('resize'))
-      await wrapper.vm.$nextTick()
-      // 冻结中 zoom 不变（内容不追赶矩形）
-      expect((wrapper.find('.cluster').attributes('style') ?? '')).toBe(zoomBefore)
-
-      // 解冻 → 立即按当前窗口 512/640=0.8 重推
-      api.resizeFreezeListeners[0](false)
-      await wrapper.vm.$nextTick()
-      expect((wrapper.find('.cluster').attributes('style') ?? '')).toContain('zoom: 0.8')
-
-      Object.defineProperty(window, 'innerHeight', { value: 640, configurable: true })
-      window.dispatchEvent(new Event('resize'))
-    })
-
-    it('主窗 grip 按下/松开 → 发送冻结/解冻信号', async () => {
-      const { wrapper, api } = await mountMain()
-      await flushPromises()
-      await wrapper.find('.resize-grip').trigger('pointerdown')
-      expect(api.clusterResizeFreezeCalls[api.clusterResizeFreezeCalls.length - 1]).toBe(true)
-      await window.dispatchEvent(new Event('pointerup'))
-      await flushPromises()
-      expect(api.clusterResizeFreezeCalls[api.clusterResizeFreezeCalls.length - 1]).toBe(false)
-    })
-  })
-
   describe('缩进状态机（宿主=待办主窗）', () => {
     it('三轮8.2-1：缩进态渲染胶囊短条；光标回到窗内弹出', async () => {
       const { wrapper, api } = await mountMain()
