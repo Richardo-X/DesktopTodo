@@ -2,7 +2,7 @@ import { BrowserWindow, screen, type IpcMain } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyClusterTopMost } from './window-state'
-import { sendWindowToBottom } from './win32'
+import { sendWindowToBottom, sysShowWindow } from './win32'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -111,7 +111,6 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
       if (w.isDestroyed() || dragTimer !== null) return
       w.restore()
     })
-    // C-1 诊断：Win+D 对组件窗口的实际效果追踪（hide 路径不触发 minimize）
     const dEvents: Array<'minimize' | 'restore' | 'hide' | 'close'> = ['minimize', 'restore', 'hide', 'close']
     for (const ev of dEvents) {
       w.on(ev as 'minimize', () => {
@@ -583,6 +582,11 @@ export function registerClusterIpc(ipcMain: IpcMain): void {
   if (process.env.DTODO_TEST === '1') {
     ipcMain.handle('test:cluster-drag-delta', (_e, p: { dx: number; dy: number }) => clusterDragDeltaBy(p.dx, p.dy))
     ipcMain.handle('test:cluster-state', () => clusterDebugState())
+    ipcMain.handle('test:sys-show-window', (_e, cmd: number) => {
+      const m = cluster?.windows.main
+      if (m && safe(m)) sysShowWindow(m.getNativeWindowHandle(), cmd)
+      return true
+    })
     ipcMain.handle('test:drag-state', () => ({ dragging: dragTimer !== null }))
     // 置顶判定 E2E：可见窗口 z 序链（顶到底）——沉底/置顶断言用
 

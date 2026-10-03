@@ -81,6 +81,7 @@ if (process.env.DTODO_TEST === '1') {
     clusterDragDelta: (dx: number, dy: number) => ipcRenderer.invoke('test:cluster-drag-delta', { dx, dy }),
     clusterState: () => ipcRenderer.invoke('test:cluster-state'),
     dragState: () => ipcRenderer.invoke('test:drag-state'),
+    sysShowWindow: (cmd: number) => ipcRenderer.invoke('test:sys-show-window', cmd),
 
   })
 }

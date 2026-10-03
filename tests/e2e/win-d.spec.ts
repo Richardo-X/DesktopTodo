@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process'
 import { test, expect } from '@playwright/test'
 import { launchApp } from './helpers'
 
@@ -43,7 +42,9 @@ test('Win+D 等价：最小化路径组件保持可见（展开/缩进两态）'
   })
   console.log('MAIN-HWND:', sysMin)
   // Win32 系统级最小化（SW_MINIMIZE=6，等价 Win+D 对窗口的效果）
-  execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File C:/tmp/win-d-sys.ps1 -hwndHex ${sysMin} -cmd 6`, { timeout: 15_000 })
+  await h.main.evaluate(() =>
+    (window as unknown as { desktopTodoTest?: { sysShowWindow(cmd: number): Promise<boolean> } }).desktopTodoTest!.sysShowWindow(6)
+  )
   await h.main.waitForTimeout(800)
   const sysState = await h.app.evaluate(({ BrowserWindow }) => {
     const main = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))!

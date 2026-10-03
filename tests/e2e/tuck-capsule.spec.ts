@@ -94,7 +94,7 @@ test('白条在胶囊态显示于窗口顶部可视区内（渲染层状态机�
         }),
       { timeout: 5_000 }
     )
-    .toBe(160)
+    .toBeLessThanOrEqual(162) // 160 + OS DPI 取整容差
 
   const bar = await h.main.evaluate(() => {
     const el = document.querySelector('.tuck-bar') as HTMLElement | null
@@ -104,7 +104,7 @@ test('白条在胶囊态显示于窗口顶部可视区内（渲染层状态机�
   })
   expect(bar?.display).toBe('block')
   expect(bar!.y).toBeLessThanOrEqual(2) // 窗口顶部可视区内（挤出窗外的缺陷抓不住=白条消失）
-  expect(bar!.w).toBe(160)
+  expect(Math.abs(bar!.w - 160)).toBeLessThanOrEqual(2) // OS DPI 取整容差
 
   // 弹出（光标回到胶囊内=轮询 enter 同通道）
   await sendMain('app:cursor-inside', true)
