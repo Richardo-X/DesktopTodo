@@ -538,6 +538,7 @@ export function startCloakGuard(): void {
     if (!cluster || !cluster.visible) return
     for (const w of getAllClusterWindows()) {
       if (safe(w) && w.isVisible() && isCloaked(w.getNativeWindowHandle())) {
+        console.log('[cloak-dbg] cloaked window detected, uncloaking')
         uncloak(w.getNativeWindowHandle())
       }
     }

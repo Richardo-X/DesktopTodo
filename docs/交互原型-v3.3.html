@@ -301,7 +301,7 @@ input[type="date"]::-webkit-inner-spin-button{display:none}
 [data-theme="night"] #tuckBar::after{background:rgba(255,255,255,.28)}
 [data-theme="night"] #tuckBar:hover::after{background:rgba(255,255,255,.5)}
 
-/* ---------- v3.2：窗口边界可视化（控制台开关）——直观查看三窗与 6px 缝隙 ---------- */
+/* ---------- v3.2：窗口边界可视化（控制台开关）——直观查看三窗与 4px 缝隙 ---------- */
 /* ---------- v3.3 缩放呈现（用户定稿方向）：缩放时两侧窗窗壳实时缩放、
  * 内容以底色代替（visibility 只藏子元素，.win 自身背景/圆角边框保留）；
  * 待办主窗不参与冻结、保持原样缩放；松手两侧窗内容恢复渲染。
@@ -385,12 +385,12 @@ input[type="date"]{font-size:calc(11.5px * var(--fs))}
     <ul>
       <li><b>A 拖动绑定</b>：拖任一标题栏＝三窗整体移动，不存在单窗拖动（正式版＝主进程光标轮询三窗同帧定位）</li>
       <li><b>B 缩进形态</b>：快捷/已完成两窗隐藏＋待办窗收缩为 160×6 胶囊；胶囊水平居中于组件可见宽度（现状规则）</li>
-      <li><b>C 缝隙穿透（优先级已降低）</b>：三窗分离后 6px 缝隙自然透出桌面、点击直达桌面——无需单独开发与验收</li>
+      <li><b>C 缝隙穿透（优先级已降低）</b>：三窗分离后 4px 缝隙自然透出桌面、点击直达桌面——无需单独开发与验收</li>
       <li><b>D 层级绑定</b>：任一窗激活 → 三窗同升（单页原型无法演示，正式版验证）</li>
     </ul>
     <b>② 缩放锚点＝待办窗左上角</b>：缩放/开关面板时<b>待办窗自身不动</b>，两侧窗向左/右伸展（抖动结构性根除）
     <ul>
-      <li><b>缝隙固定（<span style="color:#7ee787">已定稿 ✓</span>）</b>：缩放只作用于各窗内容，窗口间 6px 缝隙<b>不随缩放变化</b>（任意缩放档位实测恒 6px）</li>
+      <li><b>缝隙固定（<span style="color:#7ee787">已定稿 ✓</span>）</b>：缩放只作用于各窗内容，窗口间 4px 缝隙<b>不随缩放变化</b>（任意缩放档位实测恒 6px）</li>
       <li><b>缩放呈现 v3.3（演示中）</b>：拖动缩放时<b>两侧窗内容以底色代替、只看窗壳边框缩放，松手恢复渲染</b>；待办主窗保持原样实时缩放——消灭侧窗"内容重绘晚于窗框"的拖影（拖动手柄体验）</li>
     </ul>
     <b>③ 待办列表放宽（<span style="color:#7ee787">已通过 ✓</span>）</b>
@@ -423,7 +423,7 @@ input[type="date"]{font-size:calc(11.5px * var(--fs))}
     </ul>
     <b>⑧ 冻结/锁定样式（<span style="color:#7ee787">已定稿 ✓</span>）</b>：二级窗口模态锁定＝<b>置灰蒙层</b>；批量删除冻结＝<b>置灰</b>（45% 透明）——两处均维持置灰示意，"只禁点、不置灰"方案不采纳
     <ul></ul>
-    <span class="np-tag">提示</span>控制台可切换「窗口边界」直观查看三窗与 6px 缝隙；本页种子＝10 条待办满载（滚动条演示）。
+    <span class="np-tag">提示</span>控制台可切换「窗口边界」直观查看三窗与 4px 缝隙；本页种子＝10 条待办满载（滚动条演示）。
   </div>
 </div>
 
@@ -505,7 +505,7 @@ input[type="date"]{font-size:calc(11.5px * var(--fs))}
     <button id="dcPresetBtn">★ 应用定稿排列（整块行内 · 38px · 按钮上缘对齐日期上缘）</button>
     <button id="dcDateBtn">当前：③ 整块行内 ★定稿（时间+日期一组，按钮上缘对齐日期上缘）（点击切下一档）</button>
     <button id="dcClockBtn">时钟块大小：38px（点击切 30/34 对比）</button>
-    <button id="dcBounds">显示窗口边界（三窗 + 6px 缝隙）</button>
+    <button id="dcBounds">显示窗口边界（三窗 + 4px 缝隙）</button>
     <button id="dcTuckDemo">演示缩进（三窗形态 B）</button>
     <button id="dcNextDay">模拟「跨过 24 点」（逾期标记＋结算归档）</button>
     <button id="dcReset" class="warn">重置演示数据</button>
@@ -531,7 +531,7 @@ const dateOfMs=ms=>locISO(new Date(ms));
 const CHAR_LIMIT=300, MAX_TPL=10;
 
 /* 三窗基准（cluster-layout 同源）：主窗 470、两侧 310、缝隙 6 */
-const BASE_MAIN=470, BASE_SIDE=310, BASE_GAP=6, BASE_H=640;
+const BASE_MAIN=470, BASE_SIDE=310, BASE_GAP=4, BASE_H=640;
 const TUCK_BAR_W=160, TUCK_BAR_H=12;
 
 /* ================= 状态 ================= */
@@ -869,7 +869,7 @@ function setGroupScale(group,v){
 }
 
 /* ================= v3.2 三窗几何 ================= */
-/* 可见组件基准宽（scale=1）：主窗 + 可见侧窗（各含 6px 缝隙）——隐藏面板不占位 */
+/* 可见组件基准宽（scale=1）：主窗 + 可见侧窗（各含 4px 缝隙）——隐藏面板不占位 */
 function visibleBaseWidth(){
   const n=(S().quickVisible?1:0)+(S().doneVisible?1:0);
   return BASE_MAIN + n*BASE_SIDE;  /* 内容基准（缝隙 n×BASE_GAP 固定，另加不入缩放） */

@@ -8,9 +8,9 @@ import {
   type TuckState
 } from '../../src/core/utils/tuck'
 
-/** 1920x1080 屏工作区（可用高 1040，半屏 520）；B2 起簇基准 1094×640 */
+/** 1920x1080 屏工作区（可用高 1040，半屏 520）；B2 起簇基准 1098×640 */
 const WA = { x: 0, y: 40, width: 1920, height: 1040 }
-const BASE = { width: 1094, height: 640 }
+const BASE = { width: 1098, height: 640 }
 
 /** T39/§5-H 缩放钳制（H1-H4） */
 describe('clampClusterScale', () => {
@@ -22,15 +22,15 @@ describe('clampClusterScale', () => {
 
   it('H2 宽度先于高度达到上限 → 钳制到屏宽比例', () => {
     const wa = { x: 0, y: 0, width: 1000, height: 1000 }
-    const base = { width: 1094, height: 400 }
-    // 高度比例 500/400=1.25；宽度比例 1000/1094≈0.9074 → 宽度是有效上限
+    const base = { width: 1098, height: 400 }
+    // 高度比例 500/400=1.25；宽度比例 1000/1098≈0.9074 → 宽度是有效上限
     const r = clampClusterScale(1.2, base, wa)
-    expect(r).toBeCloseTo(1000 / 1094, 6)
+    expect(r).toBeCloseTo(1000 / 1098, 6)
   })
 
   it('极小屏幕：上限低于 MIN_SCALE 时 MIN_SCALE 兜底（风险 4 对策）', () => {
     const narrow = { x: 0, y: 0, width: 400, height: 1000 }
-    const base = { width: 1094, height: 400 }
+    const base = { width: 1098, height: 400 }
     expect(clampClusterScale(1.2, base, narrow)).toBe(MIN_SCALE)
   })
 

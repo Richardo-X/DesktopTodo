@@ -99,7 +99,13 @@ const page = computed(() => {
     :data-theme="store.uiState.theme"
   >
     <component :is="page" :item-id="id" />
-    <span class="child-grip" title="拖动缩放（同组窗口共享大小设置）" @pointerdown.stop.prevent="onGripDown" />
+    <!-- 气泡纯展示不可缩放：不渲染缩放角标（用户报告气泡右下角出现角标） -->
+    <span
+      v-if="kind !== 'bubble'"
+      class="child-grip"
+      title="拖动缩放（同组窗口共享大小设置）"
+      @pointerdown.stop.prevent="onGripDown"
+    />
   </div>
 </template>
 
