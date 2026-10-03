@@ -31,7 +31,8 @@ import {
   applyTopMostToCluster,
   repositionClusterToDisplays,
   registerClusterIpc,
-  startTuckCursorPoll
+  startTuckCursorPoll,
+  startCloakGuard
 } from './cluster-windows'
 import { anchorForWindowX, visibleClusterBounds, clampAnchorForEdges } from '../../src/core/utils/cluster-layout'
 
@@ -110,6 +111,7 @@ async function bootstrap(): Promise<void> {
   startSettleTimer()
   watchDisplayChanges()
   startTuckCursorPoll()
+  startCloakGuard()
 }
 
 function createTray(): void {

@@ -2,7 +2,7 @@ import { BrowserWindow, screen, type IpcMain } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyClusterTopMost } from './window-state'
-import { sendWindowToBottom, sysShowWindow } from './win32'
+import { isCloaked, sendWindowToBottom, sysShowWindow, uncloak } from './win32'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -527,6 +527,21 @@ export function repositionClusterToDisplays(displays: { workArea: WinBounds }[])
   })()
   if (next.x === b.x && next.y === b.y) return
   applyAnchor(next)
+}
+
+/** C-1 轮询反制：Win+D 经 DWM cloak 隐藏组件（无事件可拦）——
+ * 300ms 周期检测，被 cloak 即无激活重新显示（用户可见≤300ms 的闪没后回位）。
+ * 组件整体隐藏（托盘 hideToTray）时跳过——那是合法隐藏 */
+export function startCloakGuard(): void {
+  if (process.platform !== 'win32') return
+  setInterval(() => {
+    if (!cluster || !cluster.visible) return
+    for (const w of getAllClusterWindows()) {
+      if (safe(w) && w.isVisible() && isCloaked(w.getNativeWindowHandle())) {
+        uncloak(w.getNativeWindowHandle())
+      }
+    }
+  }, 300)
 }
 
 /** 缩进判定光标轮询：光标是否在可见组件范围内（缩进态=胶囊窗本体）；

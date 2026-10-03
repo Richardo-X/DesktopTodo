@@ -18,6 +18,29 @@ koffi.struct('POINT', { x: 'long', y: 'long' })
 const SetWindowPos = user32.func(
   'int32 __stdcall SetWindowPos(intptr hWnd, intptr hWndInsertAfter, int x, int y, int cx, int cy, uint32 uFlags)'
 )
+const dwmapi = koffi.load('dwmapi.dll')
+const DwmGetWindowAttribute = dwmapi.func(
+  'int32 __stdcall DwmGetWindowAttribute(intptr hWnd, int32 attr, _Out_ int32 *val, int32 cb)'
+)
+const ShowWindowAsync2 = user32.func('int32 __stdcall ShowWindowAsync(intptr hWnd, int32 cmd)')
+const DWMWA_CLOAKED = 14
+const SW_SHOWNA = 8
+
+/** 窗口是否被 DWM cloak（Win+D 显示桌面时 shell 对窗口的隐藏方式——
+ * 无 Win32 事件、窗口自身不知情，应用层事件兜底接不住；实测定论）。
+ * 读取模式：ArrayBuffer 指针 + koffi.decode（node 验证 hr=0/解码正确） */
+export function isCloaked(nativeHandle: Buffer): boolean {
+  if (process.platform !== 'win32' || nativeHandle.length < 8) return false
+  const buf = new ArrayBuffer(4)
+  const hr = DwmGetWindowAttribute(nativeHandle.readBigUInt64LE(0), DWMWA_CLOAKED, buf, 4)
+  return hr === 0 && koffi.decode(buf, 0, 'int32') !== 0
+}
+
+/** 解除 cloak：无激活重新显示（show 系调用会重置 DWM cloak 状态） */
+export function uncloak(nativeHandle: Buffer): void {
+  if (process.platform !== 'win32' || nativeHandle.length < 8) return
+  ShowWindowAsync2(nativeHandle.readBigUInt64LE(0), SW_SHOWNA)
+}
 
 const HWND_BOTTOM = 1n
 const SWP_NOMOVE = 0x0002
