@@ -71,8 +71,14 @@ function safeWindow(w: BrowserWindow | null | undefined): w is BrowserWindow {
  * setAlwaysOnTop 的置顶位永远落不上（跨 Show Desktop 往返、跨置顶开关均如此）。
  * hide→showInactive 重置窗口状态后重申置顶，再校验。返回是否修复成功 */
 export function repairTopMostBit(w: BrowserWindow): boolean {
-  for (let round = 0; round < 2; round++) {
+  for (let round = 0; round < 3; round++) {
     try {
+      if (round === 1) {
+        // 变体：置顶关→开重申（Electron 内部带状态同步）
+        w.setAlwaysOnTop(false, 'screen-saver')
+        w.setAlwaysOnTop(true, 'screen-saver')
+        if (hasTopmostBit(w.getNativeWindowHandle())) return true
+      }
       w.hide()
       w.showInactive()
       w.setAlwaysOnTop(true, 'screen-saver')
@@ -159,7 +165,9 @@ const SHELL_DESKTOP_CLASSES = new Set([
   'WorkerW',
   'Shell_TrayWnd',
   'Shell_SecondaryTrayWnd',
-  'SHELLDLL_DefView'
+  'SHELLDLL_DefView',
+  // 桌面图标列表（SHELLDLL_DefView 的子控件；真机第十轮：探到它被误判为应用遮挡致解除）
+  'SysListView32'
 ])
 function startForegroundPoll(): void {
   if (fgPollTimer !== null) return
