@@ -61,6 +61,23 @@ function safeWindow(w: BrowserWindow | null | undefined): w is BrowserWindow {
   return !!w && !w.isDestroyed()
 }
 
+/** 被标记窗口修复：真机定论（第八轮）——输掉竞速的窗口被 shell 标记后，
+ * setAlwaysOnTop 的置顶位永远落不上（跨 Show Desktop 往返、跨置顶开关均如此）。
+ * hide→showInactive 重置窗口状态后重申置顶，再校验。返回是否修复成功 */
+export function repairTopMostBit(w: BrowserWindow): boolean {
+  for (let round = 0; round < 2; round++) {
+    try {
+      w.hide()
+      w.showInactive()
+      w.setAlwaysOnTop(true, 'screen-saver')
+      if (hasTopmostBit(w.getNativeWindowHandle())) return true
+    } catch {
+      /* 修复失败继续下一轮 */
+    }
+  }
+  return hasTopmostBit(w.getNativeWindowHandle())
+}
+
 /** 诊断日志（真机验收期临时开启；验收通过后移除） */
 function dbg(msg: string): void {
   console.log('[win-d-guard]', new Date().toISOString().slice(11, 23), msg)
@@ -82,8 +99,8 @@ function ownHwnds(): Set<bigint> {
 }
 
 /** 抢设：全部组件窗+二级窗临时置顶（隐藏窗设置无害，一并处理保持简单）。
- * 真机定论（第八轮诊断）：回调内首个 setAlwaysOnTop 会静默失效（置顶位不落地，
- * 对应窗口被 shell 标记隐藏）——逐窗校验置顶位，失败立即重试（仍在回调内=仍抢在快照前） */
+ * 真机定论（第八轮诊断）：输掉竞速被标记的窗口 setAlwaysOnTop 永远落不上置顶位
+ * （4 轮重试无效）——校验失败的窗口走 hide→showInactive 修复循环 */
 function applyForcedTopMost(): void {
   if (!deps) return
   const wins = [...deps.clusterWindows(), ...deps.childWindows()].filter(safeWindow)
@@ -101,6 +118,13 @@ function applyForcedTopMost(): void {
     }
     dbg(`force attempt=${attempt} landed=${wins.length - failed.length}/${wins.length}`)
     if (failed.length === 0) break
+    if (attempt === 4) {
+      // 常规重试无效：被标记窗口走修复循环
+      for (const w of failed) {
+        const ok = repairTopMostBit(w)
+        dbg(`repair hwnd-result=${ok ? 'ok' : 'STILL-FAIL'}`)
+      }
+    }
   }
   startForegroundPoll()
 }

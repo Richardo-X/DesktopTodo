@@ -2,8 +2,8 @@ import { BrowserWindow, screen, type IpcMain } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyClusterTopMost } from './window-state'
-import { isCloaked, makeToolWindow, sendWindowToBottom, sysShowWindow, uncloak } from './win32'
-import { resetWinDForced } from './win-d-hook'
+import { hasTopmostBit, isCloaked, makeToolWindow, sendWindowToBottom, sysShowWindow, uncloak } from './win32'
+import { repairTopMostBit, resetWinDForced } from './win-d-hook'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -465,6 +465,21 @@ export function applyTopMostToCluster(enabled: boolean): void {
   if (enabled) {
     pendingSinkOnBlur = false
     for (const w of getAllClusterWindows()) if (safe(w)) applyClusterTopMost(w, true)
+    // 被标记窗口校验修复（第八轮真机定论）：输过竞速的窗口置顶位落不上且被
+    // shell 标记隐藏（表现为"切置顶后 Win+D 仍藏主窗"）——hide→showInactive 重申
+    for (const w of getAllClusterWindows()) {
+      if (!safe(w)) continue
+      let ok = false
+      try {
+        ok = hasTopmostBit(w.getNativeWindowHandle())
+      } catch {
+        ok = false
+      }
+      if (!ok) {
+        const repaired = repairTopMostBit(w)
+        console.log('[win-d-guard] topmost repair on user-topmost:', repaired ? 'ok' : 'STILL-FAIL')
+      }
+    }
     return
   }
   // 焦点判定必须先于 focusable 变更——setFocusable(false) 会杀掉焦点
