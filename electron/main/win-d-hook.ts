@@ -45,7 +45,13 @@ let deps: WinDGuardDeps | null = null
 let state: WinDGuardState = initialWinDGuardState()
 let hookHandle: bigint | null = null
 let fgPollTimer: ReturnType<typeof setInterval> | null = null
+let fgOutsideTicks = 0
 let uninstallFn: (() => void) | null = null
+
+/** 前台轮询解除抢设所需的连续确认次数：Win+D 后系统有 ~0.5s 焦点过渡期
+ * （前台仍停留在按键前的应用上），单次采样会误判"用户打开了应用"提前解除 */
+const FG_UNFORCE_TICKS = 3
+const FG_POLL_INTERVAL_MS = 300
 
 export function isWinDForced(): boolean {
   return state.forced
@@ -156,10 +162,12 @@ function applyUnforce(reason: string): void {
   setTimeout(sinkCluster, 400)
 }
 
-/** 前台轮询（抢设期间 500ms）：用户从桌面打开应用 → 前台离开桌面层/自身窗口 →
- * 解除抢设并沉底回挂件态（否则组件浮在用户新开的窗口之上） */
+/** 前台轮询（抢设期间 300ms）：连续 3 次（~0.9s）确认前台离开桌面层/自身窗口
+ * 才解除抢设并沉底回挂件态——Win+D 后有 ~0.5s 焦点过渡期（前台仍停留在
+ * 按键前的应用），单次采样误判会提前解除、组件被桌面层盖住（真机第九轮） */
 function startForegroundPoll(): void {
   if (fgPollTimer !== null) return
+  fgOutsideTicks = 0
   fgPollTimer = setInterval(() => {
     if (!deps || !state.forced) {
       stopForegroundPoll()
@@ -168,8 +176,13 @@ function startForegroundPoll(): void {
     const fg = getForegroundHwnd()
     if (fg === 0n) return
     const keep = new Set([...getShellDesktopHwnds(), ...ownHwnds()])
-    if (!keep.has(fg)) applyUnforce('fg-left-desktop')
-  }, 500)
+    if (keep.has(fg)) {
+      fgOutsideTicks = 0
+      return
+    }
+    fgOutsideTicks++
+    if (fgOutsideTicks >= FG_UNFORCE_TICKS) applyUnforce('fg-left-desktop')
+  }, FG_POLL_INTERVAL_MS)
 }
 
 function stopForegroundPoll(): void {
@@ -177,6 +190,7 @@ function stopForegroundPoll(): void {
     clearInterval(fgPollTimer)
     fgPollTimer = null
   }
+  fgOutsideTicks = 0
 }
 
 /** 安装 LL 键盘钩子（仅 Windows；失败只降级为无守卫，不致命） */
