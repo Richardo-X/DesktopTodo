@@ -96,15 +96,20 @@ function dbg(msg: string): void {
 }
 
 
-/** 抢设：全部组件窗+二级窗临时置顶（隐藏窗设置无害，一并处理保持简单）。
- * 真机定论（第八轮诊断）：输掉竞速被标记的窗口 setAlwaysOnTop 永远落不上置顶位
- * （4 轮重试无效）——校验失败的窗口走 hide→showInactive 修复循环 */
+/** 抢设：可见组件窗+二级窗临时置顶。
+ * 真机定论（第八轮）：输掉竞速被标记的窗口 setAlwaysOnTop 永远落不上置顶位
+ * （4 轮重试无效）——校验失败的窗口走 hide→showInactive 修复循环。
+ * 真机第十一轮：修复后置顶位已落上仍被藏——与幸存组态（用户置顶）的唯一
+ * 差异=挂件态窗口 WS_EX_NOACTIVATE（focusable=false）——抢设时同步
+ * setFocusable(true) 对齐完整置顶组态（解除时还原挂件态）。
+ * 隐藏窗跳过：修复循环的 showInactive 会复活用户收起的侧窗 */
 function applyForcedTopMost(): void {
   if (!deps) return
-  const wins = [...deps.clusterWindows(), ...deps.childWindows()].filter(safeWindow)
+  const wins = [...deps.clusterWindows(), ...deps.childWindows()].filter(safeWindow).filter((w) => w.isVisible())
   for (let attempt = 1; attempt <= 4; attempt++) {
     const failed: BrowserWindow[] = []
     for (const w of wins) {
+      w.setFocusable(true)
       w.setAlwaysOnTop(true, 'screen-saver')
       let ok = false
       try {
@@ -120,7 +125,7 @@ function applyForcedTopMost(): void {
       // 常规重试无效：被标记窗口走修复循环
       for (const w of failed) {
         const ok = repairTopMostBit(w)
-        dbg(`repair hwnd-result=${ok ? 'ok' : 'STILL-FAIL'}`)
+        dbg(`repair id=${w.id} result=${ok ? 'ok' : 'STILL-FAIL'}`)
       }
     }
   }
@@ -144,8 +149,14 @@ function applyUnforce(reason: string): void {
     for (const w of deps.clusterWindows()) {
       if (!safeWindow(w)) continue
       w.setAlwaysOnTop(false, 'screen-saver')
+      w.setFocusable(false) // 还原挂件态（WS_EX_NOACTIVATE；force 时曾置 true）
       w.setSkipTaskbar(true)
       sendWindowToBottom(w.getNativeWindowHandle())
+    }
+    // 二级窗重申抬升（真机第十轮现象3：Win+D 往返后二级窗掉到一级窗后——
+    // 沉底与 shell 还原窗口的时序竞争破坏了相对层级）
+    for (const w of deps.childWindows()) {
+      if (safeWindow(w) && w.isVisible()) w.moveTop()
     }
   }
   // 样式变更异步重排 z 序（第七轮实测）：双次沉底压住重排
