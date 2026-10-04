@@ -81,19 +81,26 @@ function ownHwnds(): Set<bigint> {
   return set
 }
 
-/** 抢设：全部组件窗+二级窗临时置顶（隐藏窗设置无害，一并处理保持简单） */
+/** 抢设：全部组件窗+二级窗临时置顶（隐藏窗设置无害，一并处理保持简单）。
+ * 真机定论（第八轮诊断）：回调内首个 setAlwaysOnTop 会静默失效（置顶位不落地，
+ * 对应窗口被 shell 标记隐藏）——逐窗校验置顶位，失败立即重试（仍在回调内=仍抢在快照前） */
 function applyForcedTopMost(): void {
   if (!deps) return
-  for (const w of [...deps.clusterWindows(), ...deps.childWindows()]) {
-    if (safeWindow(w)) {
+  const wins = [...deps.clusterWindows(), ...deps.childWindows()].filter(safeWindow)
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    const failed: BrowserWindow[] = []
+    for (const w of wins) {
       w.setAlwaysOnTop(true, 'screen-saver')
-      // 诊断：置顶位是否真的落上（Chromium 否决/异步重排会在此显形）
+      let ok = false
       try {
-        dbg(`force hwnd-set topmostBit=${hasTopmostBit(w.getNativeWindowHandle())}`)
+        ok = hasTopmostBit(w.getNativeWindowHandle())
       } catch {
-        /* 句柄读取失败忽略 */
+        ok = false
       }
+      if (!ok) failed.push(w)
     }
+    dbg(`force attempt=${attempt} landed=${wins.length - failed.length}/${wins.length}`)
+    if (failed.length === 0) break
   }
   startForegroundPoll()
 }
