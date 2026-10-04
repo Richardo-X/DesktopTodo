@@ -391,10 +391,15 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - 用户验收 38 原话确认"卡顿非蒙层引入"
 
 ### 10.4 新会话待办（按优先级）
-1. **Win+D TOOLWINDOW 真机验收**（9eb65e7 刚部署未验收）：按 Win+D 组件应保持显示；Alt+Tab/任务栏无组件
-2. **C-4 发版 v1.1.0**：package.json 1.0.8→1.1.0 → electron-builder 打安装包 → 安装版冒烟（缩放/置顶/Win+D/蒙层/缝隙4px/自启开关写入注册表——注意 E2E 的 C-3 防护断言仅适用开发版）→ **开机自启真机重启测试** → tag v1.1.0 → Release → 本文件更新
-3. 二级窗打开提速专项（隐藏复用架构，先设计后实装）
-4. 悬而未决的用户体感项：缩放拖影维持现状（用户未最终表态接受；如再提，唯一路径=方案 C 单窗）
+1. **⚠️ Win+D 隐藏组件——未解决（用户三次实测确认，最高优先）**
+   - 已试并失败：①minimizable:false+minimize restore 兜底（无 minimize 事件产生）②DWM cloak 轮询 300ms+解除（未检测到 cloak）③WS_EX_TOOLWINDOW（依旧隐藏）
+   - 铁证：用户按 Win+D 时诊断日志**零事件**（[win-d-dbg] 无任何输出）——Win+D 的隐藏完全绕过 Win32 窗口消息层
+   - 日志：dev 启动时 `npm run dev > /c/tmp/app-stdout.log 2>&1` 捕获；诊断代码 [win-d-dbg]（cluster-windows.ts makeWindow 内 dEvents 循环）与 cloak 轮询（startCloakGuard）仍在
+   - 新会话方向建议：a) 查 Win+D 对"无 owner 的透明 skipTaskbar 窗口"是否有特殊 shell 处理（如浮层/UDWM）; b) 试owner/parent 关系或 SetWindowLong 其他样式; c) 考虑"检测可见性丢失即 ShowWindow"的可见性轮询（isCloaked 换 IsWindowVisible+IsIconic 组合）; d) Electron issue 检索"transparent window win+d"
+   - 注意：Win+D 测试必须用 dev 重启后的实例（日志才捕获）；用户当前安装版未装（开发版无自启=用户报"开机自启失败"属预期，C-4 发版后消失）
+2. **C-4 发版 v1.1.0**：package.json 1.0.8→1.1.0 → electron-builder 打安装包 → 安装版冒烟（缩放/置顶/蒙层/缝隙4px/二级窗打开/自启开关真实写入注册表——E2E 的 C-3 防护断言仅适用开发版）→ **开机自启真机重启测试** → tag v1.1.0 → Release → 本文件更新
+3. 二级窗打开提速专项（隐藏复用架构：关闭时隐藏不销毁、打开显示+刷数据，400ms→50ms 预估；先设计后实装）
+4. 缩放呈现已定稿 v3.3（拖影=DWM 层限制维持现状；决策 #7 维持原判；原型 v3.4 已否决删除）
 
 ### 10.5 本会话教训（新增）
 - **改渲染层代码后跑 E2E 必须先 npm run build**（E2E 跑 out/ 产物——本轮白条/蒙层两度因旧产物误判）
