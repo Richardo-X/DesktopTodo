@@ -391,13 +391,16 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - 用户验收 38 原话确认"卡顿非蒙层引入"
 
 ### 10.4 新会话待办（按优先级）
-1. **⚠️ Win+D 隐藏组件——未解决（用户三次实测确认，最高优先）**
-   - 已试并失败：①minimizable:false+minimize restore 兜底（无 minimize 事件产生）②DWM cloak 轮询 300ms+解除（未检测到 cloak）③WS_EX_TOOLWINDOW（依旧隐藏）
-   - 铁证：用户按 Win+D 时诊断日志**零事件**（[win-d-dbg] 无任何输出）——Win+D 的隐藏完全绕过 Win32 窗口消息层
-   - 日志：dev 启动时 `npm run dev > /c/tmp/app-stdout.log 2>&1` 捕获；诊断代码 [win-d-dbg]（cluster-windows.ts makeWindow 内 dEvents 循环）与 cloak 轮询（startCloakGuard）仍在
-   - 新会话方向建议：a) 查 Win+D 对"无 owner 的透明 skipTaskbar 窗口"是否有特殊 shell 处理（如浮层/UDWM）; b) 试owner/parent 关系或 SetWindowLong 其他样式; c) 考虑"检测可见性丢失即 ShowWindow"的可见性轮询（isCloaked 换 IsWindowVisible+IsIconic 组合）; d) Electron issue 检索"transparent window win+d"
-   - 注意：Win+D 测试必须用 dev 重启后的实例（日志才捕获）；用户当前安装版未装（开发版无自启=用户报"开机自启失败"属预期，C-4 发版后消失）
-2. **C-4 发版 v1.1.0**：package.json 1.0.8→1.1.0 → electron-builder 打安装包 → 安装版冒烟（缩放/置顶/蒙层/缝隙4px/二级窗打开/自启开关真实写入注册表——E2E 的 C-3 防护断言仅适用开发版）→ **开机自启真机重启测试** → tag v1.1.0 → Release → 本文件更新
+1. **✅ Win+D 隐藏组件——机制查明+路线 C 已实施（2026-10-04 第七轮），待用户真机验收**
+   - **用户答复合并**：三次实测均为未置顶（挂件态），置顶时确实免疫（与实验吻合）；需求=无论置顶与否 Win+D 都不影响组件（弹出态与缩进白条都要保住）；**已选路线 C（钩子抢跑）**
+   - **机制铁证（外部探针+截屏对照实验）**：Win11 build 26200 的 Show Desktop = DWM 合成层隐藏，按键处理路径内同步对豁免集快照——toggle 时刻已在 **TOPMOST 带**或 **shell 拥有**的窗口幸存，其余全隐藏（零事件/零状态/零 cloak）；事后补救全部无效（TOPMOST 被 Chromium 否决/SetWindowPos 返回 TRUE 但 EXSTYLE 不变、hide+show、改 owner、0~400ms 竞态、钩子内 SetWindowPos 同被否决）；COM ToggleDesktop 多轮后失效（验证用 SendInput VK_LWIN+VK_D 替代）
+   - **实现（提交链 cb28f85→5257645→94a91ce，368 单测+48 E2E+CI 绿）**：
+     - 纯函数状态机 `src/core/utils/win-d-guard.ts`（classifyWinDPress：挂件态 force→unforce 往返/置顶 none 不碰/托盘 hidden none/300ms 防抖；resetWinDGuardForced 外部复位）+ `tests/unit/win-d-guard.test.ts` 10 用例
+     - 钩子接线 `electron/main/win-d-hook.ts`：WH_KEYBOARD_LL（koffi.register+SetWindowsHookExW，主线程安装）；回调内 vkCode==0x44+GetAsyncKeyState(VK_LWIN)<0 → classify → **Electron setAlwaysOnTop('screen-saver') 抢设**（同线程内部路径无否决）；unforce 前**二次校验 isTopMost()（绝不误关用户置顶——用户定稿关切）**；组件窗解除=关置顶+重申 skipTaskbar+120/400ms 双次沉底（复用 enterWidgetMode 节奏）；前台 500ms 轮询（前台离开桌面层/自身窗口=用户从桌面打开了应用 → 自动解除抢设沉底）；托盘显隐/置顶切换经 resetWinDForced 复位标志（cluster-windows hideCluster/showCluster/applyTopMostToCluster 三处接线）
+     - index.ts：bootstrap 安装（安装失败仅告警降级不致命）、will-quit 卸载、openChildWindow 在抢设期间出生的二级窗同批抢设（否则出生即被合成隐藏）
+   - **真机验收清单（用户执行；dev 已带新代码重启）**：①未置顶+展开态按 Win+D → 三窗仍显示，再按还原；②未置顶+缩进态按 Win+D → 白条仍在，再按还原；③未置顶按 Win+D 后从桌面打开任一应用 → 组件自动回挂件态不浮在应用上方；④置顶开启按 Win+D 数次 → 组件不受影响且置顶状态保持；⑤托盘隐藏后按 Win+D → 组件保持隐藏。验收通过后：删除 [win-d-dbg] 诊断日志与 cloak 轮询（win-d-hook 保留为常驻功能）
+   - 实验教训（本轮新坑，复用实验时必读）：koffi.register(func, koffi.pointer(proto))；SWP_NOZORDER(0x4) 混入标志会让 HWND_BOTTOM/HWND_TOPMOST 静默失效（0x17 陷阱，正确沉底=0x213）；Show Desktop 态期间新建窗口出生即被合成隐藏（实验窗必须在 toggle 前创建）；PowerShell 进程 DPI 虚拟化坐标=物理/1.25（GetWindowRect 虚拟化、DWMWA_EXTENDED_FRAME_BOUNDS 物理）；非 DPI 感知进程 CreateWindowExA 坐标=虚拟坐标；组件面板半透明——像素采样判定会混入壁纸底色，必须截图人眼/对照窗裁决
+2. **C-4 发版 v1.1.0**：Win+D 验收通过后执行——package.json 1.0.8→1.1.0 → electron-builder 打安装包 → 安装版冒烟（缩放/置顶/蒙层/缝隙4px/二级窗打开/**Win+D 两态**/自启开关真实写入注册表——E2E 的 C-3 防护断言仅适用开发版）→ **开机自启真机重启测试** → tag v1.1.0 → Release → 本文件更新
 3. 二级窗打开提速专项（隐藏复用架构：关闭时隐藏不销毁、打开显示+刷数据，400ms→50ms 预估；先设计后实装）
 4. 缩放呈现已定稿 v3.3（拖影=DWM 层限制维持现状；决策 #7 维持原判；原型 v3.4 已否决删除）
 
