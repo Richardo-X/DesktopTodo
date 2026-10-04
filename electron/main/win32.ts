@@ -45,6 +45,7 @@ export function uncloak(nativeHandle: Buffer): void {
 const GetWindowLongW = user32.func('int32 __stdcall GetWindowLongW(intptr hWnd, int32 idx)')
 const SetWindowLongW = user32.func('int32 __stdcall SetWindowLongW(intptr hWnd, int32 idx, int32 val)')
 const GetForegroundWindow = user32.func('intptr __stdcall GetForegroundWindow()')
+const GetClassNameA = user32.func('int32 __stdcall GetClassNameA(intptr hWnd, _Out_ void *buf, int32 maxCount)')
 const FindWindowA = user32.func('intptr __stdcall FindWindowA(str cls, str title)')
 const GWL_EXSTYLE = -20
 const WS_EX_TOOLWINDOW = 0x00000080
@@ -110,6 +111,22 @@ export function getForegroundHwnd(): bigint {
     return BigInt(GetForegroundWindow())
   } catch {
     return 0n
+  }
+}
+
+/** 前台窗口的类名（''=失败）。桌面层窗口存在多实例（多个 WorkerW/Progman），
+ * 句柄白名单不可靠——轮询按类名判定（真机第九轮：WorkerW 变体漏判致误解除） */
+export function getForegroundWindowClass(): string {
+  if (process.platform !== 'win32') return ''
+  try {
+    const hwnd = BigInt(GetForegroundWindow())
+    if (hwnd === 0n) return ''
+    const buf = new ArrayBuffer(512)
+    const n = GetClassNameA(hwnd, buf, 512)
+    if (n <= 0) return ''
+    return Buffer.from(buf, 0, n).toString('latin1')
+  } catch {
+    return ''
   }
 }
 

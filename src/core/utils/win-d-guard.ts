@@ -11,8 +11,10 @@
  * electron/main/win-d-hook.ts 接线。
  */
 
-/** 按键节流窗口：D 键按住会自动重复（约 30ms/次），此窗口内的重复不算新按 */
-export const WIN_D_DEBOUNCE_MS = 300
+/** 按键节流窗口：D 键按住会自动重复（约 30ms/次），此窗口内的重复不算新按。
+ * 80ms=滤自动重复的同时放行人类快速连按（120~250ms，真机第九轮：300ms 会把
+ * 连按整串吞掉导致一次保护都不触发） */
+export const WIN_D_DEBOUNCE_MS = 80
 
 export interface WinDGuardState {
   /** 抢设的临时置顶是否生效中（只由 force/unforce 动作与外部复位改写） */

@@ -67,9 +67,24 @@ describe('classifyWinDPress 按键判定', () => {
 
   it('已 forced 时的重复键保持 forced 不抖动', () => {
     const forced: WinDGuardState = { forced: true, lastPressAt: 1000 }
-    const repeat = classifyWinDPress(forced, 1100, ctxWidget)
+    const repeat = classifyWinDPress(forced, 1000 + WIN_D_DEBOUNCE_MS - 1, ctxWidget)
     expect(repeat.action).toBe('none')
     expect(repeat.next.forced).toBe(true)
+  })
+
+  it('人类快速连按（120~250ms 间隔）不被防抖吞掉（真机第九轮：连按整串被吞=保护全缺）', () => {
+    let s = initialWinDGuardState()
+    let t = 1000
+    const actions: string[] = []
+    // 模拟 8 连按，间隔 120ms
+    for (let i = 0; i < 8; i++) {
+      const r = classifyWinDPress(s, t, ctxWidget)
+      actions.push(r.action)
+      s = r.next
+      t += 120
+    }
+    // force/unforce 交替，每按都生效（无 none 链）
+    expect(actions).toEqual(['force', 'unforce', 'force', 'unforce', 'force', 'unforce', 'force', 'unforce'])
   })
 })
 

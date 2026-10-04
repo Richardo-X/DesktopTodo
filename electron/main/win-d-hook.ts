@@ -6,7 +6,7 @@ import {
   resetWinDGuardForced,
   type WinDGuardState
 } from '../../src/core/utils/win-d-guard'
-import { getForegroundHwnd, getShellDesktopHwnds, hasTopmostBit, sendWindowToBottom } from './win32'
+import { getForegroundHwnd, getForegroundWindowClass, hasTopmostBit, sendWindowToBottom } from './win32'
 
 /**
  * Win+D 抢跑守卫（C-1 路线 C，用户定稿 2026-10-04）。
@@ -164,7 +164,9 @@ function applyUnforce(reason: string): void {
 
 /** 前台轮询（抢设期间 300ms）：连续 3 次（~0.9s）确认前台离开桌面层/自身窗口
  * 才解除抢设并沉底回挂件态——Win+D 后有 ~0.5s 焦点过渡期（前台仍停留在
- * 按键前的应用），单次采样误判会提前解除、组件被桌面层盖住（真机第九轮） */
+ * 按键前的应用），单次采样误判会提前解除、组件被桌面层盖住（真机第九轮）。
+ * 桌面层按类名判定（多实例 WorkerW/Progman/壁纸引擎渲染窗，句柄白名单漏判） */
+const SHELL_DESKTOP_CLASSES = new Set(['Progman', 'WorkerW', 'Shell_TrayWnd', 'Shell_SecondaryTrayWnd', 'SHELLDLL_DefView'])
 function startForegroundPoll(): void {
   if (fgPollTimer !== null) return
   fgOutsideTicks = 0
@@ -173,15 +175,16 @@ function startForegroundPoll(): void {
       stopForegroundPoll()
       return
     }
+    const fgClass = getForegroundWindowClass()
+    if (fgClass === '') return
+    const own = ownHwnds()
     const fg = getForegroundHwnd()
-    if (fg === 0n) return
-    const keep = new Set([...getShellDesktopHwnds(), ...ownHwnds()])
-    if (keep.has(fg)) {
+    if (SHELL_DESKTOP_CLASSES.has(fgClass) || own.has(fg)) {
       fgOutsideTicks = 0
       return
     }
     fgOutsideTicks++
-    if (fgOutsideTicks >= FG_UNFORCE_TICKS) applyUnforce('fg-left-desktop')
+    if (fgOutsideTicks >= FG_UNFORCE_TICKS) applyUnforce(`fg-left-desktop class=${fgClass}`)
   }, FG_POLL_INTERVAL_MS)
 }
 
