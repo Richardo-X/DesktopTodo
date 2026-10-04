@@ -44,6 +44,8 @@ export function uncloak(nativeHandle: Buffer): void {
 
 const GetWindowLongW = user32.func('int32 __stdcall GetWindowLongW(intptr hWnd, int32 idx)')
 const SetWindowLongW = user32.func('int32 __stdcall SetWindowLongW(intptr hWnd, int32 idx, int32 val)')
+const GetForegroundWindow = user32.func('intptr __stdcall GetForegroundWindow()')
+const FindWindowA = user32.func('intptr __stdcall FindWindowA(str cls, str title)')
 const GWL_EXSTYLE = -20
 const WS_EX_TOOLWINDOW = 0x00000080
 
@@ -87,5 +89,29 @@ export function sendWindowToBottom(nativeHandle: Buffer): void {
     )
   } catch {
     /* 原生调用失败不致命：窗口停留在普通层顶端（OS 默认行为），下次切换可再试 */
+  }
+}
+
+/** 当前前台窗口句柄（0=无）。Win+D 抢跑守卫的前台轮询用 */
+export function getForegroundHwnd(): bigint {
+  if (process.platform !== 'win32') return 0n
+  try {
+    return BigInt(GetForegroundWindow())
+  } catch {
+    return 0n
+  }
+}
+
+/** shell 桌面层窗口句柄（Progman/WorkerW/任务栏）。前台轮询的"非应用窗口"白名单：
+ * Show Desktop 态下前台停在桌面层（这些不算"应用抢焦点"，不解除抢设） */
+export function getShellDesktopHwnds(): bigint[] {
+  if (process.platform !== 'win32') return []
+  try {
+    const progman = BigInt(FindWindowA('Progman', null))
+    const worker = BigInt(FindWindowA('WorkerW', null))
+    const tray = BigInt(FindWindowA('Shell_TrayWnd', null))
+    return [progman, worker, tray].filter((h) => h !== 0n)
+  } catch {
+    return []
   }
 }

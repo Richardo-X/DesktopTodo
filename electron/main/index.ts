@@ -20,7 +20,9 @@ import { GROUP_OF, childWindowOptions } from './child-windows'
 import {
   createClusterWindows,
   clusterTucked,
+  clusterTopMost,
   isClusterDragging,
+  isClusterVisible,
   getMainWindow,
   getAllClusterWindows,
   getClusterAnchor,
@@ -34,6 +36,7 @@ import {
   startTuckCursorPoll,
   startCloakGuard
 } from './cluster-windows'
+import { installWinDGuard, uninstallWinDGuard, isWinDForced } from './win-d-hook'
 import { anchorForWindowX, visibleClusterBounds, clampAnchorForEdges } from '../../src/core/utils/cluster-layout'
 
 /** 启动/恢复钳制（#31/#32/#33）：左右边缘不阻挡、主窗≥90px 可见、幂等（原样恢复） */
@@ -112,6 +115,14 @@ async function bootstrap(): Promise<void> {
   watchDisplayChanges()
   startTuckCursorPoll()
   startCloakGuard()
+  // C-1 路线 C：Win+D 抢跑守卫（LL 键盘钩子；挂件态第一按抢设临时置顶、
+  // 第二按只撤销抢设、置顶态不碰；安装失败仅降级不致命）
+  installWinDGuard({
+    isTopMost: () => clusterTopMost(),
+    isClusterVisible: () => isClusterVisible(),
+    clusterWindows: () => getAllClusterWindows(),
+    childWindows: () => [...childWindows]
+  })
 }
 
 function createTray(): void {
@@ -251,6 +262,8 @@ function openChildWindow(kind: ChildKind, id?: string): void {
   })
   childWindows.add(child)
   lockNonChildWindows(true)
+  // Win+D 抢设期间打开的二级窗：同批抢设置顶（否则出生即被桌面层合成隐藏）
+  if (isWinDForced()) child.setAlwaysOnTop(true, 'screen-saver')
 
   // 用户验收#5：打开二级窗=组件聚焦该窗并禁用缩进——若已缩进立即弹出；
   // 子窗数量广播三窗状态机（childOpen 门），侧窗发起的二级窗同样生效（跨窗）
@@ -495,6 +508,11 @@ app.on('before-quit', async (e) => {
 
 app.on('window-all-closed', () => {
   // 托盘常驻：窗口关闭不退出（唯一退出途径为托盘菜单）
+})
+
+app.on('will-quit', () => {
+  // Win+D 抢跑守卫钩子随进程回收；显式卸载保持整洁
+  uninstallWinDGuard()
 })
 
 app.on('activate', () => {

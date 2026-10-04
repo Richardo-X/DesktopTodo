@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyClusterTopMost } from './window-state'
 import { isCloaked, makeToolWindow, sendWindowToBottom, sysShowWindow, uncloak } from './win32'
+import { resetWinDForced } from './win-d-hook'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -207,6 +208,11 @@ export function isClusterVisible(): boolean {
   return !!cluster && cluster.visible
 }
 
+/** 组件真实置顶语义（Win+D 抢跑守卫的判定输入；绝不改写） */
+export function clusterTopMost(): boolean {
+  return !!cluster && cluster.topMost
+}
+
 /** 隐藏窗的待落位 bounds（Windows setBounds 会显示隐藏窗，故隐藏期间只登记） */
 const pendingBounds = new Map<number, WinBounds>()
 
@@ -403,19 +409,23 @@ export function clusterDragDeltaBy(dx: number, dy: number): void {
   applyAnchor({ x: cluster.anchor.x + dx, y: cluster.anchor.y + dy })
 }
 
-/** 托盘隐藏=组件整体隐藏（决策#9）；拖动中隐藏则终止轮询 */
+/** 托盘隐藏=组件整体隐藏（决策#9）；拖动中隐藏则终止轮询。
+ * Win+D 抢设标志复位：隐藏期间守卫不动作（重申真实语义） */
 export function hideCluster(): void {
   if (!cluster) return
   stopClusterDrag()
   cluster.visible = false
+  resetWinDForced()
   for (const w of getAllClusterWindows()) w.hide()
 }
 
 /** 显示=整体恢复（含置顶重应用——hide/show 可能重置 z-order）。
- * 胶囊态只显主窗短条；展开态 placeAll 强制全窗落位（修跨 DPI 尺寸残留——用户实测最小化再显示自愈，此处显式化） */
+ * 胶囊态只显主窗短条；展开态 placeAll 强制全窗落位（修跨 DPI 尺寸残留——用户实测最小化再显示自愈，此处显式化）。
+ * Win+D 抢设标志复位：显示路径重申真实置顶语义（applyTopMostToCluster 内同样复位） */
 export function showCluster(): void {
   if (!cluster) return
   cluster.visible = true
+  resetWinDForced()
   lastAppliedAnchor = null
   const { quick, main, done } = cluster.windows
   if (cluster.tucked) {
@@ -450,6 +460,8 @@ let pendingSinkOnBlur = false
 export function applyTopMostToCluster(enabled: boolean): void {
   if (!cluster) return
   cluster.topMost = enabled
+  // Win+D 抢设标志复位：真实置顶语义在此重申，抢设作废（防止钩子把用户置顶误还原）
+  resetWinDForced()
   if (enabled) {
     pendingSinkOnBlur = false
     for (const w of getAllClusterWindows()) if (safe(w)) applyClusterTopMost(w, true)
