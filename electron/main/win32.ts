@@ -12,6 +12,7 @@ const user32 = koffi.load('user32.dll')
 
 // 结构体声明必须先于引用它的 func 声明（否则运行时 "Unknown type name" 崩溃）
 koffi.struct('POINT', { x: 'long', y: 'long' })
+koffi.struct('RECT', { left: 'long', top: 'long', right: 'long', bottom: 'long' })
 
 // Win32 BOOL 是 4 字节 int——koffi 'bool' 是 1 字节 C99 bool，混用会导致
 // IsWindowVisible 恒 false 等假象（实测教训），一律 'int32'
@@ -47,6 +48,8 @@ const SetWindowLongW = user32.func('int32 __stdcall SetWindowLongW(intptr hWnd, 
 const GetForegroundWindow = user32.func('intptr __stdcall GetForegroundWindow()')
 const GetClassNameA = user32.func('int32 __stdcall GetClassNameA(intptr hWnd, _Out_ void *buf, int32 maxCount)')
 const FindWindowA = user32.func('intptr __stdcall FindWindowA(str cls, str title)')
+const WindowFromPoint = user32.func('intptr __stdcall WindowFromPoint(POINT pt)')
+const GetWindowRect = user32.func('int32 __stdcall GetWindowRect(intptr hWnd, _Out_ RECT *rect)')
 const GWL_EXSTYLE = -20
 const WS_EX_TOOLWINDOW = 0x00000080
 const WS_EX_TOPMOST = 0x00000008
@@ -127,6 +130,44 @@ export function getForegroundWindowClass(): string {
     return Buffer.from(buf, 0, n).toString('latin1')
   } catch {
     return ''
+  }
+}
+
+/** 指定屏幕坐标（物理像素）处的窗口类名（''=无）。
+ * Win+D 抢跑守卫用：Electron 透明窗对命中测试是盲区（HANDOFF 实测），
+ * 在组件中心探测到的是"组件下方/遮挡它的窗口"——桌面态探到桌面层，
+ * 普通态被应用遮挡时探到该应用 */
+export function windowClassAtPoint(x: number, y: number): string {
+  if (process.platform !== 'win32') return ''
+  try {
+    const buf = new ArrayBuffer(8)
+    new DataView(buf).setInt32(0, x, true)
+    new DataView(buf).setInt32(4, y, true)
+    const hwnd = BigInt(WindowFromPoint(buf))
+    if (hwnd === 0n) return ''
+    const cbuf = new ArrayBuffer(512)
+    const n = GetClassNameA(hwnd, cbuf, 512)
+    if (n <= 0) return ''
+    return Buffer.from(cbuf, 0, n).toString('latin1')
+  } catch {
+    return ''
+  }
+}
+
+/** 窗口屏幕矩形（物理像素；null=失败）。主进程 DPI 感知，坐标即物理值 */
+export function getWindowRect(nativeHandle: Buffer): { x: number; y: number; width: number; height: number } | null {
+  if (process.platform !== 'win32' || nativeHandle.length < 8) return null
+  try {
+    const rect = new ArrayBuffer(16)
+    if (!GetWindowRect(nativeHandle.readBigUInt64LE(0), rect)) return null
+    const v = new DataView(rect)
+    const left = v.getInt32(0, true)
+    const top = v.getInt32(4, true)
+    const right = v.getInt32(8, true)
+    const bottom = v.getInt32(12, true)
+    return { x: left, y: top, width: right - left, height: bottom - top }
+  } catch {
+    return null
   }
 }
 

@@ -6,7 +6,7 @@ import {
   resetWinDGuardForced,
   type WinDGuardState
 } from '../../src/core/utils/win-d-guard'
-import { getForegroundHwnd, getForegroundWindowClass, hasTopmostBit, sendWindowToBottom } from './win32'
+import { hasTopmostBit, sendWindowToBottom, windowClassAtPoint, getWindowRect } from './win32'
 
 /**
  * Win+D 抢跑守卫（C-1 路线 C，用户定稿 2026-10-04）。
@@ -89,20 +89,6 @@ function dbg(msg: string): void {
   console.log('[win-d-guard]', new Date().toISOString().slice(11, 23), msg)
 }
 
-function ownHwnds(): Set<bigint> {
-  const set = new Set<bigint>()
-  if (!deps) return set
-  for (const w of [...deps.clusterWindows(), ...deps.childWindows()]) {
-    if (safeWindow(w)) {
-      try {
-        set.add(w.getNativeWindowHandle().readBigUInt64LE(0))
-      } catch {
-        /* 句柄读取失败忽略 */
-      }
-    }
-  }
-  return set
-}
 
 /** 抢设：全部组件窗+二级窗临时置顶（隐藏窗设置无害，一并处理保持简单）。
  * 真机定论（第八轮诊断）：输掉竞速被标记的窗口 setAlwaysOnTop 永远落不上置顶位
@@ -162,11 +148,19 @@ function applyUnforce(reason: string): void {
   setTimeout(sinkCluster, 400)
 }
 
-/** 前台轮询（抢设期间 300ms）：连续 3 次（~0.9s）确认前台离开桌面层/自身窗口
- * 才解除抢设并沉底回挂件态——Win+D 后有 ~0.5s 焦点过渡期（前台仍停留在
- * 按键前的应用），单次采样误判会提前解除、组件被桌面层盖住（真机第九轮）。
- * 桌面层按类名判定（多实例 WorkerW/Progman/壁纸引擎渲染窗，句柄白名单漏判） */
-const SHELL_DESKTOP_CLASSES = new Set(['Progman', 'WorkerW', 'Shell_TrayWnd', 'Shell_SecondaryTrayWnd', 'SHELLDLL_DefView'])
+/** 前台轮询已废弃（真机十轮：这个版本的 Win+D 合成隐藏后焦点不移走，
+ * 前台停留在被藏的旧应用上，前台信号完全不可用）。
+ * 改用物理命中探针：连续 3 次探到组件窗口中心被"非桌面层窗口"占据
+ * （=普通态下有应用窗口盖在组件位置上）才解除抢设并沉底回挂件态。
+ * 桌面态下其他窗口都被合成走，探到的必然是桌面层（Progman/WorkerW）。
+ * 我们的透明窗对命中测试是盲区（HANDOFF 实测），探到的永远是 underneath */
+const SHELL_DESKTOP_CLASSES = new Set([
+  'Progman',
+  'WorkerW',
+  'Shell_TrayWnd',
+  'Shell_SecondaryTrayWnd',
+  'SHELLDLL_DefView'
+])
 function startForegroundPoll(): void {
   if (fgPollTimer !== null) return
   fgOutsideTicks = 0
@@ -175,16 +169,27 @@ function startForegroundPoll(): void {
       stopForegroundPoll()
       return
     }
-    const fgClass = getForegroundWindowClass()
-    if (fgClass === '') return
-    const own = ownHwnds()
-    const fg = getForegroundHwnd()
-    if (SHELL_DESKTOP_CLASSES.has(fgClass) || own.has(fg)) {
+    const probes = deps
+      .clusterWindows()
+      .filter(safeWindow)
+      .filter((w) => w.isVisible())
+    let outside = false
+    let hitClass = ''
+    for (const w of probes) {
+      const rect = getWindowRect(w.getNativeWindowHandle())
+      if (!rect || rect.width <= 0 || rect.height <= 0) continue
+      hitClass = windowClassAtPoint(rect.x + Math.floor(rect.width / 2), rect.y + Math.floor(rect.height / 2))
+      if (hitClass !== '' && !SHELL_DESKTOP_CLASSES.has(hitClass)) {
+        outside = true
+        break
+      }
+    }
+    if (!outside) {
       fgOutsideTicks = 0
       return
     }
     fgOutsideTicks++
-    if (fgOutsideTicks >= FG_UNFORCE_TICKS) applyUnforce(`fg-left-desktop class=${fgClass}`)
+    if (fgOutsideTicks >= FG_UNFORCE_TICKS) applyUnforce(`covered-by class=${hitClass}`)
   }, FG_POLL_INTERVAL_MS)
 }
 
