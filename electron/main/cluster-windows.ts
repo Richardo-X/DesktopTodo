@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyClusterTopMost } from './window-state'
 import { hasTopmostBit, isCloaked, makeToolWindow, sendWindowToBottom, sysShowWindow, uncloak } from './win32'
-import { repairTopMostBit, resetWinDForced } from './win-d-hook'
+import { repairTopMostBit, resetWinDForced, isWinDForced } from './win-d-hook'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -216,7 +216,9 @@ export function clusterTopMost(): boolean {
 /** 隐藏窗的待落位 bounds（Windows setBounds 会显示隐藏窗，故隐藏期间只登记） */
 const pendingBounds = new Map<number, WinBounds>()
 
-/** 显示侧窗：先落位（此时可能顺带显示）再确保可见，几何永远与锚点一致 */
+/** 显示侧窗：先落位（此时可能顺带显示）再确保可见，几何永远与锚点一致。
+ * 重新显示会重置隐藏期间设置的置顶带成员（真机第十轮：藏侧窗→开置顶→展开→
+ * Win+D 侧窗被藏）——按真实置顶语义/抢设状态重申 */
 function showSidePanel(panel: ClusterPanel): void {
   if (!cluster) return
   const w = panel === 'quick' ? cluster.windows.quick : cluster.windows.done
@@ -226,7 +228,11 @@ function showSidePanel(panel: ClusterPanel): void {
   if (!bb) return
   pendingBounds.delete(w.id)
   w.setBounds(bb)
-  if (!w.isVisible()) w.showInactive()
+  if (!w.isVisible()) {
+    w.showInactive()
+    if (cluster.topMost) applyClusterTopMost(w, true)
+    else if (isWinDForced()) w.setAlwaysOnTop(true, 'screen-saver')
+  }
 }
 
 /** 三窗同帧定位：一个锚点 → 同一 tick 内逐窗 setBounds（每帧重申逻辑尺寸，压制跨 DPI 复利放大）。
@@ -430,7 +436,12 @@ export function showCluster(): void {
   const { quick, main, done } = cluster.windows
   if (cluster.tucked) {
     applyClusterBounds()
-    if (safe(main)) (cluster.topMost ? main.show() : main.showInactive())
+    if (safe(main)) {
+      ;(cluster.topMost ? main.show() : main.showInactive())
+      // 重新显示会重置置顶带成员（同 showSidePanel，真机第十轮）——重申
+      if (cluster.topMost) applyClusterTopMost(main, true)
+      else if (isWinDForced()) main.setAlwaysOnTop(true, 'screen-saver')
+    }
     return
   } else {
     applyClusterBounds(true)
@@ -466,9 +477,10 @@ export function applyTopMostToCluster(enabled: boolean): void {
     pendingSinkOnBlur = false
     for (const w of getAllClusterWindows()) if (safe(w)) applyClusterTopMost(w, true)
     // 被标记窗口校验修复（第八轮真机定论）：输过竞速的窗口置顶位落不上且被
-    // shell 标记隐藏（表现为"切置顶后 Win+D 仍藏主窗"）——hide→showInactive 重申
+    // shell 标记隐藏（表现为"切置顶后 Win+D 仍藏主窗"）——hide→showInactive 重申。
+    // 隐藏窗跳过（不动用户刚收起的侧窗；其置顶在 showSidePanel/showCluster 显示时重申）
     for (const w of getAllClusterWindows()) {
-      if (!safe(w)) continue
+      if (!safe(w) || !w.isVisible()) continue
       let ok = false
       try {
         ok = hasTopmostBit(w.getNativeWindowHandle())
