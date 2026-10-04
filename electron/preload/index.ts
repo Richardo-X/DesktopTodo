@@ -88,7 +88,7 @@ if (process.env.DTODO_TEST === '1') {
     clusterState: () => ipcRenderer.invoke('test:cluster-state'),
     dragState: () => ipcRenderer.invoke('test:drag-state'),
     sysShowWindow: (cmd: number) => ipcRenderer.invoke('test:sys-show-window', cmd),
-
+    sysWmClose: (panel: string) => ipcRenderer.invoke('test:sys-wm-close', panel),
   })
 }
 

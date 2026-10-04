@@ -26,6 +26,7 @@ import {
   getMainWindow,
   getAllClusterWindows,
   getClusterAnchor,
+  markClusterQuitting,
   syncClusterBounds,
   setClusterTucked,
   hideCluster,
@@ -491,6 +492,7 @@ let isQuitting = false
 app.on('before-quit', async (e) => {
   if (isQuitting) return // 第二次进入：放行退出
   isQuitting = true
+  markClusterQuitting() // 组件窗口 close 放行（否则退出被 Alt+F4 拦截策略卡死）
   // 阻止本次退出，等落盘完成后再真正退出（否则异步 flush 会被进程退出截断）
   e.preventDefault()
   try {

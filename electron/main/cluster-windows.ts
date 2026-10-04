@@ -2,8 +2,17 @@ import { BrowserWindow, screen, type IpcMain } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyClusterTopMost } from './window-state'
-import { hasTopmostBit, isCloaked, makeToolWindow, sendWindowToBottom, sysShowWindow, uncloak } from './win32'
+import {
+  hasTopmostBit,
+  isCloaked,
+  makeToolWindow,
+  postWmClose,
+  sendWindowToBottom,
+  sysShowWindow,
+  uncloak
+} from './win32'
 import { repairTopMostBit, resetWinDForced, isWinDForced } from './win-d-hook'
+import { shouldBlockClusterClose } from '../../src/core/utils/window-close-policy'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -45,6 +54,23 @@ let cluster: ClusterState | null = null
 let dragTimer: ReturnType<typeof setInterval> | null = null
 let dragStart: { cursor: { x: number; y: number }; anchor: { x: number; y: number } } | null = null
 let lastAppliedAnchor: { x: number; y: number } | null = null
+
+/** 退出流程标记：before-quit 先行置位，之后组件窗口的 close 放行（否则应用无法退出） */
+let appQuitting = false
+
+/** 显隐途径收敛（用户定稿 2026-10-04）：组件三窗的系统级关闭（Alt+F4→WM_CLOSE）
+ * 一律无效——不关闭、不隐藏；退出流程放行。× 按钮=hideToTray 不走 close 通道 */
+export function markClusterQuitting(): void {
+  appQuitting = true
+}
+
+/** E2E 钩子：按 panel 名取组件窗口句柄上发 WM_CLOSE（Alt+F4 系统等价物） */
+export function sysWmCloseToPanel(panel: string): boolean {
+  if (!cluster) return false
+  const w = panel === 'quick' ? cluster.windows.quick : panel === 'done' ? cluster.windows.done : cluster.windows.main
+  if (!safe(w)) return false
+  return postWmClose(w.getNativeWindowHandle())
+}
 
 function webPreferences(): { preload: string; contextIsolation: boolean; nodeIntegration: boolean; sandbox: boolean } {
   return {
@@ -111,6 +137,10 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
     w.on('minimize', () => {
       if (w.isDestroyed() || dragTimer !== null) return
       w.restore()
+    })
+    // 显隐途径收敛：Alt+F4（WM_CLOSE）无效——阻止关闭（退出流程放行）
+    w.on('close', (e) => {
+      if (shouldBlockClusterClose(appQuitting)) e.preventDefault()
     })
     // C-1：工具窗口样式——Win+D（显示桌面）跳过 TOOLWINDOW 窗口（实测定论：
     // Win+D 对普通顶层窗口的隐藏无事件不可拦，TOOLWINDOW 是系统级豁免）
@@ -645,6 +675,7 @@ export function registerClusterIpc(ipcMain: IpcMain): void {
       if (m && safe(m)) sysShowWindow(m.getNativeWindowHandle(), cmd)
       return true
     })
+    ipcMain.handle('test:sys-wm-close', (_e, panel: string) => sysWmCloseToPanel(panel))
     ipcMain.handle('test:drag-state', () => ({ dragging: dragTimer !== null }))
     // 置顶判定 E2E：可见窗口 z 序链（顶到底）——沉底/置顶断言用
 

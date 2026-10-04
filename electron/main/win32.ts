@@ -19,6 +19,18 @@ koffi.struct('RECT', { left: 'long', top: 'long', right: 'long', bottom: 'long' 
 const SetWindowPos = user32.func(
   'int32 __stdcall SetWindowPos(intptr hWnd, intptr hWndInsertAfter, int x, int y, int cx, int cy, uint32 uFlags)'
 )
+const PostMessageW = user32.func('int32 __stdcall PostMessageW(intptr hWnd, uint32 msg, intptr wp, intptr lp)')
+const WM_CLOSE = 0x0010
+
+/** Win32 直发 WM_CLOSE（Alt+F4 的系统等价物；E2E 关闭策略验收用） */
+export function postWmClose(nativeHandle: Buffer): boolean {
+  if (process.platform !== 'win32' || nativeHandle.length < 8) return false
+  try {
+    return !!PostMessageW(nativeHandle.readBigUInt64LE(0), WM_CLOSE, 0n, 0n)
+  } catch {
+    return false
+  }
+}
 const dwmapi = koffi.load('dwmapi.dll')
 const DwmGetWindowAttribute = dwmapi.func(
   'int32 __stdcall DwmGetWindowAttribute(intptr hWnd, int32 attr, _Out_ int32 *val, int32 cb)'
