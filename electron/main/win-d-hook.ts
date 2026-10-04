@@ -6,7 +6,7 @@ import {
   resetWinDGuardForced,
   type WinDGuardState
 } from '../../src/core/utils/win-d-guard'
-import { getForegroundHwnd, getShellDesktopHwnds, sendWindowToBottom } from './win32'
+import { getForegroundHwnd, getShellDesktopHwnds, hasTopmostBit, sendWindowToBottom } from './win32'
 
 /**
  * Win+D 抢跑守卫（C-1 路线 C，用户定稿 2026-10-04）。
@@ -61,6 +61,11 @@ function safeWindow(w: BrowserWindow | null | undefined): w is BrowserWindow {
   return !!w && !w.isDestroyed()
 }
 
+/** 诊断日志（真机验收期临时开启；验收通过后移除） */
+function dbg(msg: string): void {
+  console.log('[win-d-guard]', new Date().toISOString().slice(11, 23), msg)
+}
+
 function ownHwnds(): Set<bigint> {
   const set = new Set<bigint>()
   if (!deps) return set
@@ -80,7 +85,15 @@ function ownHwnds(): Set<bigint> {
 function applyForcedTopMost(): void {
   if (!deps) return
   for (const w of [...deps.clusterWindows(), ...deps.childWindows()]) {
-    if (safeWindow(w)) w.setAlwaysOnTop(true, 'screen-saver')
+    if (safeWindow(w)) {
+      w.setAlwaysOnTop(true, 'screen-saver')
+      // 诊断：置顶位是否真的落上（Chromium 否决/异步重排会在此显形）
+      try {
+        dbg(`force hwnd-set topmostBit=${hasTopmostBit(w.getNativeWindowHandle())}`)
+      } catch {
+        /* 句柄读取失败忽略 */
+      }
+    }
   }
   startForegroundPoll()
 }
@@ -88,15 +101,18 @@ function applyForcedTopMost(): void {
 /** 解除抢设：只处理自己抢设过的场景。此处二次校验真实置顶——
  * 若期间用户打开了置顶（applyTopMostToCluster 会复位标志，这里是兜底），
  * 绝不执行 setAlwaysOnTop(false)（用户定稿关切：不误关手动置顶） */
-function applyUnforce(): void {
+function applyUnforce(reason: string): void {
   if (!deps) return
   stopForegroundPoll()
+  dbg(`unforce reason=${reason} topMost=${deps.isTopMost()}`)
   if (deps.isTopMost()) return
   for (const w of deps.childWindows()) {
     if (safeWindow(w)) w.setAlwaysOnTop(false, 'screen-saver')
   }
   const sinkCluster = (): void => {
-    for (const w of deps?.clusterWindows() ?? []) {
+    // 触发时复查：延迟定时器落地前用户可能已打开置顶（真机 bug：曾拆掉用户置顶）
+    if (!deps || deps.isTopMost()) return
+    for (const w of deps.clusterWindows()) {
       if (!safeWindow(w)) continue
       w.setAlwaysOnTop(false, 'screen-saver')
       w.setSkipTaskbar(true)
@@ -121,7 +137,7 @@ function startForegroundPoll(): void {
     const fg = getForegroundHwnd()
     if (fg === 0n) return
     const keep = new Set([...getShellDesktopHwnds(), ...ownHwnds()])
-    if (!keep.has(fg)) applyUnforce()
+    if (!keep.has(fg)) applyUnforce('fg-left-desktop')
   }, 500)
 }
 
@@ -152,13 +168,15 @@ export function installWinDGuard(d: WinDGuardDeps): void {
           const vk = Number(koffi.decode(lp, 0, 'uint32'))
           const winDown = GetAsyncKeyState(VK_LWIN) < 0 || GetAsyncKeyState(VK_RWIN) < 0
           if (vk === VK_D && winDown && deps) {
+            dbg(`press topMost=${deps.isTopMost()} visible=${deps.isClusterVisible()} forcedBefore=${state.forced}`)
             const r = classifyWinDPress(state, Date.now(), {
               topMost: deps.isTopMost(),
               visible: deps.isClusterVisible()
             })
             state = r.next
+            dbg(`action=${r.action}`)
             if (r.action === 'force') applyForcedTopMost()
-            else if (r.action === 'unforce') applyUnforce()
+            else if (r.action === 'unforce') applyUnforce('second-press')
           }
         }
       } catch {
@@ -175,6 +193,7 @@ export function installWinDGuard(d: WinDGuardDeps): void {
       return
     }
     hookHandle = BigInt(handle)
+    dbg('hook installed')
     uninstallFn = (): void => {
       try {
         if (hookHandle !== null) UnhookWindowsHookEx(hookHandle)

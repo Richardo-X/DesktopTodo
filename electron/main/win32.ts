@@ -48,6 +48,17 @@ const GetForegroundWindow = user32.func('intptr __stdcall GetForegroundWindow()'
 const FindWindowA = user32.func('intptr __stdcall FindWindowA(str cls, str title)')
 const GWL_EXSTYLE = -20
 const WS_EX_TOOLWINDOW = 0x00000080
+const WS_EX_TOPMOST = 0x00000008
+
+/** 窗口是否带 TOPMOST 位（Win+D 抢跑守卫诊断：确认抢设是否真的落地） */
+export function hasTopmostBit(nativeHandle: Buffer): boolean {
+  if (process.platform !== 'win32' || nativeHandle.length < 8) return false
+  try {
+    return (GetWindowLongW(nativeHandle.readBigInt64LE(0), GWL_EXSTYLE) & WS_EX_TOPMOST) !== 0
+  } catch {
+    return false
+  }
+}
 
 const HWND_BOTTOM = 1n
 const SWP_NOMOVE = 0x0002
