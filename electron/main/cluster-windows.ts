@@ -101,7 +101,8 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
     backgroundColor: '#00000000',
     thickFrame: false,
     skipTaskbar: true,
-    minimizable: false,
+    // Win+M 两态生效（用户 2026-10-06 裁定）：须声明可最小化，否则系统"全部最小化"跳过组件
+    minimizable: true,
     resizable: false,
     movable: true,
     hasShadow: false,
@@ -124,12 +125,8 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
       sendWindowToBottom(w.getNativeWindowHandle())
     }
     w.on('blur', () => onClusterWindowBlur())
-    // 显隐语义最终版：未置顶=普通窗口行为（Win+M/系统最小化后保持最小化，托盘恢复）；
-    // 置顶=Win+M 免疫（最小化即恢复兜底；Win+D 靠置顶带常驻天然豁免）
-    w.on('minimize', () => {
-      if (w.isDestroyed() || dragTimer !== null) return
-      if (clusterTopMost()) w.restore()
-    })
+    // Win+M 两态生效（用户 2026-10-06 裁定）：最小化后保持，恢复=托盘双击/右键
+    // （showWindow→show 还原最小化并重申置顶）；无 minimize 兜底
     // Alt+F4/系统关闭（WM_CLOSE）= 强制退出整个应用（无确认框；before-quit 落盘照走）
     w.on('close', () => {
       requestAppQuit()
