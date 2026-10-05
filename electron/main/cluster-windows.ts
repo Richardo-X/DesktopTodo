@@ -1,18 +1,8 @@
-import { BrowserWindow, screen, type IpcMain } from 'electron'
+import { app, BrowserWindow, screen, type IpcMain } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyClusterTopMost } from './window-state'
-import {
-  hasTopmostBit,
-  isCloaked,
-  makeToolWindow,
-  postWmClose,
-  sendWindowToBottom,
-  sysShowWindow,
-  uncloak
-} from './win32'
-import { repairTopMostBit, resetWinDForced, isWinDForced } from './win-d-hook'
-import { shouldBlockClusterClose } from '../../src/core/utils/window-close-policy'
+import { makeToolWindow, postWmClose, sendWindowToBottom, sysShowWindow } from './win32'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -55,13 +45,14 @@ let dragTimer: ReturnType<typeof setInterval> | null = null
 let dragStart: { cursor: { x: number; y: number }; anchor: { x: number; y: number } } | null = null
 let lastAppliedAnchor: { x: number; y: number } | null = null
 
-/** 退出流程标记：before-quit 先行置位，之后组件窗口的 close 放行（否则应用无法退出） */
-let appQuitting = false
+/** Alt+F4/系统关闭（WM_CLOSE）= 强制退出整个应用（用户 2026-10-05 裁定，无确认框；
+ * before-quit 数据落盘照走）。防重入：退出流程中后续 close 事件不再重复触发 */
+let quitRequested = false
 
-/** 显隐途径收敛（用户定稿 2026-10-04）：组件三窗的系统级关闭（Alt+F4→WM_CLOSE）
- * 一律无效——不关闭、不隐藏；退出流程放行。× 按钮=hideToTray 不走 close 通道 */
-export function markClusterQuitting(): void {
-  appQuitting = true
+function requestAppQuit(): void {
+  if (quitRequested) return
+  quitRequested = true
+  app.quit()
 }
 
 /** E2E 钩子：按 panel 名取组件窗口句柄上发 WM_CLOSE（Alt+F4 系统等价物） */
@@ -133,26 +124,18 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
       sendWindowToBottom(w.getNativeWindowHandle())
     }
     w.on('blur', () => onClusterWindowBlur())
-    // C-1 兜底：任何路径（含系统广播）导致最小化 → 立即恢复（组件不进任务栏/不消失）
+    // 显隐语义最终版：未置顶=普通窗口行为（Win+M/系统最小化后保持最小化，托盘恢复）；
+    // 置顶=Win+M 免疫（最小化即恢复兜底；Win+D 靠置顶带常驻天然豁免）
     w.on('minimize', () => {
       if (w.isDestroyed() || dragTimer !== null) return
-      w.restore()
+      if (clusterTopMost()) w.restore()
     })
-    // 显隐途径收敛：Alt+F4（WM_CLOSE）无效——阻止关闭（退出流程放行）
-    w.on('close', (e) => {
-      if (shouldBlockClusterClose(appQuitting)) e.preventDefault()
+    // Alt+F4/系统关闭（WM_CLOSE）= 强制退出整个应用（无确认框；before-quit 落盘照走）
+    w.on('close', () => {
+      requestAppQuit()
     })
-    // C-1：工具窗口样式——Win+D（显示桌面）跳过 TOOLWINDOW 窗口（实测定论：
-    // Win+D 对普通顶层窗口的隐藏无事件不可拦，TOOLWINDOW 是系统级豁免）
+    // 工具窗口样式：组件不进任务栏/Alt+Tab（UI 设计决策，2026-10-05 确认保留）
     makeToolWindow(w.getNativeWindowHandle())
-    const dEvents: Array<'minimize' | 'restore' | 'hide' | 'close'> = ['minimize', 'restore', 'hide', 'close']
-    for (const ev of dEvents) {
-      w.on(ev as 'minimize', () => {
-        if (process.env.DTODO_TEST === '1' || process.env.NODE_ENV !== 'production') {
-          console.log('[win-d-dbg]', panel, ev)
-        }
-      })
-    }
   })
   // z-order 绑定：任一窗激活 → 三窗同升（moveTop 不夺焦）
   w.on('focus', () => raiseClusterAll())
@@ -258,11 +241,7 @@ function showSidePanel(panel: ClusterPanel): void {
   if (!bb) return
   pendingBounds.delete(w.id)
   w.setBounds(bb)
-  if (!w.isVisible()) {
-    w.showInactive()
-    if (cluster.topMost) applyClusterTopMost(w, true)
-    else if (isWinDForced()) w.setAlwaysOnTop(true, 'screen-saver')
-  }
+  if (!w.isVisible()) w.showInactive()
 }
 
 /** 三窗同帧定位：一个锚点 → 同一 tick 内逐窗 setBounds（每帧重申逻辑尺寸，压制跨 DPI 复利放大）。
@@ -451,26 +430,22 @@ export function hideCluster(): void {
   if (!cluster) return
   stopClusterDrag()
   cluster.visible = false
-  resetWinDForced()
   for (const w of getAllClusterWindows()) w.hide()
 }
 
 /** 显示=整体恢复（含置顶重应用——hide/show 可能重置 z-order）。
- * 胶囊态只显主窗短条；展开态 placeAll 强制全窗落位（修跨 DPI 尺寸残留——用户实测最小化再显示自愈，此处显式化）。
- * Win+D 抢设标志复位：显示路径重申真实置顶语义（applyTopMostToCluster 内同样复位） */
+ * 胶囊态只显主窗短条；展开态 placeAll 强制全窗落位（修跨 DPI 尺寸残留——用户实测最小化再显示自愈） */
 export function showCluster(): void {
   if (!cluster) return
   cluster.visible = true
-  resetWinDForced()
   lastAppliedAnchor = null
   const { quick, main, done } = cluster.windows
   if (cluster.tucked) {
     applyClusterBounds()
     if (safe(main)) {
       ;(cluster.topMost ? main.show() : main.showInactive())
-      // 重新显示会重置置顶带成员（同 showSidePanel，真机第十轮）——重申
+      // 重新显示会重置置顶带成员——重申
       if (cluster.topMost) applyClusterTopMost(main, true)
-      else if (isWinDForced()) main.setAlwaysOnTop(true, 'screen-saver')
     }
     return
   } else {
@@ -501,27 +476,9 @@ let pendingSinkOnBlur = false
 export function applyTopMostToCluster(enabled: boolean): void {
   if (!cluster) return
   cluster.topMost = enabled
-  // Win+D 抢设标志复位：真实置顶语义在此重申，抢设作废（防止钩子把用户置顶误还原）
-  resetWinDForced()
   if (enabled) {
     pendingSinkOnBlur = false
     for (const w of getAllClusterWindows()) if (safe(w)) applyClusterTopMost(w, true)
-    // 被标记窗口校验修复（第八轮真机定论）：输过竞速的窗口置顶位落不上且被
-    // shell 标记隐藏（表现为"切置顶后 Win+D 仍藏主窗"）——hide→showInactive 重申。
-    // 隐藏窗跳过（不动用户刚收起的侧窗；其置顶在 showSidePanel/showCluster 显示时重申）
-    for (const w of getAllClusterWindows()) {
-      if (!safe(w) || !w.isVisible()) continue
-      let ok = false
-      try {
-        ok = hasTopmostBit(w.getNativeWindowHandle())
-      } catch {
-        ok = false
-      }
-      if (!ok) {
-        const repaired = repairTopMostBit(w)
-        console.log('[win-d-guard] topmost repair on user-topmost:', repaired ? 'ok' : 'STILL-FAIL')
-      }
-    }
     return
   }
   // 焦点判定必须先于 focusable 变更——setFocusable(false) 会杀掉焦点
@@ -599,22 +556,6 @@ export function repositionClusterToDisplays(displays: { workArea: WinBounds }[])
   })()
   if (next.x === b.x && next.y === b.y) return
   applyAnchor(next)
-}
-
-/** C-1 轮询反制：Win+D 经 DWM cloak 隐藏组件（无事件可拦）——
- * 300ms 周期检测，被 cloak 即无激活重新显示（用户可见≤300ms 的闪没后回位）。
- * 组件整体隐藏（托盘 hideToTray）时跳过——那是合法隐藏 */
-export function startCloakGuard(): void {
-  if (process.platform !== 'win32') return
-  setInterval(() => {
-    if (!cluster || !cluster.visible) return
-    for (const w of getAllClusterWindows()) {
-      if (safe(w) && w.isVisible() && isCloaked(w.getNativeWindowHandle())) {
-        console.log('[cloak-dbg] cloaked window detected, uncloaking')
-        uncloak(w.getNativeWindowHandle())
-      }
-    }
-  }, 300)
 }
 
 /** 缩进判定光标轮询：光标是否在可见组件范围内（缩进态=胶囊窗本体）；

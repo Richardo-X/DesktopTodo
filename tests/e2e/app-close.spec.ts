@@ -54,11 +54,14 @@ test('二级窗 ×（closeSelf）仅关自己，应用与组件不受影响', as
     .toBe(1)
 
   // 二级窗内点 ×（closeSelf）→ 仅二级窗关闭
+  // （closeSelf 触发关窗后页面随即销毁，invoke 响应可能到不了——连接断开属预期）
   const child = h.app.windows().find((w) => w.url().includes('win=settings'))!
   await child.waitForSelector('body', { timeout: 5_000 })
-  await child.evaluate(() =>
-    (window as unknown as { desktopTodo: { closeSelf(): Promise<void> } }).desktopTodo.closeSelf()
-  )
+  await child
+    .evaluate(() =>
+      (window as unknown as { desktopTodo: { closeSelf(): Promise<void> } }).desktopTodo.closeSelf()
+    )
+    .catch(() => {})
   await expect
     .poll(
       async () =>

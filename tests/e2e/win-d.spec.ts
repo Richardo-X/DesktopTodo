@@ -38,7 +38,7 @@ test('未置顶：系统级最小化后保持最小化（普通窗口行为）�
   await h.main.evaluate(() =>
     (window as unknown as { desktopTodo: { setVisibility(v: boolean): Promise<void> } }).desktopTodo.setVisibility(true)
   )
-  await expect.poll(mainState, { timeout: 5_000 }).toEqual({ vis: true, mini: false })
+  await expect.poll(() => mainState(h), { timeout: 5_000 }).toEqual({ vis: true, mini: false })
   await h.close()
 })
 
@@ -51,7 +51,7 @@ test('置顶：系统级最小化后立即自动恢复（Win+M 免疫兜底）',
   await h.main.waitForTimeout(300)
 
   await sysMinimizeMain(h)
-  await expect.poll(mainState, { timeout: 5_000 }).toEqual({ vis: true, mini: false })
+  await expect.poll(() => mainState(h), { timeout: 5_000 }).toEqual({ vis: true, mini: false })
 
   // 还原未置顶态，避免污染后续用例
   await h.main.click('[data-testid="tb-topmost"]')

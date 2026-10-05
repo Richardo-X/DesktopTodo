@@ -22,11 +22,9 @@ import {
   clusterTucked,
   clusterTopMost,
   isClusterDragging,
-  isClusterVisible,
   getMainWindow,
   getAllClusterWindows,
   getClusterAnchor,
-  markClusterQuitting,
   syncClusterBounds,
   setClusterTucked,
   hideCluster,
@@ -34,10 +32,8 @@ import {
   applyTopMostToCluster,
   repositionClusterToDisplays,
   registerClusterIpc,
-  startTuckCursorPoll,
-  startCloakGuard
+  startTuckCursorPoll
 } from './cluster-windows'
-import { installWinDGuard, uninstallWinDGuard, isWinDForced } from './win-d-hook'
 import { anchorForWindowX, visibleClusterBounds, clampAnchorForEdges } from '../../src/core/utils/cluster-layout'
 
 /** 启动/恢复钳制（#31/#32/#33）：左右边缘不阻挡、主窗≥90px 可见、幂等（原样恢复） */
@@ -115,15 +111,6 @@ async function bootstrap(): Promise<void> {
   startSettleTimer()
   watchDisplayChanges()
   startTuckCursorPoll()
-  startCloakGuard()
-  // C-1 路线 C：Win+D 抢跑守卫（LL 键盘钩子；挂件态第一按抢设临时置顶、
-  // 第二按只撤销抢设、置顶态不碰；安装失败仅降级不致命）
-  installWinDGuard({
-    isTopMost: () => clusterTopMost(),
-    isClusterVisible: () => isClusterVisible(),
-    clusterWindows: () => getAllClusterWindows(),
-    childWindows: () => [...childWindows]
-  })
 }
 
 function createTray(): void {
@@ -220,6 +207,18 @@ function quitNow(): void {
 
 const childWindows = new Set<BrowserWindow>()
 
+/** 二级窗"意图关闭"标记：×/← 按钮（closeSelf IPC）关闭前置位——
+ * close 事件据此区分"用户主动关二级窗"与"Alt+F4/系统关闭（=退出整个应用）" */
+const intentionalChildCloses = new WeakSet<BrowserWindow>()
+
+/** 强制退出请求（Alt+F4）：防重入后交给 app.quit()——before-quit 落盘流程照走 */
+let appQuitRequested = false
+function requestAppQuit(): void {
+  if (appQuitRequested) return
+  appQuitRequested = true
+  app.quit()
+}
+
 /** 子窗口数量广播三窗（缩进状态机 childOpen 门跨窗同步） */
 function broadcastChildCount(): void {
   for (const w of getAllClusterWindows()) {
@@ -263,8 +262,6 @@ function openChildWindow(kind: ChildKind, id?: string): void {
   })
   childWindows.add(child)
   lockNonChildWindows(true)
-  // Win+D 抢设期间打开的二级窗：同批抢设置顶（否则出生即被桌面层合成隐藏）
-  if (isWinDForced()) child.setAlwaysOnTop(true, 'screen-saver')
 
   // 用户验收#5：打开二级窗=组件聚焦该窗并禁用缩进——若已缩进立即弹出；
   // 子窗数量广播三窗状态机（childOpen 门），侧窗发起的二级窗同样生效（跨窗）
@@ -281,8 +278,15 @@ function openChildWindow(kind: ChildKind, id?: string): void {
     if (clamped.x !== b.x || clamped.y !== b.y) child.setPosition(clamped.x, clamped.y)
   })
   child.on('close', () => {
+    // Alt+F4/系统关闭（无意图标记）= 强制退出整个应用（用户 2026-10-05 裁定）；
+    // ×/← 按钮（closeSelf）带意图标记 = 仅关自己
+    if (!intentionalChildCloses.has(child)) requestAppQuit()
     // 提前解锁：close 与 closed 之间窗口仍 disabled 会吞掉主窗口的输入
     lockNonChildWindows(false)
+  })
+  // 置顶态 Win+M 免疫兜底：系统最小化二级窗 → 立即恢复（未置顶不设限=普通窗口行为）
+  child.on('minimize', () => {
+    if (!child.isDestroyed() && clusterTopMost()) child.restore()
   })
   child.on('closed', () => {
     broadcastVeilOff()
@@ -306,7 +310,10 @@ function openChildWindow(kind: ChildKind, id?: string): void {
 function registerIpc(): void {
   ipcMain.handle(IPC.openChild, (_e, p: { kind: ChildKind; id?: string }) => openChildWindow(p.kind, p.id))
   ipcMain.handle(IPC.closeSelf, (e) => {
-    BrowserWindow.fromWebContents(e.sender)?.close()
+    const w = BrowserWindow.fromWebContents(e.sender)
+    if (!w) return
+    intentionalChildCloses.add(w) // ×/← 按钮=意图关闭：仅关自己
+    w.close()
   })
 
   // 决策#7/#24：子窗口缩放=真窗口尺寸变化；Windows 限制：resizable=false 时 setSize 缩小不生效 → 临时解除
@@ -492,7 +499,6 @@ let isQuitting = false
 app.on('before-quit', async (e) => {
   if (isQuitting) return // 第二次进入：放行退出
   isQuitting = true
-  markClusterQuitting() // 组件窗口 close 放行（否则退出被 Alt+F4 拦截策略卡死）
   // 阻止本次退出，等落盘完成后再真正退出（否则异步 flush 会被进程退出截断）
   e.preventDefault()
   try {
@@ -510,11 +516,6 @@ app.on('before-quit', async (e) => {
 
 app.on('window-all-closed', () => {
   // 托盘常驻：窗口关闭不退出（唯一退出途径为托盘菜单）
-})
-
-app.on('will-quit', () => {
-  // Win+D 抢跑守卫钩子随进程回收；显式卸载保持整洁
-  uninstallWinDGuard()
 })
 
 app.on('activate', () => {
