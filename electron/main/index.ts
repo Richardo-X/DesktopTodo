@@ -20,6 +20,7 @@ import { GROUP_OF, childWindowOptions } from './child-windows'
 import {
   createClusterWindows,
   clusterTucked,
+  clusterTopMost,
   isClusterDragging,
   getMainWindow,
   getAllClusterWindows,
@@ -282,6 +283,10 @@ function openChildWindow(kind: ChildKind, id?: string): void {
     if (!intentionalChildCloses.has(child)) requestAppQuit()
     // 提前解锁：close 与 closed 之间窗口仍 disabled 会吞掉主窗口的输入
     lockNonChildWindows(false)
+  })
+  // 置顶态 Win+M 免疫兜底：系统最小化二级窗 → 立即恢复（未置顶不设限=普通窗口行为）
+  child.on('minimize', () => {
+    if (!child.isDestroyed() && clusterTopMost()) child.restore()
   })
   child.on('closed', () => {
     broadcastVeilOff()
