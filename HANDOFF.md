@@ -391,16 +391,18 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - 用户验收 38 原话确认"卡顿非蒙层引入"
 
 ### 10.4 新会话待办（按优先级）
-1. **✅ Win+D 隐藏组件——机制查明+路线 C 已实施（2026-10-04 第七轮），待用户真机验收**
-   - **用户答复合并**：三次实测均为未置顶（挂件态），置顶时确实免疫（与实验吻合）；需求=无论置顶与否 Win+D 都不影响组件（弹出态与缩进白条都要保住）；**已选路线 C（钩子抢跑）**
-   - **机制铁证（外部探针+截屏对照实验）**：Win11 build 26200 的 Show Desktop = DWM 合成层隐藏，按键处理路径内同步对豁免集快照——toggle 时刻已在 **TOPMOST 带**或 **shell 拥有**的窗口幸存，其余全隐藏（零事件/零状态/零 cloak）；事后补救全部无效（TOPMOST 被 Chromium 否决/SetWindowPos 返回 TRUE 但 EXSTYLE 不变、hide+show、改 owner、0~400ms 竞态、钩子内 SetWindowPos 同被否决）；COM ToggleDesktop 多轮后失效（验证用 SendInput VK_LWIN+VK_D 替代）
-   - **实现（提交链 cb28f85→5257645→94a91ce，368 单测+48 E2E+CI 绿）**：
-     - 纯函数状态机 `src/core/utils/win-d-guard.ts`（classifyWinDPress：挂件态 force→unforce 往返/置顶 none 不碰/托盘 hidden none/300ms 防抖；resetWinDGuardForced 外部复位）+ `tests/unit/win-d-guard.test.ts` 10 用例
-     - 钩子接线 `electron/main/win-d-hook.ts`：WH_KEYBOARD_LL（koffi.register+SetWindowsHookExW，主线程安装）；回调内 vkCode==0x44+GetAsyncKeyState(VK_LWIN)<0 → classify → **Electron setAlwaysOnTop('screen-saver') 抢设**（同线程内部路径无否决）；unforce 前**二次校验 isTopMost()（绝不误关用户置顶——用户定稿关切）**；组件窗解除=关置顶+重申 skipTaskbar+120/400ms 双次沉底（复用 enterWidgetMode 节奏）；前台 500ms 轮询（前台离开桌面层/自身窗口=用户从桌面打开了应用 → 自动解除抢设沉底）；托盘显隐/置顶切换经 resetWinDForced 复位标志（cluster-windows hideCluster/showCluster/applyTopMostToCluster 三处接线）
-     - index.ts：bootstrap 安装（安装失败仅告警降级不致命）、will-quit 卸载、openChildWindow 在抢设期间出生的二级窗同批抢设（否则出生即被合成隐藏）
-   - **真机验收清单（用户执行；dev 已带新代码重启）**：①未置顶+展开态按 Win+D → 三窗仍显示，再按还原；②未置顶+缩进态按 Win+D → 白条仍在，再按还原；③未置顶按 Win+D 后从桌面打开任一应用 → 组件自动回挂件态不浮在应用上方；④置顶开启按 Win+D 数次 → 组件不受影响且置顶状态保持；⑤托盘隐藏后按 Win+D → 组件保持隐藏。验收通过后：删除 [win-d-dbg] 诊断日志与 cloak 轮询（win-d-hook 保留为常驻功能）
-   - 实验教训（本轮新坑，复用实验时必读）：koffi.register(func, koffi.pointer(proto))；SWP_NOZORDER(0x4) 混入标志会让 HWND_BOTTOM/HWND_TOPMOST 静默失效（0x17 陷阱，正确沉底=0x213）；Show Desktop 态期间新建窗口出生即被合成隐藏（实验窗必须在 toggle 前创建）；PowerShell 进程 DPI 虚拟化坐标=物理/1.25（GetWindowRect 虚拟化、DWMWA_EXTENDED_FRAME_BOUNDS 物理）；非 DPI 感知进程 CreateWindowExA 坐标=虚拟坐标；组件面板半透明——像素采样判定会混入壁纸底色，必须截图人眼/对照窗裁决
-2. **C-4 发版 v1.1.0**：Win+D 验收通过后执行——package.json 1.0.8→1.1.0 → electron-builder 打安装包 → 安装版冒烟（缩放/置顶/蒙层/缝隙4px/二级窗打开/**Win+D 两态**/自启开关真实写入注册表——E2E 的 C-3 防护断言仅适用开发版）→ **开机自启真机重启测试** → tag v1.1.0 → Release → 本文件更新
+1. **✅ Win+D/Win+M/Alt+F4 语义定稿并落地（2026-10-05 第七~十一轮），待用户真机验收**
+   - **机制定论（外部探针+截屏对照）**：Win11 build 26200 的 Show Desktop = DWM 合成层隐藏（零事件/零状态/零 cloak），豁免集=toggle 时刻已在置顶带或 shell 拥有的窗口；事后补救全部无效；被标记窗口拒绝置顶位变更（跨往返持久）；这个版本 Win+D 合成隐藏后**焦点不移走**（前台信号不可用）
+   - **用户新裁定（覆盖此前"两态都免疫"目标）**：**置顶态**=Win+D/Win+M 均免疫（置顶带常驻天然豁免 + minimizable:false 声明式 + 最小化即恢复兜底）；**未置顶态=和普通窗口完全一样**（Win+D/Win+M 可隐藏/最小化，再按 Win+D 或托盘恢复，不做防护——原"未置顶也要免疫"的抱怨撤销）；**Alt+F4=强制退出整个应用（无确认框，数据落盘照走）**；TOOLWINDOW 保留（不进任务栏/Alt+Tab=UI 设计决策）；二级窗层级问题保留
+   - **实施（TDD：60c47d6 红→260259a 绿；358 单测+51 E2E 全绿）**：
+     - 拆除抢跑守卫全套：win-d-hook.ts（LL 钩子/命中探针/修复循环/前台轮询）、win-d-guard.ts 纯模块、两者测试、index/cluster-windows 全部接线
+     - 拆除 Alt+F4 拦截：window-close-policy.ts、makeWindow close 拦截、markClusterQuitting、preload sysWmClose（test:sys-wm-close IPC 钩子保留供 E2E）
+     - Alt+F4 新实现：cluster 窗口 close（非退出流程）→ app.quit()（无确认，before-quit 落盘照走）；二级窗 closeSelf 带"意图标记"（WeakSet）仅关自己，无标记（Alt+F4）→ 退出应用
+     - minimize 兜底条件化：三窗与二级窗的 minimize 事件仅 clusterTopMost() 时 restore（未置顶=普通窗口行为）
+     - 清理：startCloakGuard/cloak 轮询/[win-d-dbg] 日志
+   - **真机验收清单**：①置顶态 Win+D/Win+M 均不影响（三窗+打开的二级窗）②未置顶 Win+D 隐藏→再按恢复；Win+M 最小化→任务栏/托盘恢复 ③Alt+F4 聚焦任一窗→整个应用退出、无确认框、重启数据完整 ④二级窗 ×/← 仅关自己 ⑤× /托盘双击/托盘右键三途径正常 ⑥托盘右键→退出正常
+   - 验收通过后：C-4 发版 v1.1.0
+2. **C-4 发版 v1.1.0**：package.json 1.0.8→1.1.0 → electron-builder 打安装包 → 安装版冒烟（缩放/置顶/蒙层/缝隙4px/二级窗打开/**Win+D/Win+M 两态/Alt+F4 退出**/自启开关真实写入注册表）→ **开机自启真机重启测试** → tag v1.1.0 → Release → 本文件更新
 3. 二级窗打开提速专项（隐藏复用架构：关闭时隐藏不销毁、打开显示+刷数据，400ms→50ms 预估；先设计后实装）
 4. 缩放呈现已定稿 v3.3（拖影=DWM 层限制维持现状；决策 #7 维持原判；原型 v3.4 已否决删除）
 
