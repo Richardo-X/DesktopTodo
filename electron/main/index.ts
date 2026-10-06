@@ -115,7 +115,7 @@ async function bootstrap(): Promise<void> {
 
 function createTray(): void {
   tray = new Tray(nativeImage.createFromBuffer(trayIconPng()))
-  tray.setToolTip('桌面待办')
+  tray.setToolTip('桌面待办三窗版')
   const menu = Menu.buildFromTemplate(
     buildTrayContextMenu({ visible }).map((item) => ({
       label: item.label,
