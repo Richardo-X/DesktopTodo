@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import PanelWindow from '../../src/windows/PanelWindow.vue'
 import { mountWithStore } from '../helpers/mount'
@@ -161,6 +161,39 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       api.veilListeners[0](true)
       await wrapper.vm.$nextTick()
       expect(api.bubbleHideCalls.length).toBeGreaterThan(before)
+    })
+
+    it('veil 打开时未弹出的气泡定时器被取消（竞态根因：禁用窗 mouseleave 丢失，到点照弹滞留）', async () => {
+      vi.useFakeTimers()
+      try {
+        installTestApi()
+        const wrapper = mount(PanelWindow as any, {
+          props: { panel: 'main' },
+          global: { plugins: [createPinia()] }
+        })
+        const api = (window as unknown as { desktopTodo: TestApi }).desktopTodo
+        await wrapper.vm.$nextTick()
+        // 构造"截断文本"悬停：定时器排队（1 秒后应显示气泡）
+        const host = document.createElement('div')
+        host.className = 'content'
+        host.style.width = '10px'
+        const inner = document.createElement('span')
+        inner.className = 'tt-in'
+        inner.textContent = '这是一段非常非常非常长的文本内容'
+        host.appendChild(inner)
+        document.body.appendChild(host)
+        ;(window as unknown as Record<string, unknown>).desktopTodo
+        const { bubbleContentEnter } = await import('../../src/components/content-bubble')
+        bubbleContentEnter(host, host)
+        // 二级窗打开（veil=true）→ 应取消排队中的定时器
+        api.veilListeners[0](true)
+        await wrapper.vm.$nextTick()
+        vi.advanceTimersByTime(1500)
+        expect(api.bubbleShowCalls.length).toBe(0) // 竞态修复：定时器已取消
+        wrapper.unmount()
+      } finally {
+        vi.useRealTimers()
+      }
     })
 
     it('窗口失焦（blur）→ 隐藏悬停气泡（聚焦切走时气泡不得残留）', async () => {

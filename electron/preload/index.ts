@@ -18,6 +18,7 @@ const api = {
   openCsv: () => ipcRenderer.invoke(IPC.openCsv),
   minimizeToTray: () => ipcRenderer.invoke(IPC.minimizeToTray),
   setUnsavedEdits: (flag: boolean) => ipcRenderer.send('app:set-unsaved', flag),
+  diagnosticLog: (msg: string) => ipcRenderer.send('app:cursor-diag', msg),
   openChild: (params: { kind: ChildKind; id?: string }) => ipcRenderer.invoke(IPC.openChild, params),
   closeSelf: () => ipcRenderer.invoke(IPC.closeSelf),
   resizeSelf: (params: { width: number; height: number }) => ipcRenderer.invoke(IPC.resizeSelf, params),

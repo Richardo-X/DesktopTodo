@@ -35,6 +35,7 @@ import {
   startTuckCursorPoll
 } from './cluster-windows'
 import { anchorForWindowX, visibleClusterBounds, clampAnchorForEdges } from '../../src/core/utils/cluster-layout'
+import { geoLog } from './cluster-windows'
 
 /** 启动/恢复钳制（#31/#32/#33）：左右边缘不阻挡、主窗≥90px 可见、幂等（原样恢复） */
 function clampAnchorToWorkArea(
@@ -130,6 +131,7 @@ function createTray(): void {
 }
 
 function toggleVisibility(): void {
+  geoLog('toggleVisibility visible=' + visible)
   if (visible) hideToTray()
   else showWindow()
 }
@@ -330,6 +332,7 @@ function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.setTucked, (_e, v: boolean) => {
+    geoLog('setTucked(renderer) v=' + v + ' childCount=' + childWindows.size)
     // 用户验收#5：有二级窗口打开时禁用缩进（主进程权威拦截）
     if (v && childWindows.size > 0) return
     setClusterTucked(v)
@@ -449,6 +452,11 @@ function registerIpc(): void {
   // 渲染层标记是否存在未保存的编辑输入（退出确认提示用，速查 #3）
   ipcMain.on('app:set-unsaved', (_e, flag: boolean) => {
     hasUnsavedEdits = flag
+  })
+
+  // TEMP 文本光标诊断日志（用户 2026-10-06 报告；发版前移除）
+  ipcMain.on('app:cursor-diag', (_e, msg: string) => {
+    geoLog(String(msg))
   })
 
   // E2E 测试钩子：强制以偏移时钟结算（仅 DTODO_TEST=1 时注册）

@@ -41,6 +41,9 @@ export const BUBBLE_MAX_W = 300
 let hoverTimer: ReturnType<typeof setTimeout> | null = null
 let currentContent: HTMLElement | null = null
 let currentRow: HTMLElement | null = null
+/** 抑制标志：二级窗打开（veil）/失焦时置位——禁用窗口收不到 mouseleave，
+ * 排队中的显示定时器到点会照弹（竞态根因），抑制标志兜底拦截 */
+let suppressed = false
 
 function measureTruncated(content: HTMLElement): boolean {
   const inn = content.querySelector<HTMLElement>('.tt-in')
@@ -54,13 +57,27 @@ export function hideBubble(): void {
   void getApi().bubbleHide()
 }
 
+/** 取消挂起中的气泡（清定时器+状态）并隐藏——veil 开启/窗口失焦时调用 */
+export function cancelBubble(): void {
+  suppressed = true
+  currentContent = null
+  currentRow = null
+  if (hoverTimer !== null) {
+    clearTimeout(hoverTimer)
+    hoverTimer = null
+  }
+  hideBubble()
+}
+
 export function bubbleContentEnter(content: HTMLElement, row: HTMLElement): void {
+  suppressed = false
   currentContent = content
   currentRow = row
   if (!measureTruncated(content)) return
   if (hoverTimer !== null) clearTimeout(hoverTimer)
   hoverTimer = setTimeout(() => {
     hoverTimer = null
+    if (suppressed) return // veil/失焦抑制期（禁用窗口收不到 mouseleave）
     if (currentContent === null || currentRow === null) return // 已移开
     if (!measureTruncated(currentContent)) return
     showNow()

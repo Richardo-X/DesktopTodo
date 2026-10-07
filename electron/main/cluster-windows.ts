@@ -48,7 +48,7 @@ let lastAppliedAnchor: { x: number; y: number } | null = null
 /** Alt+F4/系统关闭（WM_CLOSE）= 强制退出整个应用（用户 2026-10-05 裁定，无确认框；
  * before-quit 数据落盘照走）。防重入：退出流程中后续 close 事件不再重复触发 */
 /** TEMP 几何诊断日志（架构调查用，诊断后删除） */
-function geoLog(msg: string): void {
+export function geoLog(msg: string): void {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const fs = require('node:fs') as typeof import('node:fs')
