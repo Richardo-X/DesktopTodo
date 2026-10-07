@@ -99,12 +99,12 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       const groups = wrapper.findAll('[data-testid="home-panel"] .win-actions')
       expect(groups).toHaveLength(1)
       const order = groups[0].findAll('.wbtn').map((b: { attributes: (n: string) => string | undefined }) => b.attributes('data-testid'))
-      expect(order).toEqual(['tb-theme', 'tb-settings', 'tb-tucklock', 'tb-topmost', 'tb-minimize'])
+      expect(order).toEqual(['tb-theme', 'tb-topmost', 'tb-tucklock', 'tb-settings', 'tb-minimize']) // 2026-10-06 齿轮/图钉对调
     })
 
     it('三轮8.2-6：五按钮全部为原型同款 SVG 线性图标；白天显月亮、夜晚显太阳', async () => {
       const { wrapper, store } = await mountMain()
-      for (const tid of ['tb-theme', 'tb-settings', 'tb-tucklock', 'tb-topmost', 'tb-minimize']) {
+      for (const tid of ['tb-theme', 'tb-topmost', 'tb-tucklock', 'tb-settings', 'tb-minimize']) {
         expect(wrapper.find(`[data-testid="${tid}"] svg`).exists()).toBe(true)
       }
       expect(wrapper.find('[data-testid="tb-theme"] svg').attributes('data-icon')).toBe('moon')
