@@ -101,6 +101,40 @@ test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活�
   await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(true)
 })
 
+test('悬空会话清除：缩进+隐藏中会话挂起 → 再次显示不被立即缩回（闪退根因修复）', async () => {
+  const mainBounds = async (): Promise<W> => {
+    const b = await winByPanel('main')
+    expect(b).toBeTruthy()
+    return b as W
+  }
+
+  // ① 缩进（白条）
+  await setTucked(true)
+  await expect
+    .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 })
+    .toBeLessThanOrEqual(1)
+
+  // ② 显示（tucked 分支：弹出+3s 会话启动）→ ③ 会话期内再隐藏（会话挂起）
+  await h.main.evaluate(() =>
+    (window as unknown as { desktopTodo: { setVisibility(v: boolean): Promise<void> } }).desktopTodo.setVisibility(true)
+  )
+  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
+  await h.main.evaluate(() =>
+    (window as unknown as { desktopTodo: { setVisibility(v: boolean): Promise<void> } }).desktopTodo.setVisibility(false)
+  )
+  await h.main.waitForTimeout(3500) // 跨过会话时长：挂起的过期会话在隐藏期间未被处理
+
+  // ④ 再显示：应保持展开（不再被悬空会话立即缩回=闪退根因）
+  await h.main.evaluate(() =>
+    (window as unknown as { desktopTodo: { setVisibility(v: boolean): Promise<void> } }).desktopTodo.setVisibility(true)
+  )
+  await h.main.waitForTimeout(700) // 悬空会话若未清除，250ms 内即被缩回
+  const st = await mainBounds()
+  expect(st.vis).toBe(true)
+  expect(st.w).toBeGreaterThan(200)
+  expect(st.mini === false || st.mini === undefined).toBeTruthy()
+})
+
 test('展开态托盘最小化→显示：三窗原位恢复（placeAll 修跨 DPI 尺寸残留）', async () => {
   const before = await winByPanel('main')
   expect(before?.vis).toBe(true)
