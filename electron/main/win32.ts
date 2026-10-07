@@ -54,6 +54,24 @@ export function getWindowExstyleFlags(nativeHandle: Buffer): { noactivate: boole
   }
 }
 
+const GetDC = user32.func('intptr __stdcall GetDC(intptr hWnd)')
+const ReleaseDC = user32.func('int32 __stdcall ReleaseDC(intptr hWnd, intptr hdc)')
+const gdi32 = koffi.load('gdi32.dll')
+const GetPixel = gdi32.func('uint32 __stdcall GetPixel(intptr hdc, int x, int y)')
+
+/** 屏幕物理像素采样（E2E 覆盖判定用）：返回 0x00BBGGRR；失败返回 -1 */
+export function screenPixelAt(x: number, y: number): number {
+  if (process.platform !== 'win32') return -1
+  try {
+    const hdc = GetDC(0n)
+    const px = GetPixel(hdc, x, y)
+    ReleaseDC(0n, hdc)
+    return px
+  } catch {
+    return -1
+  }
+}
+
 const HWND_BOTTOM = 1n
 const SWP_NOMOVE = 0x0002
 const SWP_NOSIZE = 0x0004

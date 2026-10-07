@@ -90,6 +90,7 @@ if (process.env.DTODO_TEST === '1') {
     sysShowWindow: (cmd: number) => ipcRenderer.invoke('test:sys-show-window', cmd),
     sysWmClose: (panel: string) => ipcRenderer.invoke('test:sys-wm-close', panel),
     exstyle: (panel: string) => ipcRenderer.invoke('test:exstyle', panel),
+    pixelAt: (x: number, y: number) => ipcRenderer.invoke('test:pixel-at', { x, y }),
   })
 }
 

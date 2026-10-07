@@ -2,7 +2,7 @@ import { app, BrowserWindow, screen, type IpcMain } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyClusterTopMost } from './window-state'
-import { getWindowExstyleFlags, makeToolWindow, postWmClose, sysShowWindow } from './win32'
+import { getWindowExstyleFlags, makeToolWindow, postWmClose, screenPixelAt, sysShowWindow } from './win32'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -255,7 +255,13 @@ function showSidePanel(panel: ClusterPanel): void {
   if (!bb) return
   pendingBounds.delete(w.id)
   w.setBounds(bb)
-  if (!w.isVisible()) w.showInactive()
+  if (!w.isVisible()) {
+    w.showInactive()
+    // 应用级聚焦（用户 2026-10-07 裁定）：侧窗与主窗同层出现——showInactive
+    // 的插入层在真机上可能落在其它应用窗口之下，moveTop 显式提到应用组顶部
+    // （不夺焦点：前台主窗保持前台，侧窗紧随其下）
+    w.moveTop()
+  }
 }
 
 /** 三窗同帧定位：一个锚点 → 同一 tick 内逐窗 setBounds（每帧重申逻辑尺寸，压制跨 DPI 复利放大）。
@@ -596,6 +602,12 @@ export function registerClusterIpc(ipcMain: IpcMain): void {
       return true
     })
     ipcMain.handle('test:sys-wm-close', (_e, panel: string) => sysWmCloseToPanel(panel))
+    ipcMain.handle('test:pixel-at', (_e, p: { x: number; y: number }) => {
+      // DIP → 物理像素（按坐标所在屏缩放比换算）
+      const disp = screen.getDisplayMatching({ x: p.x, y: p.y, width: 1, height: 1 })
+      const sf = disp.scaleFactor || 1
+      return screenPixelAt(Math.round(p.x * sf), Math.round(p.y * sf))
+    })
     ipcMain.handle('test:exstyle', (_e, panel: string) => {
       const w = panel === 'quick' ? cluster?.windows.quick : panel === 'done' ? cluster?.windows.done : cluster?.windows.main
       if (!w || !safe(w)) return { noactivate: false, tool: false, topmost: false }
