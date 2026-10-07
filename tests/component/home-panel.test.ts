@@ -20,6 +20,14 @@ describe('缩放灵敏度（用户定稿：拖动距离=主窗边缘位移 1:1�
   })
 })
 
+describe('标题栏按钮顺序（用户 2026-10-06 裁定：齿轮与图钉对调）', () => {
+  it('标题栏按钮 DOM 顺序：主题→图钉(置顶)→缩进锁→齿轮(设置)→×', async () => {
+    const { wrapper } = await mountWithStore(HomePanel)
+    const order = wrapper.findAll('.wbtn').map((b) => b.attributes('data-testid'))
+    expect(order).toEqual(['tb-theme', 'tb-topmost', 'tb-tucklock', 'tb-settings', 'tb-minimize'])
+  })
+})
+
 describe('T22 HomePanel', () => {
   it('时钟显示时间与中文日期（分钟制，决策#2）；每秒刷新', async () => {
     const { wrapper } = await mountWithStore(HomePanel)
