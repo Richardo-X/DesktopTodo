@@ -351,6 +351,7 @@ export function syncClusterBounds(ui: {
 export function setClusterTucked(v: boolean): void {
   if (!cluster) return
   cluster.tucked = v
+  if (v) autoExpandUntil = 0 // 重新缩进同样清除挂起会话（防跨状态闪退）
   const { quick, done, main } = cluster.windows
   if (v) {
     // 缩进：先藏侧窗，主窗收胶囊
@@ -451,6 +452,7 @@ export function hideCluster(): void {
   if (!cluster) return
   stopClusterDrag()
   cluster.visible = false
+  autoExpandUntil = 0 // 清除挂起的自动弹出会话：否则下次显示时过期会话立即缩回（闪退根因，2026-10-07 日志实锤）
   for (const w of getAllClusterWindows()) w.hide()
 }
 
