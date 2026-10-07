@@ -63,19 +63,13 @@ test('批次 B-4（#36）：10 项满载溢出→缝隙自绘滑块，行宽零�
     const row = document.querySelector('[data-testid="todo-row"]') as HTMLElement | null
     const thumb = document.querySelector('[data-testid="todo-thumb"]') as HTMLElement | null
     if (!list || !row || !thumb) return null
-    const lr = list.getBoundingClientRect()
-    const rr = row.getBoundingClientRect()
+    // 行宽用 offsetWidth（布局空间）——与 clientWidth 同空间；
+    // getBoundingClientRect 是视觉空间（CSS zoom 下两者差 scale 倍，混用即假缝隙）
     return {
       scrollH: list.scrollHeight,
       clientH: list.clientHeight,
       clientW: list.clientWidth,
-      offsetW: list.offsetWidth,
-      rectW: Math.round(lr.width),
-      rowW: Math.round(rr.width),
-      rowOffsetW: row.offsetWidth,
-      padRight: getComputedStyle(list).paddingRight,
-      padLeft: getComputedStyle(list).paddingLeft,
-      zoom: getComputedStyle(list).zoom,
+      rowW: row.offsetWidth,
       thumbShown: getComputedStyle(thumb).display !== 'none'
     }
   })
@@ -83,14 +77,14 @@ test('批次 B-4（#36）：10 项满载溢出→缝隙自绘滑块，行宽零�
   console.log('SLIDER-DIAG:', JSON.stringify(m))
   await h2.close()
   // 撤销「10 项满载无滚动」旧规则：满载即溢出，滑块显示于缝隙带
-  // 行宽零挤压（尺度无关断言）：行与列表内容宽的缝隙占比恒定（设计 4/441≈0.9%），
-  // 任意缩放下不随溢出/滑块出现变化（旧绝对像素断言依赖 scale=1 假设——见问题记录 C5）
+  // 行宽零挤压（布局空间断言）：gutter = clientW - rowOffsetW = .scroll 内边距 2+2 = 4（设计值）
+  // （clientWidth/offsetWidth 同为布局空间，尺度无关；getBoundingClientRect 是视觉空间，
+  //   CSS zoom 下与布局空间差 scale 倍——混用产生假缝隙，CI 0.7 缩放下实测 135px 假差）
   expect(m.scrollH).toBeGreaterThan(m.clientH)
   expect(m.thumbShown).toBe(true)
   const gutter = m.clientW - m.rowW
-  const gutterRatio = gutter / m.clientW
-  expect(gutter).toBeGreaterThanOrEqual(2) // 滚动内边距存在（行不贴容器口）
-  expect(gutterRatio).toBeLessThanOrEqual(0.03) // 零挤压：缝隙占比 ≤3%
+  expect(gutter).toBeGreaterThanOrEqual(2)
+  expect(gutter).toBeLessThanOrEqual(14)
 })
 
 test('主流程：新建→编辑→完成→反选→批量删除（B1.5：直接删除，无回收站）', async ({ }) => {
