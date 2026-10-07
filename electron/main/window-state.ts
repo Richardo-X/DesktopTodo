@@ -17,13 +17,13 @@ export function applyTopMost(win: AlwaysOnTopWindow, enabled: boolean): void {
  * 把构造时 skipTaskbar 删掉的任务栏 tab 又加回来（用户实测任务栏出现组件窗口） */
 export interface ClusterTopMostWindow extends AlwaysOnTopWindow {
   isDestroyed(): boolean
-  setFocusable(focusable: boolean): void
   setSkipTaskbar(skip: boolean): void
 }
 
+/** 置顶语义（2026-10-06 定稿）：仅切换层级；NOACTIVATE/挂件态已删除
+ * （未置顶=普通窗口：可激活、可被覆盖、不沉底） */
 export function applyClusterTopMost(win: ClusterTopMostWindow, enabled: boolean): void {
   win.setAlwaysOnTop(enabled, 'screen-saver')
-  if (!win.isDestroyed()) win.setFocusable(enabled)
 }
 
 /** 置顶=整个组件（8.2-2）：主窗与全部二级窗口同层级应用 */

@@ -99,10 +99,9 @@ test('三窗 focus 语义：未置顶挂件态 focus 不激活（点击不浮上
       return w ? { focused: w.isFocused(), focusable: w.isFocusable() } : null
     })
 
-  // 挂件态（未置顶）：不可激活窗口（isFocusable=false）——真实鼠标点击走 OS
-  // 激活流程被 WS_EX_NOACTIVATE 拒绝 → 点击不浮上来（真机验证）；
-  // Electron 显式 focus() 会绕过激活流程强设焦点，故此处不断言 focused
-  expect(await quickWin()).toMatchObject({ focusable: false })
+  // 未置顶（2026-10-06 定稿）：普通窗口行为——恒可激活（点击浮上来获焦点），
+  // 被应用窗口覆盖时保持被覆盖（无 NOACTIVATE/沉底）
+  expect(await quickWin()).toMatchObject({ focusable: true })
 
   // 三窗保持可见
   const allVisible = await h.app.evaluate(({ BrowserWindow }) =>

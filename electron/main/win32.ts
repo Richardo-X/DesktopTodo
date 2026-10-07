@@ -35,6 +35,24 @@ const GetWindowLongW = user32.func('int32 __stdcall GetWindowLongW(intptr hWnd, 
 const SetWindowLongW = user32.func('int32 __stdcall SetWindowLongW(intptr hWnd, int32 idx, int32 val)')
 const GWL_EXSTYLE = -20
 const WS_EX_TOOLWINDOW = 0x00000080
+const WS_EX_NOACTIVATE = 0x08000000
+const WS_EX_TOPMOST = 0x00000008
+
+/** 窗口真实扩展样式标志（Win32 位，非 Electron 跟踪值——E2E 断言用，
+ * Electron isFocusable/isAlwaysOnTop 与真实位可能脱节，实测教训） */
+export function getWindowExstyleFlags(nativeHandle: Buffer): { noactivate: boolean; tool: boolean; topmost: boolean } {
+  if (process.platform !== 'win32' || nativeHandle.length < 8) return { noactivate: false, tool: false, topmost: false }
+  try {
+    const ex = GetWindowLongW(nativeHandle.readBigInt64LE(0), GWL_EXSTYLE) >>> 0
+    return {
+      noactivate: !!(ex & WS_EX_NOACTIVATE),
+      tool: !!(ex & WS_EX_TOOLWINDOW),
+      topmost: !!(ex & WS_EX_TOPMOST)
+    }
+  } catch {
+    return { noactivate: false, tool: false, topmost: false }
+  }
+}
 
 const HWND_BOTTOM = 1n
 const SWP_NOMOVE = 0x0002

@@ -2,7 +2,7 @@ import { app, BrowserWindow, screen, type IpcMain } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyClusterTopMost } from './window-state'
-import { makeToolWindow, postWmClose, sendWindowToBottom, sysShowWindow } from './win32'
+import { getWindowExstyleFlags, makeToolWindow, postWmClose, sysShowWindow } from './win32'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -112,18 +112,16 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
     // 迟到的 ready-to-show 不得复活已被隐藏的窗口（用户实测：点击隐藏后又弹回）
     if (!shouldShowPanel(panel)) return
     applyClusterBounds(true) // 全窗强制落位（三窗 show:false 创建、页面加载有先后，可能全部处于待落位状态）
-    // 置顶语义（用户定稿）：topMost=true=最上层可激活；false=挂件态（不可激活+沉底），
-    // 启动即挂件态且 showInactive 不抢前台
+    // 置顶语义（用户定稿 2026-10-06）：topMost=true=最上层可激活；
+    // false=普通窗口层级（不沉底、不锁激活、点击浮上来获焦点）
     if (topMost) {
       w.show()
       applyClusterTopMost(w, true)
     } else {
       w.showInactive()
       applyClusterTopMost(w, false)
-      w.setSkipTaskbar(true) // 样式变更会触发 shell 回加任务栏 tab——重申后沉底收尾
-      sendWindowToBottom(w.getNativeWindowHandle())
+      w.setSkipTaskbar(true) // 重申任务栏排除（样式变更可能触发 shell 回加 tab）
     }
-    w.on('blur', () => onClusterWindowBlur())
     // 显隐语义最终版：未置顶=普通窗口行为（Win+M/系统最小化后保持最小化，托盘恢复）；
     // 置顶=Win+M 免疫（最小化即恢复兜底；Win+D 靠置顶带常驻天然豁免）
     w.on('minimize', () => {
@@ -465,75 +463,15 @@ export function showCluster(): void {
 }
 
 /**
- * 置顶判定（用户定稿 2026-10-02 第三轮）：
+ * 置顶语义（用户定稿 2026-10-06，覆盖第三轮"挂件态"设计）：
  * - 开置顶：三窗最上层+可激活
- * - 关置顶瞬间组件持有焦点 → 保持现状（依旧在窗口上方、可交互），不立即沉底；
- *   点击其他非组件位置（三窗全失焦）→ 整体立即沉底 + 挂件态（不可激活，点击不浮上来）
- * - 关置顶瞬间焦点不在组件 → 立即沉底 + 挂件态
+ * - 未置顶：普通窗口层级——不沉底、不锁激活（NOACTIVATE 已删除），
+ *   点击组件浮上来获焦点，被应用覆盖时保持被覆盖（普通窗口行为）
  */
-let pendingSinkOnBlur = false
-
 export function applyTopMostToCluster(enabled: boolean): void {
   if (!cluster) return
   cluster.topMost = enabled
-  if (enabled) {
-    pendingSinkOnBlur = false
-    for (const w of getAllClusterWindows()) if (safe(w)) applyClusterTopMost(w, true)
-    return
-  }
-  // 焦点判定必须先于 focusable 变更——setFocusable(false) 会杀掉焦点
-  const anyFocused = getAllClusterWindows().some((w) => safe(w) && w.isFocused())
-  if (anyFocused) {
-    // 组件持有焦点：仅降层（普通层顶端=仍在窗口上方、保持可交互不沉底），
-    // 点击其他非组件位置三窗全失焦后整体沉底+挂件态
-    pendingSinkOnBlur = true
-    for (const w of getAllClusterWindows()) if (safe(w)) w.setAlwaysOnTop(false, 'screen-saver')
-  } else {
-    enterWidgetMode()
-  }
-}
-
-/** 挂件态：不可激活（点击不浮上来）+ 整体沉底（HWND_BOTTOM）。
- * 顺序关键（z 序探针实测）：setFocusable 的样式变更（SetWindowLong）会异步重插
- * z 序（窗口被抬回普通层顶端）——重排落地前沉底必被覆盖。因此：先完成全部
- * 样式变更，等其落地后再沉底（120ms），外加 400ms 兜底二次沉底 */
-function enterWidgetMode(): void {
-  if (!cluster) return
-  pendingSinkOnBlur = false
-  for (const w of getAllClusterWindows()) {
-    if (safe(w)) applyClusterTopMost(w, false)
-  }
-  // skipTaskbar 重申先于沉底：它的 shell 重排不能盖过沉底（沉底必须是最后动作）
-  const reassertSkipTaskbar = (): void => {
-    for (const w of getAllClusterWindows()) {
-      if (safe(w)) w.setSkipTaskbar(true)
-    }
-  }
-  const sinkAll = (): void => {
-    for (const w of getAllClusterWindows()) {
-      if (safe(w)) sendWindowToBottom(w.getNativeWindowHandle())
-    }
-  }
-  setTimeout(() => {
-    reassertSkipTaskbar()
-    sinkAll()
-  }, 120)
-  setTimeout(() => {
-    reassertSkipTaskbar()
-    sinkAll()
-  }, 400)
-}
-
-/** 三窗 blur（点击其他非组件位置）→ 全失焦即沉底（判定第二段）。
- * blur 事件触发时 Chromium 内部焦点状态尚未更新（isFocused 仍返回旧值 true）——
- * 延迟一拍再判定；焦点在簇内转移（quick→main）时延迟后见其他窗 focused，不误沉 */
-function onClusterWindowBlur(): void {
-  if (!cluster || cluster.topMost || !pendingSinkOnBlur) return
-  setTimeout(() => {
-    if (!cluster || cluster.topMost || !pendingSinkOnBlur) return
-    const allBlurred = getAllClusterWindows().every((w) => safe(w) && !w.isFocused())
-    if (allBlurred) enterWidgetMode()
-  }, 60)
+  for (const w of getAllClusterWindows()) if (safe(w)) applyClusterTopMost(w, enabled)
 }
 
 /** 分辨率变化/拔显示器：按主窗可见拉回（#33），锚点随位移更新 */
@@ -617,6 +555,11 @@ export function registerClusterIpc(ipcMain: IpcMain): void {
       return true
     })
     ipcMain.handle('test:sys-wm-close', (_e, panel: string) => sysWmCloseToPanel(panel))
+    ipcMain.handle('test:exstyle', (_e, panel: string) => {
+      const w = panel === 'quick' ? cluster?.windows.quick : panel === 'done' ? cluster?.windows.done : cluster?.windows.main
+      if (!w || !safe(w)) return { noactivate: false, tool: false, topmost: false }
+      return getWindowExstyleFlags(w.getNativeWindowHandle())
+    })
     ipcMain.handle('test:drag-state', () => ({ dragging: dragTimer !== null }))
     // 置顶判定 E2E：可见窗口 z 序链（顶到底）——沉底/置顶断言用
 

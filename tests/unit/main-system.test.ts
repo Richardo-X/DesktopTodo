@@ -111,15 +111,15 @@ describe('T17 window-state 应用', () => {
     expect(win.setAlwaysOnTop).toHaveBeenCalledWith(false, 'screen-saver')
   })
 
-  it('applyClusterTopMost（置顶语义修订）：未置顶=不可激活（点击不浮上来）；置顶=最上层可激活', () => {
+  it('applyClusterTopMost（2026-10-06 定稿）：未置顶=普通窗口层级（不沉底、不锁激活）；置顶=最上层可激活', () => {
     const off = { setAlwaysOnTop: vi.fn(), setFocusable: vi.fn(), isDestroyed: vi.fn(() => false) }
     applyClusterTopMost(off as never, false)
     expect(off.setAlwaysOnTop).toHaveBeenCalledWith(false, 'screen-saver')
-    expect(off.setFocusable).toHaveBeenCalledWith(false) // 不可激活：重叠时点击组件不浮上来
+    expect(off.setFocusable).not.toHaveBeenCalled() // 删除挂件态：focusable 恒真（普通窗口行为）
     const on = { setAlwaysOnTop: vi.fn(), setFocusable: vi.fn(), isDestroyed: vi.fn(() => false) }
     applyClusterTopMost(on as never, true)
     expect(on.setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver')
-    expect(on.setFocusable).toHaveBeenCalledWith(true)
+    expect(on.setFocusable).not.toHaveBeenCalled()
   })
 
   it('applyTopMostAll（8.2-2）：置顶=整个组件，主窗与全部二级窗口同层级', () => {

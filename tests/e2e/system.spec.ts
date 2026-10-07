@@ -87,9 +87,9 @@ test('8.2-2：置顶时打开的子窗口同步置顶', async () => {
   await h.close()
 })
 
-/** 置顶语义（用户定稿 2026-10-02 修订）：未置顶=不可激活挂件（被其他窗口遮挡，
- * 重叠时点击组件不激活、不浮上来）；开置顶=三窗最上层且可激活；缩进→弹出保持 */
-test('置顶语义：默认不可激活挂件（点击不浮上来）；置顶=最上层；缩进弹出保持', async () => {
+/** 置顶语义（用户定稿 2026-10-06）：未置顶=普通窗口层级（可激活、可被应用覆盖、不沉底）；
+ * 置顶=最上层；缩进→弹出保持 */
+test('置顶语义：未置顶=普通窗口层级（可激活）；置顶=最上层；缩进弹出保持', async () => {
   const h = await launchApp()
   await h.main.waitForSelector('[data-testid="home-panel"]')
   await h.main.waitForTimeout(400)
@@ -104,7 +104,7 @@ test('置顶语义：默认不可激活挂件（点击不浮上来）；置顶=�
     })
 
   // 默认（uiState.topMost=false）：三窗挂件态——非置顶+不可激活（点击不浮上来）
-  expect(await readState()).toEqual({ atop: [false, false, false], focusable: [false, false, false] })
+  expect(await readState()).toEqual({ atop: [false, false, false], focusable: [true, true, true] })
 
   // 开置顶 → 三窗同层最上且可激活
   await h.main.click('[data-testid="tb-topmost"]')
@@ -125,7 +125,7 @@ test('置顶语义：默认不可激活挂件（点击不浮上来）；置顶=�
   // 关置顶 → 恢复挂件态
   await h.main.click('[data-testid="tb-topmost"]')
   await h.main.waitForTimeout(400)
-  expect(await readState()).toEqual({ atop: [false, false, false], focusable: [false, false, false] })
+  expect(await readState()).toEqual({ atop: [false, false, false], focusable: [true, true, true] })
   await h.close()
 })
 
