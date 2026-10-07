@@ -60,21 +60,8 @@ test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活�
   await expect.poll(async () => (await winByPanel('quick'))?.vis, { timeout: 5_000 }).toBe(false)
   await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(false)
 
-  // 采样实验：锁定 quick 可见性翻转的确切时刻
-  const sample = (label: string): Promise<void> =>
-    h.main
-      .evaluate(() =>
-        (window as unknown as { desktopTodoTest?: { clusterState(): Promise<Record<string, unknown>> } }).desktopTodoTest!.clusterState()
-      )
-      .then((st) => console.log(`SAMPLE ${label}:`, JSON.stringify(st)))
-      .catch(() => console.log(`SAMPLE ${label}: failed`))
-
-  await sample('after-tuck')
   // ② 托盘最小化（×按钮同路径）：全部隐藏
   await h.main.click('[data-testid="tb-minimize"]')
-  await sample('after-minimize')
-  await new Promise((r) => setTimeout(r, 1500))
-  await sample('minimize+1500ms')
   await expect.poll(async () => (await winByPanel('main'))?.vis, { timeout: 5_000 }).toBe(false)
 
   // ③ 托盘显示：缩进态自动弹出完整三窗（用户 2026-10-05 新需求），位置/缩放保持
@@ -88,11 +75,17 @@ test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活�
   await expect.poll(async () => (await winByPanel('quick'))?.vis, { timeout: 5_000 }).toBe(true)
   await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(true)
 
-  // ④ 拖离光标（确定性：真实光标不在组件上）→ 3.5s 无交互 → 自动缩回白条
-  await h.main.evaluate(() =>
-    (window as unknown as { desktopTodoTest?: { clusterDragDelta(p: { dx: number; dy: number }): Promise<void> } })
-      .desktopTodoTest!.clusterDragDelta({ dx: 600, dy: 0 })
-  )
+  const sample = (label: string): Promise<void> =>
+    h.main
+      .evaluate(() =>
+        (window as unknown as { desktopTodoTest?: { clusterState(): Promise<Record<string, unknown>> } }).desktopTodoTest!.clusterState()
+      )
+      .then((st) => console.log('SAMPLE ' + label + ':', JSON.stringify(st)))
+      .catch(() => console.log('SAMPLE ' + label + ' failed'))
+  await sample('after-popout')
+
+  // ④ 鼠标移到组件外（真实系统光标，远离子组件）→ 3.5s 无交互 → 自动缩回白条
+  await h.main.mouse.move(30, 700)
   await expect
     .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 6_500 })
     .toBeLessThanOrEqual(1)

@@ -47,7 +47,23 @@ let lastAppliedAnchor: { x: number; y: number } | null = null
 
 /** Alt+F4/系统关闭（WM_CLOSE）= 强制退出整个应用（用户 2026-10-05 裁定，无确认框；
  * before-quit 数据落盘照走）。防重入：退出流程中后续 close 事件不再重复触发 */
+/** TEMP 几何诊断日志（架构调查用，诊断后删除） */
+function geoLog(msg: string): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require('node:fs') as typeof import('node:fs')
+    fs.appendFileSync('C:/tmp/geo.log', new Date().toISOString().slice(11, 23) + ' ' + msg + '\n')
+  } catch {
+    /* ignore */
+  }
+}
+
 let quitRequested = false
+
+/** 缩进态托盘恢复的自动弹出会话（用户 2026-10-05 新需求）：
+ * 会话期内光标轮询强制 inside=true（状态机保持弹出），到期恢复真实判定 */
+const AUTO_EXPAND_MS = 3000
+let autoExpandUntil = 0
 
 function requestAppQuit(): void {
   if (quitRequested) return
@@ -256,6 +272,7 @@ export function applyClusterBounds(placeAll = false): void {
     return
   }
   const b = threeWindowBoundsForAnchor(cluster.anchor, cluster.scale, cluster.quickVisible, cluster.doneVisible)
+  geoLog('applyClusterBounds placeAll=' + placeAll + ' tucked=' + cluster.tucked + ' scale=' + cluster.scale.toFixed(3) + ' targetMainW=' + b.main.width)
   const { quick, main, done } = cluster.windows
   // 跨 DPI 校验（#40）：Windows 会对移入不同缩放比屏幕的窗口按建议矩形改写尺寸，
   // 拖回原屏后残留不还原（用户实测图3~5）——实测主窗尺寸偏离逻辑值 >1px 即本次全窗强制重申
@@ -439,12 +456,19 @@ export function showCluster(): void {
   lastAppliedAnchor = null
   const { quick, main, done } = cluster.windows
   if (cluster.tucked) {
-    applyClusterBounds()
-    if (safe(main)) {
-      ;(cluster.topMost ? main.show() : main.showInactive())
-      // 重新显示会重置置顶带成员——重申
-      if (cluster.topMost) applyClusterTopMost(main, true)
+    // 缩进态托盘恢复（用户 2026-10-05 新需求）：自动弹出 3 秒——主进程直接弹出
+    // （几何即时生效），再注入 cursorInside(true) 同步渲染层状态机；会话期内
+    // 光标轮询强制 inside=true，到期按真实光标位置收尾：在组件上=保持展开
+    // （之后光标离开经状态机自动缩回）；不在=状态机自动缩回白条
+    geoLog('showCluster tucked-enter tucked=' + cluster.tucked)
+    autoExpandUntil = Date.now() + AUTO_EXPAND_MS
+    setClusterTucked(false)
+    const pendMain = pendingBounds.get(cluster.windows.main.id)
+    if (pendMain) {
+      pendingBounds.delete(cluster.windows.main.id)
+      cluster.windows.main.setBounds(pendMain)
     }
+    sendToMain(IPC.cursorInside, true)
     return
   } else {
     applyClusterBounds(true)
@@ -497,7 +521,8 @@ export function repositionClusterToDisplays(displays: { workArea: WinBounds }[])
 }
 
 /** 缩进判定光标轮询：光标是否在可见组件范围内（缩进态=胶囊窗本体）；
- * 状态变化推送待办窗（权威驱动，DOM 事件不参与——三轮8.2-1） */
+ * 状态变化推送待办窗（权威驱动，DOM 事件不参与——三轮8.2-1）。
+ * 自动弹出会话内（缩进态托盘恢复）强制 inside=true，到期恢复真实判定 */
 export function startTuckCursorPoll(): void {
   let lastInside = true
   setInterval(() => {
@@ -515,6 +540,22 @@ export function startTuckCursorPoll(): void {
         }
       }
     }
+    // 自动弹出会话到期：主进程按真实光标位置确定性收尾——
+    // 光标不在组件上 → 直接缩回 + 同步状态机；在组件上 → 交还状态机（移开自动缩回）
+    if (autoExpandUntil > 0 && Date.now() >= autoExpandUntil) {
+      autoExpandUntil = 0
+      const pt = screen.getCursorScreenPoint()
+      const over = [cluster.windows.quick, cluster.windows.main, cluster.windows.done].some(
+        (w) => safe(w) && w.isVisible() && contains(w.getBounds(), pt)
+      )
+      geoLog('session-expired over=' + over)
+      if (!over) {
+        sendToMain(IPC.cursorInside, false)
+        setClusterTucked(true)
+        return
+      }
+    }
+    if (Date.now() < autoExpandUntil) inside = true
     if (inside !== lastInside) {
       lastInside = inside
       sendToMain(IPC.cursorInside, inside)
