@@ -81,7 +81,7 @@ export function bubbleContentEnter(content: HTMLElement, row: HTMLElement): void
     if (currentContent === null || currentRow === null) return // 已移开
     if (!measureTruncated(currentContent)) return
     showNow()
-  }, 1000)
+  }, 500) // 用户 2026-10-07 裁定：延迟 1s→0.5s
 }
 
 export function bubbleContentLeave(): void {

@@ -25,6 +25,7 @@ import {
   getMainWindow,
   getAllClusterWindows,
   getClusterAnchor,
+  raiseClusterAll,
   syncClusterBounds,
   setClusterTucked,
   hideCluster,
@@ -36,6 +37,7 @@ import {
 } from './cluster-windows'
 import { anchorForWindowX, visibleClusterBounds, clampAnchorForEdges } from '../../src/core/utils/cluster-layout'
 import { geoLog } from './cluster-windows'
+import { shouldAcceptTrayToggle } from '../../src/core/utils/tray-toggle'
 
 /** 启动/恢复钳制（#31/#32/#33）：左右边缘不阻挡、主窗≥90px 可见、幂等（原样恢复） */
 function clampAnchorToWorkArea(
@@ -60,6 +62,7 @@ function initialAnchor(
 }
 
 let tray: Tray | null = null
+let lastTrayToggleAt = 0
 let visible = true
 let hasUnsavedEdits = false
 let lastSettleCheck = localDateKey(new Date())
@@ -127,7 +130,14 @@ function createTray(): void {
     }))
   )
   tray.setContextMenu(menu)
-  tray.on('double-click', () => toggleVisibility())
+  tray.on('double-click', () => {
+    // 去抖（用户 2026-10-07 裁定）：一次双击的两次按压各触发一次激活（0.46~0.89s 间隔），
+    // 只认第一次——否则切换翻倍（显示→隐藏→显示的"闪退"）
+    const now = Date.now()
+    if (!shouldAcceptTrayToggle(lastTrayToggleAt, now)) return
+    lastTrayToggleAt = now
+    toggleVisibility()
+  })
 }
 
 function toggleVisibility(): void {
@@ -144,6 +154,12 @@ function showWindow(): void {
     if (!c.isDestroyed()) c.show()
   }
   reaplyTopMostAll()
+  // 显示时整体置顶（用户 2026-10-07 新需求）：从隐藏切换为显示时，
+  // 应用整体弹到其他所有窗口上方（二级窗保持最上），显示后可直接操作
+  raiseClusterAll()
+  for (const c of childWindows) {
+    if (!c.isDestroyed()) c.moveTop()
+  }
   refreshTrayMenu()
 }
 

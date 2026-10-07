@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { getApi } from '../services/api'
+import { attachSolidCaret } from '../components/solid-caret'
 import { fmtLocalDateTime } from '../core/utils/date'
 import { MAX_CONTENT_LENGTH } from '../core/models/factories'
 
@@ -16,6 +17,15 @@ const item = computed(() => store.templates.find((t) => t.id === props.itemId))
 const draft = ref('')
 const touched = ref(false)
 const error = ref('')
+
+let disposeSolidCaret: (() => void) | null = null
+onMounted(() => {
+  const el = document.querySelector<HTMLTextAreaElement>(`[data-testid="tpl-edit-input"]`)
+  if (el) disposeSolidCaret = attachSolidCaret(el)
+})
+onUnmounted(() => {
+  if (disposeSolidCaret) disposeSolidCaret()
+})
 
 // TEMP 文本光标诊断（用户 2026-10-06 报告：插入点恒在末尾；发版前移除）
 function diag(tag: string, e: Event): void {
