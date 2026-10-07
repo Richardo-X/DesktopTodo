@@ -77,24 +77,33 @@ test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活�
   await sample('minimize+1500ms')
   await expect.poll(async () => (await winByPanel('main'))?.vis, { timeout: 5_000 }).toBe(false)
 
-  // ③ 托盘显示：只显胶囊短条——侧窗不得复活（用户实测混乱点）
+  // ③ 托盘显示：缩进态自动弹出完整三窗（用户 2026-10-05 新需求），位置/缩放保持
   await h.main.evaluate(() =>
     (window as unknown as { desktopTodo: { setVisibility(v: boolean): Promise<void> } }).desktopTodo.setVisibility(true)
   )
   await expect.poll(async () => (await winByPanel('main'))?.vis, { timeout: 5_000 }).toBe(true)
-  const tuckedMain = await mainBounds()
-  expect(Math.abs(tuckedMain.w - 160)).toBeLessThanOrEqual(1)
+  await expect
+    .poll(async () => Math.abs((await mainBounds()).w - before.w), { timeout: 5_000 })
+    .toBeLessThanOrEqual(1)
+  await expect.poll(async () => (await winByPanel('quick'))?.vis, { timeout: 5_000 }).toBe(true)
+  await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(true)
+
+  // ④ 拖离光标（确定性：真实光标不在组件上）→ 3.5s 无交互 → 自动缩回白条
+  await h.main.evaluate(() =>
+    (window as unknown as { desktopTodoTest?: { clusterDragDelta(p: { dx: number; dy: number }): Promise<void> } })
+      .desktopTodoTest!.clusterDragDelta({ dx: 600, dy: 0 })
+  )
+  await expect
+    .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 6_500 })
+    .toBeLessThanOrEqual(1)
   await expect.poll(async () => (await winByPanel('quick'))?.vis, { timeout: 5_000 }).toBe(false)
   await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(false)
 
-  // ④ 弹出（setTucked(false) 等价触碰短条后光标进入）：待办窗还原原位、侧窗按开关恢复
+  // ⑤ 弹出回归（setTucked(false) 等价触碰短条后光标进入）：待办窗还原、侧窗按开关恢复
   await setTucked(false)
   await expect
     .poll(async () => Math.abs((await mainBounds()).w - before.w), { timeout: 5_000 })
     .toBeLessThanOrEqual(1)
-  const restored = await mainBounds()
-  expect(restored.x).toBe(before.x)
-  expect(restored.y).toBe(before.y)
   await expect.poll(async () => (await winByPanel('quick'))?.vis, { timeout: 5_000 }).toBe(true)
   await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(true)
 })
