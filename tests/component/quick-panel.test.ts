@@ -11,6 +11,13 @@ function tpl(id: string, content: string) {
 }
 
 /** T29 快捷添加面板（PRD §五：标题 N/10、行+一键添加、双击编辑、底部说明、批量删除） */
+describe('侧窗 × 隐藏按钮移除（用户 2026-10-08 裁定）', () => {
+  it('快捷添加标题栏无 × 隐藏按钮（显隐唯一途径=待办窗 ⚡/☑ 与托盘）', async () => {
+    const { wrapper } = await mountWithStore(QuickPanel, { templates: [tpl('a', '喝水')] })
+    expect(wrapper.find('[data-testid="quick-close"]').exists()).toBe(false)
+  })
+})
+
 describe('T29 快捷添加面板', () => {
   it('标题"模板 · N/10"；底部说明文案', async () => {
     const { wrapper } = await mountWithStore(QuickPanel, { templates: [tpl('a', '喝水'), tpl('b', '运动')] })

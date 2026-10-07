@@ -15,6 +15,13 @@ function doneToday(id: string, content: string, hour: number, overdue = false) {
 }
 
 /** T31 已完成面板（PRD §六：反选退回/详情/排序切换/历史按钮/空提示） */
+describe('侧窗 × 隐藏按钮移除（用户 2026-10-08 裁定）', () => {
+  it('已完成标题栏无 × 隐藏按钮（显隐唯一途径=待办窗 ⚡/☑ 与托盘）', async () => {
+    const { wrapper } = await mountWithStore(DonePanel, { completed: [doneToday('a', '喝水', 8)] })
+    expect(wrapper.find('[data-testid="done-close"]').exists()).toBe(false)
+  })
+})
+
 describe('T31 已完成面板', () => {
   it('批量进行中：已完成面板整面板冻结（8.2-7 全禁——反选/排序/历史入口均不可点）', async () => {
     const { wrapper } = await mountWithStore(DonePanel, { completed: [doneToday('a', '喝水', 8)] })

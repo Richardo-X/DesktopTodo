@@ -94,11 +94,10 @@ onUnmounted(() => {
 
 <template>
   <section class="panel side-panel" data-testid="quick-panel" :class="{ frozen: ui.batchMode && ui.batchTarget !== 'templates' }">
-    <!-- 决策#8：标题栏拖动；× 关闭面板 -->
+    <!-- 决策#8：标题栏拖动（2026-10-08 裁定：侧窗无 × 隐藏按钮，显隐唯一途径=待办窗 ⚡/☑ 与托盘） -->
     <header class="titlebar">
       <span class="tb-title">快捷添加</span>
       <div class="win-actions right">
-        <button class="wbtn" data-testid="quick-close" title="关闭面板" @click="store.updateUiState({ quickVisible: false })">×</button>
       </div>
     </header>
 

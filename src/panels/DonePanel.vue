@@ -54,9 +54,7 @@ function fmtDone(iso: string | null): string {
     <!-- 决策#8：标题栏拖动；× 隐藏面板 -->
     <header class="titlebar">
       <span class="tb-title">已完成</span>
-      <div class="win-actions right">
-        <button class="wbtn" data-testid="done-close" title="隐藏面板" @click="store.updateUiState({ doneVisible: false })">×</button>
-      </div>
+      <div class="win-actions right"></div>
     </header>
 
     <div class="win-body">
