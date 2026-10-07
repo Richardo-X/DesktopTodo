@@ -148,6 +148,36 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
     })
   })
 
+  describe('气泡卡死修复（用户 2026-10-05）', () => {
+    it('二级窗打开（veil=true）→ 隐藏悬停气泡（禁用窗口收不到 mouseleave，气泡会滞留）', async () => {
+      installTestApi()
+      const wrapper = mount(PanelWindow as any, {
+        props: { panel: 'main' },
+        global: { plugins: [createPinia()] }
+      })
+      const api = (window as unknown as { desktopTodo: TestApi }).desktopTodo
+      await flushPromises()
+      const before = api.bubbleHideCalls.length
+      api.veilListeners[0](true)
+      await wrapper.vm.$nextTick()
+      expect(api.bubbleHideCalls.length).toBeGreaterThan(before)
+    })
+
+    it('窗口失焦（blur）→ 隐藏悬停气泡（聚焦切走时气泡不得残留）', async () => {
+      installTestApi()
+      mount(PanelWindow as any, {
+        props: { panel: 'main' },
+        global: { plugins: [createPinia()] }
+      })
+      const api = (window as unknown as { desktopTodo: TestApi }).desktopTodo
+      await flushPromises()
+      const before = api.bubbleHideCalls.length
+      window.dispatchEvent(new Event('blur'))
+      await Promise.resolve()
+      expect(api.bubbleHideCalls.length).toBeGreaterThan(before)
+    })
+  })
+
   describe('缩放呈现 v3.3：两侧窗内容底色代替', () => {
     it('侧窗收到冻结信号 → 内容层隐藏（visibility）；解冻 → 恢复且 zoom 立即重推', async () => {
       // mountWithStore 挂 quick 面板（PanelWindow 侧窗形态）

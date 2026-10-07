@@ -9,6 +9,7 @@ import HomePanel from '../panels/HomePanel.vue'
 import QuickPanel from '../panels/QuickPanel.vue'
 import DonePanel from '../panels/DonePanel.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { hideBubble } from '../components/content-bubble'
 
 /**
  * 三窗分离架构（v1.1.0 批次 B-1）：每个 OS 窗口的渲染根。
@@ -98,6 +99,8 @@ function onDocPointerUp(): void {
 function onWindowBlur(): void {
   // 双保险：窗口失焦=拖动必然已结束（Alt+Tab/点别的窗口都会丢 pointerup）
   void getApi().clusterDragEnd()
+  // 气泡卡死修复（用户 2026-10-05）：聚焦切走时气泡不得残留
+  hideBubble()
 }
 
 watch(tucked, async (v) => {
@@ -121,6 +124,9 @@ onMounted(() => {
   getApi().onResizeFreeze(onResizeFreeze)
   getApi().onVeil((v) => {
     veilVisible.value = v
+    // 气泡卡死修复（用户 2026-10-05）：二级窗打开→三窗禁用收不到 mouseleave，
+    // 悬停中的气泡会滞留——veil 开启即隐藏
+    if (v) hideBubble()
   })
   syncZoomFromViewport()
 })
