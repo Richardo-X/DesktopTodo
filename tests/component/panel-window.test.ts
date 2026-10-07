@@ -148,6 +148,30 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
     })
   })
 
+  describe('缩回时序实验（用户 2026-10-07：缩回时空白块中间帧）', () => {
+    it('缩回（tucked=true）：白条视图先切换（不等 IPC）——展开矩形先显示白条再收缩，消除空白块', async () => {
+      const { wrapper, api } = await mountMain()
+      const ui = useUiStore()
+      // 先弹出（基准），再挂起 setTucked（模拟主进程收缩耗时）
+      api.cursorInsideListeners[0](true)
+      await flushPromises()
+      let resolveTuck: (v: void) => void = () => {}
+      api.setTucked = (v: boolean) => new Promise<void>((res) => { void v; resolveTuck = res })
+      // 重新缩进：snap→leave→tick（真实缩进序列）
+      ui.dispatchTuck({ type: 'snap' })
+      ui.dispatchTuck({ type: 'mouse-leave', now: Date.now() })
+      ui.dispatchTuck({ type: 'tick', now: Date.now() + 500 })
+      await flushPromises()
+      expect(ui.tuck.tucked).toBe(true)
+      // 白条视图应已切换（不等 IPC）：bar 可见（v-show 由 domTucked 驱动）
+      const bar = wrapper.find('.tuck-bar')
+      const barStyle = bar.attributes('style') ?? ''
+      expect(barStyle.includes('display: none')).toBe(false) // domTucked 已切：白条先画出
+      resolveTuck()
+      await flushPromises()
+    })
+  })
+
   describe('气泡卡死修复（用户 2026-10-05）', () => {
     it('二级窗打开（veil=true）→ 隐藏悬停气泡（禁用窗口收不到 mouseleave，气泡会滞留）', async () => {
       installTestApi()

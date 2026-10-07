@@ -92,6 +92,7 @@ if (process.env.DTODO_TEST === '1') {
     sysWmClose: (panel: string) => ipcRenderer.invoke('test:sys-wm-close', panel),
     exstyle: (panel: string) => ipcRenderer.invoke('test:exstyle', panel),
     pixelAt: (x: number, y: number) => ipcRenderer.invoke('test:pixel-at', { x, y }),
+    setFakeCursor: (p: { x: number; y: number } | null) => ipcRenderer.invoke('test:set-fake-cursor', p),
   })
 }
 

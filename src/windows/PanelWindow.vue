@@ -104,8 +104,17 @@ function onWindowBlur(): void {
 }
 
 watch(tucked, async (v) => {
-  await getApi().setTucked(v).catch(() => {})
-  domTucked.value = v
+  // 缩回时序实验（用户 2026-10-07）：缩回先画白条视图再收缩窗口（消除展开矩形
+  // 空白块中间帧）；弹出维持原序（窗口先展开、DOM 后切，避免胶囊内裁剪闪烁）
+  // 缩回时序实验（用户 2026-10-07）：缩回先画白条视图再收缩窗口（消除展开矩形
+  // 空白块中间帧）；弹出维持原序（窗口先展开、DOM 后切，避免胶囊内裁剪闪烁）
+  if (v) {
+    domTucked.value = true
+    await getApi().setTucked(true).catch(() => {})
+  } else {
+    await getApi().setTucked(false).catch(() => {})
+    domTucked.value = false
+  }
 })
 
 onMounted(() => {

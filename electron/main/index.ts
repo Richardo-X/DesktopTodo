@@ -13,6 +13,8 @@ import { trayIconPng } from './icon'
 import { applyTopMost, refocusChildWindows } from './window-state'
 import { setAutoStart, syncAutoStartOnBoot } from './auto-start'
 import { clampPosToWorkArea } from '../../src/core/utils/screen-clamp'
+import { shouldWakeModalFocus } from '../../src/core/utils/modal-wake'
+import { isLeftButtonPressed } from './win32'
 import { showBubble, hideBubble, resizeBubble } from './bubble'
 import { localDateKey } from '../../src/core/utils/date'
 import { IPC, type ChildKind } from '../../src/ipc/contract'
@@ -37,7 +39,6 @@ import {
 } from './cluster-windows'
 import { anchorForWindowX, visibleClusterBounds, clampAnchorForEdges } from '../../src/core/utils/cluster-layout'
 import { geoLog } from './cluster-windows'
-import { shouldAcceptTrayToggle } from '../../src/core/utils/tray-toggle'
 
 /** 启动/恢复钳制（#31/#32/#33）：左右边缘不阻挡、主窗≥90px 可见、幂等（原样恢复） */
 function clampAnchorToWorkArea(
@@ -62,7 +63,6 @@ function initialAnchor(
 }
 
 let tray: Tray | null = null
-let lastTrayToggleAt = 0
 let visible = true
 let hasUnsavedEdits = false
 let lastSettleCheck = localDateKey(new Date())
@@ -130,14 +130,7 @@ function createTray(): void {
     }))
   )
   tray.setContextMenu(menu)
-  tray.on('double-click', () => {
-    // 去抖（用户 2026-10-07 裁定）：一次双击的两次按压各触发一次激活（0.46~0.89s 间隔），
-    // 只认第一次——否则切换翻倍（显示→隐藏→显示的"闪退"）
-    const now = Date.now()
-    if (!shouldAcceptTrayToggle(lastTrayToggleAt, now)) return
-    lastTrayToggleAt = now
-    toggleVisibility()
-  })
+  tray.on('double-click', () => toggleVisibility())
 }
 
 function toggleVisibility(): void {
@@ -229,6 +222,43 @@ const childWindows = new Set<BrowserWindow>()
  * close 事件据此区分"用户主动关二级窗"与"Alt+F4/系统关闭（=退出整个应用）" */
 const intentionalChildCloses = new WeakSet<BrowserWindow>()
 
+/** 模态唤醒轮询（用户 2026-10-07 新需求）：二级窗开着（三窗禁用锁定）时，
+ * Windows 不向禁用窗投递点击——50ms 轮询「左键按下边缘 + 光标在任一可见组件窗内」
+ * → 聚焦二级窗（应用整体浮到最上，可直接操作二级窗）；三窗保持锁定不变 */
+let modalWakePoll: ReturnType<typeof setInterval> | null = null
+let wakePrevPressed = false
+const MODAL_WAKE_INTERVAL_MS = 50
+
+function refreshModalWakePoll(): void {
+  const should = childWindows.size > 0
+  if (should && modalWakePoll === null) {
+    wakePrevPressed = false
+    modalWakePoll = setInterval(() => {
+      const pressed = isLeftButtonPressed()
+      const rising = pressed && !wakePrevPressed
+      wakePrevPressed = pressed
+      if (!rising) return
+      const pt = screen.getCursorScreenPoint()
+      const cursorInside = getAllClusterWindows().some((w) => {
+        if (w.isDestroyed() || !w.isVisible()) return false
+        const b = w.getBounds()
+        return pt.x >= b.x && pt.x <= b.x + b.width && pt.y >= b.y && pt.y <= b.y + b.height
+      })
+      if (!shouldWakeModalFocus({ pressed, prevPressed: !pressed, cursorInside, childOpen: true })) return
+      geoLog('modal-wake focus transfer')
+      for (const c of childWindows) {
+        if (!c.isDestroyed() && c.isVisible()) {
+          c.focus()
+          break
+        }
+      }
+    }, MODAL_WAKE_INTERVAL_MS)
+  } else if (!should && modalWakePoll !== null) {
+    clearInterval(modalWakePoll)
+    modalWakePoll = null
+  }
+}
+
 /** 强制退出请求（Alt+F4）：防重入后交给 app.quit()——before-quit 落盘流程照走 */
 let appQuitRequested = false
 function requestAppQuit(): void {
@@ -280,6 +310,7 @@ function openChildWindow(kind: ChildKind, id?: string): void {
   })
   childWindows.add(child)
   lockNonChildWindows(true)
+  refreshModalWakePoll()
 
   // 用户验收#5：打开二级窗=组件聚焦该窗并禁用缩进——若已缩进立即弹出；
   // 子窗数量广播三窗状态机（childOpen 门），侧窗发起的二级窗同样生效（跨窗）
@@ -310,6 +341,7 @@ function openChildWindow(kind: ChildKind, id?: string): void {
     broadcastVeilOff()
     childWindows.delete(child)
     if (childWindows.size === 0) lockNonChildWindows(false)
+    refreshModalWakePoll()
     broadcastChildCount()
     getMainWindow()?.webContents.send(IPC.childClosed)
   })

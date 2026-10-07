@@ -83,11 +83,14 @@ test('批次 B-4（#36）：10 项满载溢出→缝隙自绘滑块，行宽零�
   console.log('SLIDER-DIAG:', JSON.stringify(m))
   await h2.close()
   // 撤销「10 项满载无滚动」旧规则：满载即溢出，滑块显示于缝隙带
-  // 行宽零挤压（设计锚定断言）：行宽 = 主窗 470 - win-body 内边距 14×2 - 滚动内边距 2×2 = 438（±2）
-  // （旧断言 clientW-rowW≥10 依赖环境缩放假设，2026-10-07 双屏 125%/175% 下失效——见问题记录 C5）
+  // 行宽零挤压（尺度无关断言）：行与列表内容宽的缝隙占比恒定（设计 4/441≈0.9%），
+  // 任意缩放下不随溢出/滑块出现变化（旧绝对像素断言依赖 scale=1 假设——见问题记录 C5）
   expect(m.scrollH).toBeGreaterThan(m.clientH)
   expect(m.thumbShown).toBe(true)
-  expect(Math.abs(m.rowW - 438)).toBeLessThanOrEqual(2)
+  const gutter = m.clientW - m.rowW
+  const gutterRatio = gutter / m.clientW
+  expect(gutter).toBeGreaterThanOrEqual(2) // 滚动内边距存在（行不贴容器口）
+  expect(gutterRatio).toBeLessThanOrEqual(0.03) // 零挤压：缝隙占比 ≤3%
 })
 
 test('主流程：新建→编辑→完成→反选→批量删除（B1.5：直接删除，无回收站）', async ({ }) => {

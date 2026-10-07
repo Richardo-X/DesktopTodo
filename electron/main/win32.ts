@@ -72,6 +72,19 @@ export function screenPixelAt(x: number, y: number): number {
   }
 }
 
+const GetAsyncKeyState = user32.func('int16 __stdcall GetAsyncKeyState(int32 vk)')
+const VK_LBUTTON = 0x01
+
+/** 左键当前是否按下（模态唤醒轮询用：禁用窗口不产生点击事件，需全局按键采样） */
+export function isLeftButtonPressed(): boolean {
+  if (process.platform !== 'win32') return false
+  try {
+    return GetAsyncKeyState(VK_LBUTTON) < 0
+  } catch {
+    return false
+  }
+}
+
 const HWND_BOTTOM = 1n
 const SWP_NOMOVE = 0x0002
 const SWP_NOSIZE = 0x0004

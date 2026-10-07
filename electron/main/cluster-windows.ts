@@ -64,6 +64,11 @@ let quitRequested = false
  * 会话期内光标轮询强制 inside=true（状态机保持弹出），到期恢复真实判定 */
 const AUTO_EXPAND_MS = 3000
 let autoExpandUntil = 0
+/** E2E fake 光标（CI 虚拟鼠标不移动系统光标，GetCursorScreenPoint 不可判定） */
+let fakeCursorPoint: { x: number; y: number } | null = null
+function cursorPoint(): { x: number; y: number } {
+  return fakeCursorPoint ?? screen.getCursorScreenPoint()
+}
 
 function requestAppQuit(): void {
   if (quitRequested) return
@@ -535,7 +540,7 @@ export function startTuckCursorPoll(): void {
   let lastInside = true
   setInterval(() => {
     if (!cluster || !cluster.visible) return
-    const pt = screen.getCursorScreenPoint()
+    const pt = cursorPoint()
     let inside = false
     if (cluster.tucked) {
       const m = cluster.windows.main
@@ -552,7 +557,7 @@ export function startTuckCursorPoll(): void {
     // 光标不在组件上 → 直接缩回 + 同步状态机；在组件上 → 交还状态机（移开自动缩回）
     if (autoExpandUntil > 0 && Date.now() >= autoExpandUntil) {
       autoExpandUntil = 0
-      const pt = screen.getCursorScreenPoint()
+      const pt = cursorPoint()
       const over = [cluster.windows.quick, cluster.windows.main, cluster.windows.done].some(
         (w) => safe(w) && w.isVisible() && contains(w.getBounds(), pt)
       )
@@ -609,6 +614,10 @@ export function registerClusterIpc(ipcMain: IpcMain): void {
       const disp = screen.getDisplayMatching({ x: p.x, y: p.y, width: 1, height: 1 })
       const sf = disp.scaleFactor || 1
       return screenPixelAt(Math.round(p.x * sf), Math.round(p.y * sf))
+    })
+    ipcMain.handle('test:set-fake-cursor', (_e, p: { x: number; y: number } | null) => {
+      fakeCursorPoint = p
+      return true
     })
     ipcMain.handle('test:exstyle', (_e, panel: string) => {
       const w = panel === 'quick' ? cluster?.windows.quick : panel === 'done' ? cluster?.windows.done : cluster?.windows.main
