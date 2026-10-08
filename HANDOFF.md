@@ -395,16 +395,16 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - 已排专项（未开工）：**隐藏复用架构**——二级窗关闭时隐藏不销毁，打开时显示+刷新数据（预计 400ms→50ms）；涉及表单状态重置设计，需先出设计评审
 - 用户验收 38 原话确认"卡顿非蒙层引入"
 
-### 10.4 新会话待办（按优先级；2026-10-08 收口）
-1. **气泡"闪一下才显示"修复（方案已定未实施）**：根因=气泡窗先以全尺寸（320×160）显示、渲染层量完内容尺寸后 resizeBubble 收缩——尺寸跳变即闪现（文本与上次相同时秒出）。修复=bubble.ts 改「量完尺寸、贴合同窗口大小后再 showInactive」（附 100ms 兜底强制显示防渲染层失联）。
-2. **缩进+二级窗：隐藏→显示真机验收（modalChildOpen 守卫已实施，E2E 绿真机未验）**：缩进→开设置二级窗→双击隐藏→双击显示 → 应保持弹出+取消 3 秒会话（setModalChildOpen(true) 时 autoExpandUntil=0，两处武装点加 !modalChildOpen 守卫）；关闭二级窗 → 保持展开。**若复现异常：全路径几何日志已布防（geoLog：applyClusterBounds/showCluster tucked-enter/tuck-cap/session-expired/setTucked 来源/modal-wake），读 C:/tmp/geo.log 定位**。
-3. **偶发三窗 4×38@(0,0) 塌缩（E2E 复现一次，根因未明）**：失败时 applyClusterBounds 零调用（日志实锤）——存在不经 applyClusterBounds 的几何盲区路径。全路径日志已布防（含此前盲区：缩进分支 tuck-cap、setClusterTucked 来源）；真机复现后读 geo.log。
-4. **诊断日志清理（发版前）**：geoLog（cluster-windows）/cursor-diag（两个编辑窗 diag+app:cursor-diag IPC+preload diagnosticLog）/[geo-log-err]——问题全关闭后移除。
+### 10.4 新会话待办（按优先级；2026-10-08 第十轮更新）
+1. ~~气泡"闪一下才显示"修复~~ **✅ 已完成（2026-10-08 第十轮，提交 f396a22/916d879）**。根因比原记录深两层：① 渲染层测量从未真化——`.gbubble` 100%×100% 恒量得整窗 320×160（「量完收缩」从未发生）；② Windows 上 resizable=false 窗 setBounds 收缩不生效（index.ts resizeSelf 先例同款），resizeBubble 是空操作。实际修复=测量真化（fit-content+min/max 与主进程钳制同限，max-width=原型 BUBBLE_MAX_W 300）+收缩前临时解除 resizable+量完贴合才 showInactive（100ms 兜底防渲染层失联）+隐藏清挂起防迟到回包复活。单测 8 例（显示门控全语义）+E2E 贴合断言（宽≈300<320、高<160；125% DPI 回读有 ±几 px 取整斜差，断言用容忍带）。
+2. **缩进+二级窗：隐藏→显示真机验收（modalChildOpen 守卫已实施；E2E 已修复并首次真正跑到断言=绿，真机未验）**：缩进→开设置二级窗→双击隐藏→双击显示 → 应保持弹出+取消 3 秒会话；关闭二级窗 → 保持展开。若复现异常读 C:/tmp/geo.log。
+3. ~~偶发三窗 4×38@(0,0) 塌缩~~ **✅ 已破案（2026-10-08 第十轮，提交 ba9ca27/8a161ee/314c6b2）**：根因=tray-tuck E2E「二级窗开着」用例把 clusterDragDelta 按对象单参误调（preload 签名是双数字），payload 被 dx 吸收 → NaN 锚点 → Electron 把 NaN 定位退化为 0 尺寸 SetWindowPos → Windows 钳塌到最小窗 (0,0,4×38) 且后续 setBounds 全失效。此即「偶发」（哪个测试跑到该坏调用哪个塌）+「applyClusterBounds 零调用」假象（有调用但日志里的 targetMainW=423 与锚点无关、看着健康）。产品侧加固：applyAnchor 非有限锚点整体忽略+SETBOUNDS-REJECTED 探针（>2px 拒绝即记 geoLog）；clusterDragDeltaBy 内联 detectSnap（位移测试可构造吸附态）。**附带重大发现：CI 自 0f90276 起连红 4 轮**——上会话 0f90276/d8e3c4f 两笔推送的 E2E 从出生就红（塌缩+测试从未吸附致会话不武装），「§11 测试终态 CI 绿」记录不实；两测试已修复（真实吸附构造+正确签名），本地全量 59 E2E 绿。
+4. **诊断日志清理（发版前）**：geoLog（cluster-windows，现含 SETBOUNDS-REJECTED/applyAnchor IGNORED 探针）/cursor-diag（两个编辑窗 diag+app:cursor-diag IPC+preload diagnosticLog）/[geo-log-err]——问题全关闭后移除。
 5. **C-4 发版 v1.1.0**：升版 1.0.8→1.1.0 → 打安装包 → 冒烟（含本批全部新语义）→ **开机自启真机重启测试** → tag/Release → 验收报告更新。
 6. 单窗对照版已清理（用户裁定；架构定论三窗）。托盘悬停名「桌面待办三窗版」为临时区分，发版前可改回「桌面待办」。
 
 ### 10.4.1 真机验收清单（上批已实施待验）
-① 应用级聚焦：点击待办主窗后开侧窗/二级窗，跟随应用层面（侧窗同层、二级窗最上）② 显示时整体置顶（仅隐藏→显示）：其他窗口盖住组件位→托盘隐藏→托盘显示→应用整体在最上 ③ 气泡 0.5s 弹出+开二级窗瞬间气泡消失（含正要弹出的）④ 编辑光标原生行为（输入时常亮停手闪烁——solid-caret 已按裁定移除）⑤ 标题栏顺序：主题/图钉/缩进锁/齿轮/×；侧窗无 × 按钮 ⑥ 缩进+二级窗隐藏→显示（modalChildOpen 语义）⑦ 托盘/置顶/Alt+F4 退出/滑块回归
+① 应用级聚焦：点击待办主窗后开侧窗/二级窗，跟随应用层面（侧窗同层、二级窗最上）② 显示时整体置顶（仅隐藏→显示）：其他窗口盖住组件位→托盘隐藏→托盘显示→应用整体在最上 ③ 气泡 0.5s 弹出+开二级窗瞬间气泡消失（含正要弹出的）④ 编辑光标原生行为（输入时常亮停手闪烁——solid-caret 已按裁定移除）⑤ 标题栏顺序：主题/图钉/缩进锁/齿轮/×；侧窗无 × 按钮 ⑥ 缩进+二级窗隐藏→显示（modalChildOpen 语义）⑦ 托盘/置顶/Alt+F4 退出/滑块回归 ⑧ **（本轮新增）气泡直接以内容贴合尺寸出现**：不再先全尺寸闪一下再缩；悬停截断行 0.5s 后气泡即为最终大小（约 300 宽内、按文本高度）；同一行反复悬停无跳变
 
 ### 10.5 本会话教训（新增）
 - **改渲染层代码后跑 E2E 必须先 npm run build**（E2E 跑 out/ 产物——本轮白条/蒙层两度因旧产物误判）
@@ -418,6 +418,10 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - **异步渲染窗体的 onMounted 查询不可靠（2026-10-08）**：元素由异步数据驱动渲染时，onMounted 里 querySelector 返回 null——元素接线用模板 ref+watch
 - **koffi：GetPixel 属 gdi32.dll 非 user32.dll（2026-10-07）**——加载错库报"Cannot find function in shared library"
 - **优雅降级日志须可见（2026-10-08）**：try/catch 吞错误的诊断日志会静默失效且难察觉——诊断日志的 catch 至少 console.error
+- **E2E 自造 window-cast 类型必须逐字核对 preload 签名（2026-10-08 第十轮）**：测试里 `(window as unknown as {...})` 的自定义类型声明会掩盖真实签名不匹配——「二级窗开着」用例按对象单参调 clusterDragDelta 而 preload 是双数字参，payload 被 dx 吸收 → NaN 锚点 → Windows 钳塌三窗 4×38@(0,0) 且后续 setBounds 全失效（Electron 对 NaN 定位退化为 0 尺寸 SetWindowPos）；排查代价整整一轮会话
+- **NaN 几何中毒的识别特征（2026-10-08）**：多窗同时 (0,0)+最小尺寸=典型的 0/NaN 入参被 OS 钳制；applyClusterBounds 日志的 targetMainW 等宽度字段与锚点无关，看着健康不代表 x/y 不是 NaN——几何日志要打全字段
+- **`npm run verify` 不含 build（2026-10-08 复证）**：E2E 跑 out/ 产物，改过主进程/渲染层后必须先 `npm run build` 再 verify，否则拿旧产物误判（§10.5 既有教训的 verify 变体）
+- **主进程对象跨 app.evaluate 序列化的坑（2026-10-08）**：Electron Rectangle 在主进程侧 `{...spread}` 得空对象（属性在原型 getter 上）；直接读 b.x/模板串拼接正常，Playwright 顶层返回也能带出——但嵌套 spread 会静默丢字段
 
 
 ---
@@ -425,6 +429,7 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 ## 11. 第七~九轮会话记录（2026-10-04~08；显隐语义定稿+Win+D 攻防+二级窗/气泡修复）
 
 > 提交链：a36bc4e..045b676（含全程 TDD 红绿分笔）；测试终态 373 单测 + 56 E2E + CI 绿（045b676）。
+> **⚠️ 第十轮更正（2026-10-08）**：上句「CI 绿」不实——0f90276 起两笔新增 E2E（每次显示都重置/二级窗开着）从出生就红，CI 连红 4 轮至 0e64205；第十轮已修复（§10.4-3），终态 381 单测 + 59 E2E 全绿。
 
 ### 11.1 需求语义定稿（全部用户裁定，已写入需求文档 v1.3 章节）
 - **显隐三途径唯一化**：待办窗 × 按钮 / 托盘双击 / 托盘右键菜单；侧窗 × 隐藏按钮删除（D7，非原型元素——实施期多余发挥，教训见 §10.5）
@@ -451,10 +456,10 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - **滑块断言尺度无关化**：CSS zoom 下 clientWidth（布局）≠ getBoundingClientRect（视觉，差 scale 倍）——断言改同空间（offsetWidth）；**E2E 光标判定改 fake 光标注入**（虚拟鼠标不移动系统光标）
 - **侧窗 × 按钮删除**（非原型元素，教训见 §10.5）
 
-### 11.4 未解决/进行中（移交新会话）
-- **气泡"闪一下才显示"**：根因=全尺寸显示后量尺寸收缩的跳变；修复方案已定未实施（bubble.ts 量完再显示+100ms 兜底）
-- **缩进+二级窗隐藏→显示**（modalChildOpen 守卫）：E2E 绿、**真机未验收**
-- **偶发三窗 4×38@(0,0) 塌缩**：E2E 复现一次；全路径几何日志已布防（geoLog 六类事件），等复现读 C:/tmp/geo.log 定位
+### 11.4 未解决/进行中（移交新会话；2026-10-08 第十轮收口更新）
+- ~~气泡"闪一下才显示"~~ ✅ 第十轮已修（根因两层深于本节原记录：测量 CSS 从未真化+resizable=false 收缩失效；详见 §10.4-1）
+- **缩进+二级窗隐藏→显示**（modalChildOpen 守卫）：E2E 已修复（原用例塌缩在坏调用上从未跑到断言）并全绿、**真机未验收**
+- ~~偶发三窗 4×38@(0,0) 塌缩~~ ✅ 第十轮破案：E2E 用例签名误调→NaN 锚点（详见 §10.4-3）；产品侧已加非有限锚点防御；**纠正：上会话两笔推送 CI 连红 4 轮未察觉**（0f90276/d8e3c4f 的 E2E 从出生就红），第十轮修复后本地 59 E2E 全绿
 - **诊断日志清理**（发版前）：geoLog/cursor-diag（编辑窗 diag+IPC+preload）/[geo-log-err]/[win-d-dbg]
 - **单窗对照版已清理**（用户裁定）；托盘悬停名「三窗版/单窗版」临时区分，发版前单窗名可去除
 
