@@ -162,6 +162,23 @@ test('每次显示都重置 3 秒弹出：吸附位缩进→隐藏→显示（�
       p
     )
 
+  // ⓪ 真实吸附：拖到工作区顶缘——激活 detectSnap → snapChanged → 渲染层状态机 snapped=true
+  // （缩进决策信号驱动后，渲染层缩进需要完整 snap 事件链；直接 IPC setTucked 不产生该链）
+  const waTop = await h.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea)
+  const y0 = await h.app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))
+    return w!.getBounds().y
+  })
+  if (y0 > waTop.y) {
+    await h.main.evaluate(
+      (dy) =>
+        (window as unknown as { desktopTodoTest?: { clusterDragDelta(dx: number, dy: number): Promise<void> } })
+          .desktopTodoTest!.clusterDragDelta(0, dy),
+      waTop.y - y0
+    )
+    await h.main.waitForTimeout(800) // 拖动 moving 解除阈值（TUCK_MOVE_IDLE_MS 500ms）+ 余量
+  }
+
   // ① 拖到工作区顶缘（真实吸附：delta 钩子内联 detectSnap，同真实拖动轮询判定；
   //    会话武装条件=snapped，未吸附的展开态显示不武装——测试须先构造吸附态）
   const wa = await h.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea)
@@ -204,6 +221,18 @@ test('每次显示都重置 3 秒弹出：吸附位缩进→隐藏→显示（�
   await expect
     .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 6_500 })
     .toBeLessThanOrEqual(1)
+  // ⑧ 一致性回归（C4.3）：缩回后白条必须显示——主进程胶囊几何与渲染层白条态不得分裂
+  // （分裂形态=窗口露出完整 UI 左上角="标题条"，用户真机 2026-10-08 截图实锤）
+  await expect
+    .poll(
+      async () =>
+        h.main.evaluate(() => {
+          const el = document.querySelector('.tuck-bar') as HTMLElement | null
+          return el ? getComputedStyle(el).display : 'none'
+        }),
+      { timeout: 5_000 }
+    )
+    .toBe('block')
   await setFakeCursor(null)
 })
 

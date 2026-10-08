@@ -631,8 +631,10 @@ export function startTuckCursorPoll(): void {
         }
       }
     }
-    // 自动弹出会话到期：主进程按真实光标位置确定性收尾——
-    // 光标不在组件上 → 直接缩回 + 同步状态机；在组件上 → 交还状态机（移开自动缩回）
+    // 自动弹出会话到期：光标不在组件上 → 只广播光标事实，缩进决策回归渲染层状态机
+    // （其 childOpen 门与主进程同步生效，两层永不分裂）。直调 setClusterTucked(true) 会
+    // 绕过二级窗禁缩进门：主进程缩成胶囊而渲染层拒绝白条 → 窗口露出完整 UI 左上角
+    // ="标题条"（用户真机 2026-10-08 截图实锤，间歇性=3 秒边界与开二级窗的毫秒级竞争）
     if (autoExpandUntil > 0 && Date.now() >= autoExpandUntil) {
       autoExpandUntil = 0
       const pt = cursorPoint()
@@ -642,7 +644,17 @@ export function startTuckCursorPoll(): void {
       geoLog('session-expired over=' + over)
       if (!over) {
         sendToMain(IPC.cursorInside, false)
-        setClusterTucked(true)
+        lastInside = false
+        // 负载兜底：渲染层 400ms 缩进链在高负载下可能延迟——900ms 未完成且无二级窗
+        // （=渲染层门必然放行，直调不产生分裂）时主进程强制收尾，几何不卡在全宽
+        setTimeout(() => {
+          if (!cluster || cluster.tucked || modalChildOpen) return
+          const mw = cluster.windows.main
+          if (safe(mw) && mw.isVisible() && mw.getBounds().width > 200) {
+            geoLog('session-expired fallback force-tuck')
+            setClusterTucked(true)
+          }
+        }, 900)
         return
       }
     }
