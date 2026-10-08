@@ -241,7 +241,8 @@ function refreshModalWakePoll(): void {
       if (!rising) return
       const pt = screen.getCursorScreenPoint()
       const cursorInside = getAllClusterWindows().some((w) => {
-        if (w.isDestroyed() || !w.isVisible()) return false
+        // 透明常驻窗（done）物理恒可见——判定走"物理可见且透明度>0"，透明待机不误触发唤醒
+        if (w.isDestroyed() || !(w.isVisible() && w.getOpacity() > 0)) return false
         const b = w.getBounds()
         return pt.x >= b.x && pt.x <= b.x + b.width && pt.y >= b.y && pt.y <= b.y + b.height
       })

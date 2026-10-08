@@ -254,6 +254,36 @@ export function clusterTopMost(): boolean {
 /** 隐藏窗的待落位 bounds（Windows setBounds 会显示隐藏窗，故隐藏期间只登记） */
 const pendingBounds = new Map<number, WinBounds>()
 
+/** 透明常驻侧窗集合（C4 批次1 用户裁定：done 动态内容窗先行）。
+ * hide→Chromium 挂起 GPU 表面，再显示时表面重建产生"出现→快速消失→再出现"三段闪动
+ * （气泡同源问题，用户视频慢放实锤+气泡 A/B 对照验证透明常驻有效）。
+ * 常驻窗隐藏=透明度 0+鼠标穿透（物理可见、表面永不销毁），显示=关穿透+拧亮。 */
+const PERSISTENT_SIDE_PANELS: ReadonlySet<ClusterPanel> = new Set(['done'])
+
+/** 侧窗物理常驻？透明常驻窗 isVisible 恒 true，可见性判定一律走本函数 */
+function isPersistent(panel: ClusterPanel): boolean {
+  return PERSISTENT_SIDE_PANELS.has(panel)
+}
+
+/** 视觉可见判据（光标命中/模态唤醒等一切"窗在不在那"的判定统一入口）：
+ * 物理可见 且 透明度>0——对真 hide 窗与透明待机窗语义一致 */
+function sideWindowVisible(w: BrowserWindow): boolean {
+  return w.isVisible() && w.getOpacity() > 0
+}
+
+/** 侧窗隐藏：常驻窗透明待机+穿透（不挡桌面），非常驻窗真 hide */
+function hideSideWindow(w: BrowserWindow, panel: ClusterPanel): void {
+  if (!safe(w)) return
+  geoLog(`hideSideWindow ${panel} persistent=${isPersistent(panel)} curOpacity=${w.getOpacity()}`)
+  if (isPersistent(panel)) {
+    w.setIgnoreMouseEvents(true)
+    w.setOpacity(0)
+    geoLog(`hideSideWindow ${panel} after opacity=${w.getOpacity()}`)
+  } else {
+    w.hide()
+  }
+}
+
 /** 显示侧窗：先落位（此时可能顺带显示）再确保可见，几何永远与锚点一致。
  * 重新显示会重置隐藏期间设置的置顶带成员（真机第十轮：藏侧窗→开置顶→展开→
  * Win+D 侧窗被藏）——按真实置顶语义/抢设状态重申 */
@@ -266,7 +296,17 @@ function showSidePanel(panel: ClusterPanel): void {
   if (!bb) return
   pendingBounds.delete(w.id)
   w.setBounds(bb)
-  if (!w.isVisible()) {
+  if (isPersistent(panel)) {
+    // 透明常驻：表面现成，关穿透+拧亮即显示（物理不可见时补一次首显）
+    if (!sideWindowVisible(w)) {
+      if (!w.isVisible()) w.showInactive()
+      w.setOpacity(1)
+    }
+    w.setIgnoreMouseEvents(false)
+    // 应用级聚焦（用户 2026-10-07 裁定）：侧窗与主窗同层出现——透明常驻下
+    // isVisible 恒真，原 !isVisible 守卫不再触发，moveTop 无条件执行保住同层语义
+    w.moveTop()
+  } else if (!w.isVisible()) {
     w.showInactive()
     // 应用级聚焦（用户 2026-10-07 裁定）：侧窗与主窗同层出现——showInactive
     // 的插入层在真机上可能落在其它应用窗口之下，moveTop 显式提到应用组顶部
@@ -363,7 +403,7 @@ export function syncClusterBounds(ui: {
   }
   if (safe(done)) {
     if (ui.doneVisible && cluster.visible && !cluster.tucked) showSidePanel('done')
-    else done.hide()
+    else hideSideWindow(done, 'done')
   }
   lastAppliedAnchor = null
   applyClusterBounds()
@@ -380,7 +420,7 @@ export function setClusterTucked(v: boolean): void {
   if (v) {
     // 缩进：先藏侧窗，主窗收胶囊
     if (safe(quick)) quick.hide()
-    if (safe(done)) done.hide()
+    if (safe(done)) hideSideWindow(done, 'done')
     lastAppliedAnchor = null
     applyClusterBounds()
     return
@@ -485,7 +525,10 @@ export function hideCluster(): void {
   stopClusterDrag()
   cluster.visible = false
   autoExpandUntil = 0 // 清除挂起的自动弹出会话：否则下次显示时过期会话立即缩回（闪退根因，2026-10-07 日志实锤）
-  for (const w of getAllClusterWindows()) w.hide()
+  for (const w of getAllClusterWindows()) {
+    if (w === cluster.windows.done) hideSideWindow(w, 'done')
+    else if (safe(w)) w.hide()
+  }
 }
 
 /** 显示=整体恢复（含置顶重应用——hide/show 可能重置 z-order）。
@@ -527,7 +570,7 @@ export function showCluster(): void {
     }
     if (safe(done)) {
       if (cluster.doneVisible) showSidePanel('done')
-      else done.hide()
+      else hideSideWindow(done, 'done')
     }
   }
   applyTopMostToCluster(cluster.topMost)
@@ -581,7 +624,7 @@ export function startTuckCursorPoll(): void {
       inside = safe(m) && contains(m.getBounds(), pt)
     } else {
       for (const w of [cluster.windows.quick, cluster.windows.main, cluster.windows.done]) {
-        if (safe(w) && w.isVisible() && contains(w.getBounds(), pt)) {
+        if (safe(w) && sideWindowVisible(w) && contains(w.getBounds(), pt)) {
           inside = true
           break
         }
@@ -593,7 +636,7 @@ export function startTuckCursorPoll(): void {
       autoExpandUntil = 0
       const pt = cursorPoint()
       const over = [cluster.windows.quick, cluster.windows.main, cluster.windows.done].some(
-        (w) => safe(w) && w.isVisible() && contains(w.getBounds(), pt)
+        (w) => safe(w) && sideWindowVisible(w) && contains(w.getBounds(), pt)
       )
       geoLog('session-expired over=' + over)
       if (!over) {
@@ -625,7 +668,8 @@ export function clusterDebugState(): Record<string, unknown> | null {
     visible: cluster.visible,
     quickVis: cluster.windows.quick.isVisible(),
     mainVis: cluster.windows.main.isVisible(),
-    doneVis: cluster.windows.done.isVisible(),
+    doneVis: sideWindowVisible(cluster.windows.done),
+    doneOpacity: safe(cluster.windows.done) ? cluster.windows.done.getOpacity() : 0,
     quickBounds: cluster.windows.quick.getBounds(),
     mainBounds: cluster.windows.main.getBounds()
   }

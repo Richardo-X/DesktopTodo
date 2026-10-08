@@ -32,7 +32,8 @@ const winByPanel = (panel: string): Promise<W | null> =>
     )
     if (!w) return null
     const b = w.getBounds()
-    return { x: b.x, y: b.y, w: b.width, h: b.height, vis: w.isVisible() }
+    // 视觉可见判据（透明常驻兼容）：物理可见 且 透明度>0——对真 hide 与透明待机两种实现语义一致
+    return { x: b.x, y: b.y, w: b.width, h: b.height, vis: w.isVisible() && w.getOpacity() > 0 }
   }, panel)
 
 const setTucked = (v: boolean): Promise<void> =>

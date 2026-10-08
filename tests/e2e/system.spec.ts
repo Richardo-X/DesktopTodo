@@ -154,7 +154,9 @@ test('8.2-2：托盘隐藏再恢复后置顶保持', async () => {
   await h.main.click('[data-testid="tb-minimize"]')
   const visibles = async (): Promise<boolean[]> =>
     (await h.app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed()).map((w) => w.isVisible())
+      BrowserWindow.getAllWindows()
+        .filter((w) => !w.isDestroyed())
+        .map((w) => w.isVisible() && w.getOpacity() > 0)
     )).sort()
   await expect.poll(visibles, { timeout: 10_000 }).toEqual([false, false, false])
 

@@ -131,7 +131,7 @@ test('托盘隐藏同步隐藏全部子窗口，单实例唤起同步恢复', as
     (await h.app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()
         .filter((w) => !w.isDestroyed())
-        .map((w) => w.isVisible())
+        .map((w) => w.isVisible() && w.getOpacity() > 0)
     )).sort()
 
   // 初始：三窗 + 设置窗均可见
