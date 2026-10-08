@@ -157,11 +157,14 @@ describe('气泡显示门控（量完贴合再显示）', () => {
 
   it('隐藏=透明不隐藏窗口（表面常驻防重建闪现）：setOpacity(0)、不调 hide；迟到回包不动几何', () => {
     const win = requestShow()
+    api.resizeBubble({ w: 245, h: 52 }) // 先正常显示一次（显示后窗口物理常驻）
+    expect(win.visible).toBe(true)
     api.hideBubble()
     expect(win.setOpacity).toHaveBeenCalledWith(0)
     expect(win.hide).not.toHaveBeenCalled()
-    expect(win.isVisible()).toBe(true) // 物理保持可见——Chromium 持续产帧
+    expect(win.visible).toBe(true) // 物理保持可见——Chromium 持续产帧
     win.setBounds.mockClear()
+    win.showInactive.mockClear()
     api.resizeBubble({ w: 245, h: 52 })
     vi.advanceTimersByTime(1000)
     expect(win.showInactive).not.toHaveBeenCalled()
