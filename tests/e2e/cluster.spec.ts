@@ -90,6 +90,21 @@ test('三窗：拖动位移钩子 → 三窗同帧同步平移（同一 applyClu
   expect(after.done!.y - before.done!.y).toBe(60)
 })
 
+test('三窗：拖动增量非有限值 → 整体忽略（防 NaN 锚点被 Windows 钳塌到最小窗）', async () => {
+  const before = await clusterBounds()
+  await h.main.evaluate(() =>
+    (window as unknown as { desktopTodoTest?: { clusterDragDelta(dx: number, dy: number): Promise<void> } })
+      .desktopTodoTest!.clusterDragDelta(NaN, NaN)
+  )
+  await h.main.waitForTimeout(300)
+  const after = await clusterBounds()
+  expect(after.main!.x).toBe(before.main!.x)
+  expect(after.main!.y).toBe(before.main!.y)
+  expect(after.main!.width).toBe(before.main!.width)
+  expect(after.quick!.x).toBe(before.quick!.x)
+  expect(after.done!.x).toBe(before.done!.x)
+})
+
 test('三窗 focus 语义：未置顶挂件态 focus 不激活（点击不浮上来）；置顶后 focus 可激活', async () => {
   const quickWin = (): Promise<{ focused: boolean; focusable: boolean } | null> =>
     h.app.evaluate(({ BrowserWindow }) => {
