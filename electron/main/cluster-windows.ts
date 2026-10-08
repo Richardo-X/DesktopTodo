@@ -299,7 +299,7 @@ export function applyClusterBounds(placeAll = false): void {
     placeAll ||
     (actualMain !== null &&
       (Math.abs(actualMain.width - b.main.width) > 1 || Math.abs(actualMain.height - b.main.height) > 1))
-  // 隐藏窗跳过 setBounds：Windows 上对隐藏窗口 setBounds 会将其显示（用户实测点击隐藏后又弹回）；
+  // 隐藏窗跳过 setBounds：Windows 上对隐藏窗口 setBounds 会将其显示（用户实测点击隐藏又弹回）；
   // 几何登记到 pendingBounds，showSidePanel 显示时先落位。
   // 落位顺序 done→main→quick：用户最敏感的快捷窗最后落位（缝隙错帧最后闭合）
   for (const [w, bb] of [
@@ -311,7 +311,18 @@ export function applyClusterBounds(placeAll = false): void {
     if (!needPlaceAll && !w.isVisible()) pendingBounds.set(w.id, bb)
     else {
       pendingBounds.delete(w.id)
+      const before = w.getBounds()
       w.setBounds(bb)
+      const after = w.getBounds()
+      if (Math.abs(after.width - bb.width) > 2 || Math.abs(after.height - bb.height) > 2 || after.x !== bb.x) {
+        geoLog(
+          'SETBOUNDS-REJECTED url=' + w.webContents.getURL().slice(-18) +
+          ' want=' + bb.x + ',' + bb.y + ',' + bb.width + 'x' + bb.height +
+          ' before=' + before.x + ',' + before.y + ',' + before.width + 'x' + before.height +
+          ' after=' + after.x + ',' + after.y + ',' + after.width + 'x' + after.height +
+          ' vis=' + w.isVisible() + ' resiz=' + w.isResizable()
+        )
+      }
     }
   }
   lastAppliedAnchor = { x: cluster.anchor.x, y: cluster.anchor.y }
@@ -443,6 +454,12 @@ export function stopClusterDrag(): void {
 
 function applyAnchor(anchor: { x: number; y: number }): void {
   if (!cluster) return
+  // 非有限锚点整体忽略：NaN 定位经 Electron 退化为 0 尺寸 SetWindowPos，
+  // Windows 把窗口钳塌到最小尺寸 (0,0,4×38) 且后续 setBounds 一并失效（E2E 实测）
+  if (!Number.isFinite(anchor.x) || !Number.isFinite(anchor.y)) {
+    geoLog('applyAnchor IGNORED non-finite anchor=' + anchor.x + ',' + anchor.y)
+    return
+  }
   const mainBounds = safe(cluster.windows.main) ? cluster.windows.main.getBounds() : null
   const wa: WorkArea = mainBounds
     ? screen.getDisplayMatching(mainBounds).workArea
@@ -453,10 +470,12 @@ function applyAnchor(anchor: { x: number; y: number }): void {
   applyClusterBounds()
 }
 
-/** E2E 钩子：跳过真实光标，经同一 applyClusterBounds 路径平移锚点 */
+/** E2E 钩子：跳过真实光标，经同一 applyClusterBounds 路径平移锚点；
+ * 内联 detectSnap 对齐真实拖动轮询（每 4 tick 判定吸附）——否则位移测试无法进入吸附态 */
 export function clusterDragDeltaBy(dx: number, dy: number): void {
   if (!cluster) return
   applyAnchor({ x: cluster.anchor.x + dx, y: cluster.anchor.y + dy })
+  detectSnap()
 }
 
 /** 托盘隐藏=组件整体隐藏（决策#9）；拖动中隐藏则终止轮询。
