@@ -17,7 +17,7 @@
 - **架构定论（D6，2026-10-07）**：用户对比单窗对照版（v1.0.8 快照，C:/Users/qq463/AppData/Local/Temp/dtodo-sw-app/）与三窗版后裁定**维持三窗架构**；方案 C 单窗关闭。对照版与工作区（F:/AI/VBcode/worktrees/ToDoList-sw，v1.0.8+改名）保留待用户处理；托盘名临时区分「桌面待办三窗版/单窗版」
 - **置顶语义最终版（2026-10-07）**：未置顶=普通窗口层级（不沉底、NOACTIVATE 已删、点击浮上来获焦点）；置顶=最上层。挂件态机制（setFocusable(false)/enterWidgetMode/失焦沉底/pendingSinkOnBlur）已全套删除；窗口断言必须用真实样式位（test:exstyle 钩子）——Electron isFocusable() 与 NOACTIVATE 位脱节（实测）
 
-## 2. 当前状态（2026-09-27 v1.0.8 已发布；第五轮验证完毕，下一步=原型 v3.2 确认→三窗分离，本节供新会话接手）
+## 2. 当前状态（⚠️ 本节为历史快照——最新状态与待办见 §10.4/§10.6，2026-10-08）
 
 - **v1.0.8 已发布**（tag/Release，黑块真因修复+三项确定性修复，详见验收报告 v1.0.7/v1.0.8 章节）
 - **第五轮真机验证结论（用户确认）**：黑块 ✓ 解决；缩进闪烁/提前缩回 ✓ 解决；批量禁缩进 ✓；缩进锁定 ✓；批量条按钮 ✓；**缩放抖动不可接受 → 已批准启动三窗分离架构重构**
@@ -395,21 +395,16 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - 已排专项（未开工）：**隐藏复用架构**——二级窗关闭时隐藏不销毁，打开时显示+刷新数据（预计 400ms→50ms）；涉及表单状态重置设计，需先出设计评审
 - 用户验收 38 原话确认"卡顿非蒙层引入"
 
-### 10.4 新会话待办（按优先级）
-1. **✅ Win+D/Win+M/Alt+F4 语义定稿并落地（2026-10-05 第七~十一轮），待用户真机验收**
-   - **机制定论（外部探针+截屏对照）**：Win11 build 26200 的 Show Desktop = DWM 合成层隐藏（零事件/零状态/零 cloak），豁免集=toggle 时刻已在置顶带或 shell 拥有的窗口；事后补救全部无效；被标记窗口拒绝置顶位变更（跨往返持久）；这个版本 Win+D 合成隐藏后**焦点不移走**（前台信号不可用）
-   - **用户新裁定（覆盖此前"两态都免疫"目标）**：**置顶态**=Win+D/Win+M 均免疫（置顶带常驻天然豁免 + minimizable:false 声明式 + 最小化即恢复兜底）；**未置顶态=和普通窗口完全一样**（Win+D/Win+M 可隐藏/最小化，再按 Win+D 或托盘恢复，不做防护——原"未置顶也要免疫"的抱怨撤销）；**Alt+F4=强制退出整个应用（无确认框，数据落盘照走）**；TOOLWINDOW 保留（不进任务栏/Alt+Tab=UI 设计决策）；二级窗层级问题保留
-   - **实施（TDD：60c47d6 红→260259a 绿；358 单测+51 E2E 全绿）**：
-     - 拆除抢跑守卫全套：win-d-hook.ts（LL 钩子/命中探针/修复循环/前台轮询）、win-d-guard.ts 纯模块、两者测试、index/cluster-windows 全部接线
-     - 拆除 Alt+F4 拦截：window-close-policy.ts、makeWindow close 拦截、markClusterQuitting、preload sysWmClose（test:sys-wm-close IPC 钩子保留供 E2E）
-     - Alt+F4 新实现：cluster 窗口 close（非退出流程）→ app.quit()（无确认，before-quit 落盘照走）；二级窗 closeSelf 带"意图标记"（WeakSet）仅关自己，无标记（Alt+F4）→ 退出应用
-     - minimize 兜底条件化：三窗与二级窗的 minimize 事件仅 clusterTopMost() 时 restore（未置顶=普通窗口行为）
-     - 清理：startCloakGuard/cloak 轮询/[win-d-dbg] 日志
-   - **真机验收清单**：①置顶态 Win+D/Win+M 均不影响（三窗+打开的二级窗）②未置顶 Win+D 隐藏→再按恢复；Win+M 最小化→任务栏/托盘恢复 ③Alt+F4 聚焦任一窗→整个应用退出、无确认框、重启数据完整 ④二级窗 ×/← 仅关自己 ⑤× /托盘双击/托盘右键三途径正常 ⑥托盘右键→退出正常
-   - 验收通过后：C-4 发版 v1.1.0
-2. **C-4 发版 v1.1.0**：package.json 1.0.8→1.1.0 → electron-builder 打安装包 → 安装版冒烟（缩放/置顶/蒙层/缝隙4px/二级窗打开/**Win+D/Win+M 两态/Alt+F4 退出**/自启开关真实写入注册表）→ **开机自启真机重启测试** → tag v1.1.0 → Release → 本文件更新
-3. 二级窗打开提速专项（隐藏复用架构：关闭时隐藏不销毁、打开显示+刷数据，400ms→50ms 预估；先设计后实装）
-4. 缩放呈现已定稿 v3.3（拖影=DWM 层限制维持现状；决策 #7 维持原判；原型 v3.4 已否决删除）
+### 10.4 新会话待办（按优先级；2026-10-08 收口）
+1. **气泡"闪一下才显示"修复（方案已定未实施）**：根因=气泡窗先以全尺寸（320×160）显示、渲染层量完内容尺寸后 resizeBubble 收缩——尺寸跳变即闪现（文本与上次相同时秒出）。修复=bubble.ts 改「量完尺寸、贴合同窗口大小后再 showInactive」（附 100ms 兜底强制显示防渲染层失联）。
+2. **缩进+二级窗：隐藏→显示真机验收（modalChildOpen 守卫已实施，E2E 绿真机未验）**：缩进→开设置二级窗→双击隐藏→双击显示 → 应保持弹出+取消 3 秒会话（setModalChildOpen(true) 时 autoExpandUntil=0，两处武装点加 !modalChildOpen 守卫）；关闭二级窗 → 保持展开。**若复现异常：全路径几何日志已布防（geoLog：applyClusterBounds/showCluster tucked-enter/tuck-cap/session-expired/setTucked 来源/modal-wake），读 C:/tmp/geo.log 定位**。
+3. **偶发三窗 4×38@(0,0) 塌缩（E2E 复现一次，根因未明）**：失败时 applyClusterBounds 零调用（日志实锤）——存在不经 applyClusterBounds 的几何盲区路径。全路径日志已布防（含此前盲区：缩进分支 tuck-cap、setClusterTucked 来源）；真机复现后读 geo.log。
+4. **诊断日志清理（发版前）**：geoLog（cluster-windows）/cursor-diag（两个编辑窗 diag+app:cursor-diag IPC+preload diagnosticLog）/[geo-log-err]——问题全关闭后移除。
+5. **C-4 发版 v1.1.0**：升版 1.0.8→1.1.0 → 打安装包 → 冒烟（含本批全部新语义）→ **开机自启真机重启测试** → tag/Release → 验收报告更新。
+6. 单窗对照版已清理（用户裁定；架构定论三窗）。托盘悬停名「桌面待办三窗版」为临时区分，发版前可改回「桌面待办」。
+
+### 10.4.1 真机验收清单（上批已实施待验）
+① 应用级聚焦：点击待办主窗后开侧窗/二级窗，跟随应用层面（侧窗同层、二级窗最上）② 显示时整体置顶（仅隐藏→显示）：其他窗口盖住组件位→托盘隐藏→托盘显示→应用整体在最上 ③ 气泡 0.5s 弹出+开二级窗瞬间气泡消失（含正要弹出的）④ 编辑光标原生行为（输入时常亮停手闪烁——solid-caret 已按裁定移除）⑤ 标题栏顺序：主题/图钉/缩进锁/齿轮/×；侧窗无 × 按钮 ⑥ 缩进+二级窗隐藏→显示（modalChildOpen 语义）⑦ 托盘/置顶/Alt+F4 退出/滑块回归
 
 ### 10.5 本会话教训（新增）
 - **改渲染层代码后跑 E2E 必须先 npm run build**（E2E 跑 out/ 产物——本轮白条/蒙层两度因旧产物误判）
@@ -418,3 +413,49 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - SetWindowPos(HWND_BOTTOM) 返回成功但对透明窗可能不生效（与样式重排竞争）——需 120/400ms 双次沉底
 - setFocusable(false) 会杀焦点——焦点判定必须先于它；且其样式变更异步重排 z 序（沉底需在其落地后）
 - 用户共享桌面环境会干扰 E2E 截图/z 序断言（其他应用窗口弹入）——断言用状态语义（atop/focusable/bounds）而非像素
+- **CSS zoom 下测量空间分裂（2026-10-07）**：clientWidth/offsetWidth=布局空间，getBoundingClientRect=视觉空间（差 scale 倍）——两者混用产生假缝隙/假位移（CI 0.7 缩放假差 135px 实锤）；断言/测量必须同空间（offsetWidth 配 clientWidth）
+- **Playwright 虚拟鼠标不移动系统光标（2026-10-07）**：GetCursorScreenPoint 类判定在 E2E 不可判定——须 fake 光标注入钩子（test:set-fake-cursor）
+- **异步渲染窗体的 onMounted 查询不可靠（2026-10-08）**：元素由异步数据驱动渲染时，onMounted 里 querySelector 返回 null——元素接线用模板 ref+watch
+- **koffi：GetPixel 属 gdi32.dll 非 user32.dll（2026-10-07）**——加载错库报"Cannot find function in shared library"
+- **优雅降级日志须可见（2026-10-08）**：try/catch 吞错误的诊断日志会静默失效且难察觉——诊断日志的 catch 至少 console.error
+
+
+---
+
+## 11. 第七~九轮会话记录（2026-10-04~08；显隐语义定稿+Win+D 攻防+二级窗/气泡修复）
+
+> 提交链：a36bc4e..045b676（含全程 TDD 红绿分笔）；测试终态 373 单测 + 56 E2E + CI 绿（045b676）。
+
+### 11.1 需求语义定稿（全部用户裁定，已写入需求文档 v1.3 章节）
+- **显隐三途径唯一化**：待办窗 × 按钮 / 托盘双击 / 托盘右键菜单；侧窗 × 隐藏按钮删除（D7，非原型元素——实施期多余发挥，教训见 §10.5）
+- **Win+D / Win+M 回归系统默认**：未置顶=普通窗口行为（可被隐藏/最小化，再按恢复）；置顶=免疫（置顶层常驻天然豁免 + minimizable 声明 + 最小化即恢复兜底）
+- **Alt+F4 = 强制退出整个应用**（无确认框；before-quit 落盘照走；二级窗 ×/← 仅关自己——closeSelf 意图标记区分）
+- **TOOLWINDOW/skipTaskbar 保留**（不进任务栏/Alt+Tab；用户确认）
+- **置顶语义最终版**：未置顶=普通窗口层级（挂件态/NOACTIVATE/失焦沉底全套删除）；置顶=最上层
+- **应用级聚焦**：聚焦面向整个应用——点击待办主窗后开侧窗（moveTop 同层）/二级窗（最上）；显示时整体置顶（仅隐藏→显示）
+- **模态唤醒**：二级窗开着时点击锁定的组件窗任意可见处 → 聚焦二级窗、应用整体浮前（50ms 轮询：左键按下边缘+光标在组件窗内；禁用窗不产生点击事件故需轮询）
+- **架构定论（D6）**：维持三窗（用户对比单窗对照版实测后裁定；方案 C 单窗关闭）
+- **光标定论**：原生光标即所需（输入时常亮停手闪烁）；solid-caret 干预撤销（40ms 交替重绘实测高频快闪）
+
+### 11.2 Win+D/Show Desktop 机制定论（实验存档，防重蹈）
+- Win11 26200 的 Show Desktop = **DWM 合成层隐藏**：零事件/零状态变化/零 cloak；豁免集=toggle 时刻已在**置顶层**或 **shell 拥有**的窗口
+- 事后补救全部无效：重设 TOPMOST（Chromium 否决外部带变更）、hide+show、改 owner、0~400ms 竞态、LL 钩子内 SetWindowPos（同被否决）
+- 抢跑钩子路线（WH_KEYBOARD_LL 回调内 Electron setAlwaysOnTop）整包实施又整包拆除——用户最终裁定 **Win+D 回归系统默认不做干预**
+- 实验方法论存档：外部 koffi 探针（样式位/MinimizeAll/GetPixel 截屏对照/SendInput Win+D 替代失效的 COM ToggleDesktop）
+
+### 11.3 关键修复与实现
+- **悬空会话清除**（缩进托盘恢复闪退根因）：3 秒自动弹出会话跨隐藏/重缩进未清除，下次显示时过期会话立即缩回——hideCluster/重缩进清 autoExpandUntil
+- **缩进托盘恢复自动弹出 3 秒**（用户需求）：showCluster tucked/else(snapped) 分支武装会话+pendingBounds 显式落位（修 showInactive 旧胶囊边界）
+- **气泡定时器竞态**：veil/失焦改调 cancelBubble（清排队定时器+抑制标志）；气泡延迟 1s→0.5s
+- **应用级聚焦**：showSidePanel moveTop；**模态唤醒轮询**：shouldWakeModalFocus 纯判定+50ms 轮询
+- **滑块断言尺度无关化**：CSS zoom 下 clientWidth（布局）≠ getBoundingClientRect（视觉，差 scale 倍）——断言改同空间（offsetWidth）；**E2E 光标判定改 fake 光标注入**（虚拟鼠标不移动系统光标）
+- **侧窗 × 按钮删除**（非原型元素，教训见 §10.5）
+
+### 11.4 未解决/进行中（移交新会话）
+- **气泡"闪一下才显示"**：根因=全尺寸显示后量尺寸收缩的跳变；修复方案已定未实施（bubble.ts 量完再显示+100ms 兜底）
+- **缩进+二级窗隐藏→显示**（modalChildOpen 守卫）：E2E 绿、**真机未验收**
+- **偶发三窗 4×38@(0,0) 塌缩**：E2E 复现一次；全路径几何日志已布防（geoLog 六类事件），等复现读 C:/tmp/geo.log 定位
+- **诊断日志清理**（发版前）：geoLog/cursor-diag（编辑窗 diag+IPC+preload）/[geo-log-err]/[win-d-dbg]
+- **单窗对照版已清理**（用户裁定）；托盘悬停名「三窗版/单窗版」临时区分，发版前单窗名可去除
+
+
