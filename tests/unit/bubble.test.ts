@@ -1,14 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-/** 气泡「闪一下才显示」修复（HANDOFF §10.4-1，2026-10-08）：
+/** 气泡「闪一下才显示」修复（HANDOFF §10.4-1，2026-10-08；同日二次修正 C3）：
  * 量完尺寸、贴合同窗口大小后再显示——showBubble 不再立即 showInactive（全尺寸闪现根因），
  * 等渲染层量得内容尺寸回包（bubbleResize）贴合落位后才显示；
- * payload 发出 100ms 无回包按全尺寸几何兜底强制显示（防渲染层失联）；
- * 隐藏清挂起回包，迟到的 resize 不复活气泡（隐藏窗 setBounds 在 Windows 会将窗口显示——§9.9）。
+ * payload 发出 300ms 无回包按全尺寸几何兜底强制显示（防渲染层失联；真机回包 p99=82ms）。
+ * 隐藏语义 C3 定稿：hide→setOpacity(0)（透明但保持可见）——Chromium 隐藏窗挂起 GPU 表面、
+ * 再显示时表面重建有空帧窗口期=同一行也闪现（用户真机实锤，与内容新旧无关）；
+ * 透明常驻=表面永不销毁，显示即透明度 0→1，无空帧。
  * 另：Windows 上 resizable=false 时收缩不生效——收缩前临时解除（同 index.ts resizeSelf 先例）。 */
 
 interface MockWin {
   visible: boolean
+  opacity: number
   setIgnoreMouseEvents: ReturnType<typeof vi.fn>
   setAlwaysOnTop: ReturnType<typeof vi.fn>
   setBounds: ReturnType<typeof vi.fn>
@@ -16,6 +19,7 @@ interface MockWin {
   isResizable: ReturnType<typeof vi.fn>
   showInactive: ReturnType<typeof vi.fn>
   hide: ReturnType<typeof vi.fn>
+  setOpacity: ReturnType<typeof vi.fn>
   isDestroyed: ReturnType<typeof vi.fn>
   isVisible: ReturnType<typeof vi.fn>
   loadFile: ReturnType<typeof vi.fn>
@@ -31,6 +35,7 @@ vi.mock('electron', () => {
   }
   class MockBrowserWindow {
     visible = false
+    opacity = 1
     webContents = new MockWebContents()
     setIgnoreMouseEvents = vi.fn()
     setAlwaysOnTop = vi.fn()
@@ -42,6 +47,9 @@ vi.mock('electron', () => {
     })
     hide = vi.fn(() => {
       ;(this as unknown as MockWin).visible = false
+    })
+    setOpacity = vi.fn(function (this: MockWin, v: number) {
+      this.opacity = v
     })
     isDestroyed = vi.fn(() => false)
     isVisible = vi.fn(function (this: MockWin) {
@@ -96,7 +104,7 @@ afterEach(() => {
 })
 
 describe('气泡显示门控（量完贴合再显示）', () => {
-  it('showBubble 不立即显示；量得内容尺寸回包后贴合落位并显示', () => {
+  it('showBubble 不立即显示；量得内容尺寸回包后贴合落位并显示（透明度恢复 1）', () => {
     const win = requestShow()
     expect(win.showInactive).not.toHaveBeenCalled() // 全尺寸闪现根因：不再立即显示
     expect(win.webContents.send).toHaveBeenCalledWith('bubble:payload', {
@@ -108,6 +116,7 @@ describe('气泡显示门控（量完贴合再显示）', () => {
     api.resizeBubble({ w: 245, h: 52 })
     expect(win.showInactive).toHaveBeenCalledTimes(1)
     expect(win.setBounds).toHaveBeenLastCalledWith({ x: 251, y: 412, width: 245, height: 52 })
+    expect(win.setOpacity).toHaveBeenCalledWith(1)
   })
 
   it('收缩前临时解除 resizable（Windows：resizable=false 时收缩不生效），完成后恢复', () => {
@@ -146,15 +155,17 @@ describe('气泡显示门控（量完贴合再显示）', () => {
     expect(win.setBounds).toHaveBeenLastCalledWith({ x: 251, y: 412, width: 245, height: 52 })
   })
 
-  it('隐藏清挂起：移开后迟到的 resize 回包不复活气泡、不动隐藏窗几何', () => {
+  it('隐藏=透明不隐藏窗口（表面常驻防重建闪现）：setOpacity(0)、不调 hide；迟到回包不动几何', () => {
     const win = requestShow()
     api.hideBubble()
-    expect(win.hide).toHaveBeenCalledTimes(1)
+    expect(win.setOpacity).toHaveBeenCalledWith(0)
+    expect(win.hide).not.toHaveBeenCalled()
+    expect(win.isVisible()).toBe(true) // 物理保持可见——Chromium 持续产帧
     win.setBounds.mockClear()
     api.resizeBubble({ w: 245, h: 52 })
     vi.advanceTimersByTime(1000)
     expect(win.showInactive).not.toHaveBeenCalled()
-    expect(win.setBounds).not.toHaveBeenCalled() // 隐藏窗 setBounds 会将其显示（§9.9）——必须整个跳过
+    expect(win.setBounds).not.toHaveBeenCalled() // 透明期迟到回包整个跳过
   })
 
   it('冷启动：页面未加载完不显示也不武装兜底；did-finish-load 重发后才走量完显示', () => {
