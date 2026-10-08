@@ -141,6 +141,57 @@ test('悬空会话清除：缩进+隐藏中会话挂起 → 再次显示不被�
   expect(st.w).toBeGreaterThan(200)
 })
 
+test('每次显示都重置 3 秒弹出：缩进→隐藏→显示（已展开态）→ 保持 3 秒后缩回（用户 2026-10-07 语义）', async () => {
+  const mainBounds = async (): Promise<W> => {
+    const b = await winByPanel('main')
+    expect(b).toBeTruthy()
+    return b as W
+  }
+  const setVis = (v: boolean): Promise<void> =>
+    h.main.evaluate(
+      (val) =>
+        (window as unknown as { desktopTodo: { setVisibility(val: boolean): Promise<void> } }).desktopTodo.setVisibility(val),
+      v
+    )
+
+  // ① 缩进（白条）
+  await setTucked(true)
+  await expect
+    .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 })
+    .toBeLessThanOrEqual(1)
+
+  // ② 隐藏 → ③ 显示#1（弹出+会话）→ ④ 会话期内隐藏（用户路径：弹出不足 3s 又隐藏）
+  await setVis(false)
+  await setVis(true)
+  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
+  await setVis(false)
+  await h.main.waitForTimeout(4000) // 会话早已过期/被清（隐藏即清除）
+
+  // ⑤ 显示#2：此时刻应用处于顶部吸附位+已展开态——应重新获得 3 秒弹出保持
+  await setVis(true)
+  await h.main.waitForTimeout(800)
+  const holdA = await mainBounds()
+  expect(holdA.w).toBeGreaterThan(200) // 显示后保持展开（当前实现：~0.4s 内被自动缩回=红）
+
+  // ⑥ 会话中段（~2s）仍应保持展开
+  await h.main.waitForTimeout(1200)
+  const holdB = await mainBounds()
+  expect(holdB.w).toBeGreaterThan(200)
+
+  // ⑦ 3 秒到 → 光标不在组件上（fake 光标注入到屏幕左下）→ 自动缩回白条
+  await h.main.evaluate(() =>
+    (window as unknown as { desktopTodoTest?: { setFakeCursor(p: { x: number; y: number } | null): Promise<void> } })
+      .desktopTodoTest!.setFakeCursor({ x: 30, y: 700 })
+  )
+  await expect
+    .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 6_500 })
+    .toBeLessThanOrEqual(1)
+  await h.main.evaluate(() =>
+    (window as unknown as { desktopTodoTest?: { setFakeCursor(p: { x: number; y: number } | null): Promise<void> } })
+      .desktopTodoTest!.setFakeCursor(null)
+  )
+})
+
 test('展开态托盘最小化→显示：三窗原位恢复（placeAll 修跨 DPI 尺寸残留）', async () => {
   const before = await winByPanel('main')
   expect(before?.vis).toBe(true)

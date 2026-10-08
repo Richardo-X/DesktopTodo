@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -16,10 +16,12 @@ const ui = useUiStore()
 const item = computed(() => store.todos.find((t) => t.id === props.itemId))
 const draft = ref('')
 
+const inputEl = ref<HTMLTextAreaElement | null>(null)
 let disposeSolidCaret: (() => void) | null = null
-onMounted(() => {
-  const el = document.querySelector<HTMLTextAreaElement>(`[data-testid="edit-input"]`)
-  if (el) disposeSolidCaret = attachSolidCaret(el)
+// 文本框异步渲染（item 加载后）——watch 模板 ref 在其出现时接线（onMounted 时元素尚不存在）
+watch(inputEl, (el) => {
+  if (disposeSolidCaret) disposeSolidCaret()
+  disposeSolidCaret = el ? attachSolidCaret(el) : null
 })
 onUnmounted(() => {
   if (disposeSolidCaret) disposeSolidCaret()
@@ -141,6 +143,7 @@ async function onBack(): Promise<void> {
       </div>
 
       <textarea
+        ref="inputEl"
         v-model="draft"
         class="input"
         data-testid="edit-input"

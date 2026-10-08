@@ -487,6 +487,13 @@ export function showCluster(): void {
     applyClusterBounds(true)
     // 未置顶=挂件态：showInactive 显示不激活（show 会激活浮到最前）
     if (safe(main)) (cluster.topMost ? main.show() : main.showInactive())
+    // 用户 2026-10-07 裁定：顶部吸附位的展开态显示，**每次都**重新获得 3 秒弹出保持
+    // （强制 inside=true 压住"光标离开→吸附缩进"的立即缩回——修复二次显示闪退），
+    // 到期按真实光标位置收尾：光标不在组件上 → 缩回白条
+    if (cluster.snapped) {
+      autoExpandUntil = Date.now() + AUTO_EXPAND_MS
+      sendToMain(IPC.cursorInside, true)
+    }
     if (safe(quick)) {
       if (cluster.quickVisible) showSidePanel('quick')
       else quick.hide()
