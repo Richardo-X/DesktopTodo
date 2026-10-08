@@ -41,7 +41,7 @@ test('开关面板：待办窗自身纹丝不动，侧窗整窗显隐', async ()
           const w = BrowserWindow.getAllWindows().find(
             (win) => !win.isDestroyed() && win.webContents.getURL().includes('panel=done')
           )
-          return w ? w.isVisible() : false
+          return w ? w.isVisible() && w.getOpacity() > 0 : false
         }),
       { timeout: 5_000 }
     )
@@ -62,7 +62,7 @@ test('开关面板：待办窗自身纹丝不动，侧窗整窗显隐', async ()
           const w = BrowserWindow.getAllWindows().find(
             (win) => !win.isDestroyed() && win.webContents.getURL().includes('panel=done')
           )
-          return w ? w.isVisible() : false
+          return w ? w.isVisible() && w.getOpacity() > 0 : false
         }),
       { timeout: 5_000 }
     )
@@ -70,6 +70,36 @@ test('开关面板：待办窗自身纹丝不动，侧窗整窗显隐', async ()
   const afterShow = await mainBounds(h)
   expect(afterShow.x).toBe(before.x)
   expect(afterShow.y).toBe(before.y)
+  await h.close()
+})
+
+test('已完成窗透明常驻（C4 批次1）：隐藏=透明待机（物理常驻防表面重建闪动），显示=拧亮', async () => {
+  const h = await launchApp()
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+  await waitMainVisible(h)
+
+  const doneState = (): Promise<{ vis: boolean; opacity: number } | null> =>
+    h.app.evaluate(({ BrowserWindow }) => {
+      const w = BrowserWindow.getAllWindows().find(
+        (win) => !win.isDestroyed() && win.webContents.getURL().includes('panel=done')
+      )
+      return w ? { vis: w.isVisible(), opacity: w.getOpacity() } : null
+    })
+
+  // 初始：物理可见、不透明
+  expect(await doneState()).toEqual({ vis: true, opacity: 1 })
+
+  // 隐藏=透明待机：物理仍可见（GPU 表面常驻，显示时无重建空档=闪动根除），透明度 0
+  await h.main.click('[data-testid="op-done-toggle"]')
+  await expect
+    .poll(doneState, { timeout: 5_000 })
+    .toEqual({ vis: true, opacity: 0 })
+
+  // 显示=拧亮：透明度回 1（表面现成，首帧即完整内容）
+  await h.main.click('[data-testid="op-done-toggle"]')
+  await expect
+    .poll(doneState, { timeout: 5_000 })
+    .toEqual({ vis: true, opacity: 1 })
   await h.close()
 })
 
