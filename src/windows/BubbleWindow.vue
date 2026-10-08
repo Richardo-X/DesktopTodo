@@ -29,11 +29,17 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 照原型 #gbubble 规格；窗口即气泡容器（主进程按内容尺寸 setBounds） */
+/* 照原型 #gbubble 规格；窗口即气泡容器（主进程按内容尺寸 setBounds）。
+ * fit-content 让 offsetWidth/Height=内容真实尺寸（原 100% 恒量得窗口尺寸，收缩从未生效）；
+ * min/max 与主进程 resizeBubble 钳制同限——盒恒恰好填满窗口；max-width=原型 BUBBLE_MAX_W 300 */
 .gbubble {
   box-sizing: border-box;
-  width: 100%;
-  height: 100%;
+  width: fit-content;
+  min-width: 80px;
+  max-width: 300px;
+  height: auto;
+  min-height: 30px;
+  max-height: 160px;
   padding: 9px 12px;
   border-radius: 8px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);

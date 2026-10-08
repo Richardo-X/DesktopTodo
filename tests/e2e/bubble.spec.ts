@@ -17,12 +17,12 @@ async function waitMainVisible(app: ElectronApplication): Promise<void> {
     .toBe(true)
 }
 
-async function bubbleBounds(app: ElectronApplication): Promise<{ x: number; y: number; width: number; visible: boolean } | null> {
+async function bubbleBounds(app: ElectronApplication): Promise<{ x: number; y: number; width: number; height: number; visible: boolean } | null> {
   return app.evaluate(({ BrowserWindow }) => {
     const w = BrowserWindow.getAllWindows().find((win) => win.webContents.getURL().includes('win=bubble'))
     if (!w) return null
     const r = w.getBounds()
-    return { x: r.x, y: r.y, width: r.width, visible: w.isVisible() }
+    return { x: r.x, y: r.y, width: r.width, height: r.height, visible: w.isVisible() }
   })
 }
 
@@ -70,6 +70,12 @@ test('8.2-4：气泡独立窗——待办行左弹、快捷行碰左缘翻右弹
   )
   const bb1 = (await bubbleBounds(h.app))!
   expect(bb1.x + bb1.width).toBeLessThanOrEqual(mainX0 + todoRowLeft + 2) // 左弹：不越行左缘
+  // 闪现修复验收：可见时即已是贴合尺寸（量完才显示）——LONG 90 字折行 → 宽≈内容上限 300（非整数缩放屏
+  // setBounds 回读有 ±几 px 取整斜差，断言用容忍带；核心=宽<320 证明确实收缩，高<160 证明垂直贴合）
+  expect(bb1.width).toBeGreaterThan(250)
+  expect(bb1.width).toBeLessThan(320)
+  expect(bb1.height).toBeGreaterThanOrEqual(30)
+  expect(bb1.height).toBeLessThan(160)
 
   // 移开 → 气泡窗隐藏
   await h.main.locator('[data-testid="clock-time"]').hover()
@@ -90,6 +96,9 @@ test('8.2-4：气泡独立窗——待办行左弹、快捷行碰左缘翻右弹
   )
   const bb2 = (await bubbleBounds(h.app))!
   expect(bb2.x).toBeGreaterThanOrEqual(mainX1 + tplRowRight - 2) // 翻右：起于行右缘
+  expect(bb2.width).toBeGreaterThan(250) // 贴合尺寸（右弹同理，容忍带同上）
+  expect(bb2.width).toBeLessThan(320)
+  expect(bb2.height).toBeLessThan(160)
   const page2 = (await bubblePage(h.app))!
   expect((await page2.locator('[data-testid="content-bubble"]').textContent())?.trim()).toBe(LONG)
 
