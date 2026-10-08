@@ -141,7 +141,7 @@ test('悬空会话清除：缩进+隐藏中会话挂起 → 再次显示不被�
   expect(st.w).toBeGreaterThan(200)
 })
 
-test('每次显示都重置 3 秒弹出：缩进→隐藏→显示（已展开态）→ 保持 3 秒后缩回（用户 2026-10-07 语义）', async () => {
+test('每次显示都重置 3 秒弹出：吸附位缩进→隐藏→显示（已展开态）→ 保持 3 秒后缩回（用户 2026-10-07 语义）', async () => {
   const mainBounds = async (): Promise<W> => {
     const b = await winByPanel('main')
     expect(b).toBeTruthy()
@@ -153,14 +153,34 @@ test('每次显示都重置 3 秒弹出：缩进→隐藏→显示（已展开�
         (window as unknown as { desktopTodo: { setVisibility(val: boolean): Promise<void> } }).desktopTodo.setVisibility(val),
       v
     )
+  const setFakeCursor = (p: { x: number; y: number } | null): Promise<void> =>
+    h.main.evaluate(
+      (pt) =>
+        (window as unknown as { desktopTodoTest?: { setFakeCursor(pt: { x: number; y: number } | null): Promise<void> } })
+          .desktopTodoTest!.setFakeCursor(pt),
+      p
+    )
 
-  // ① 缩进（白条）
+  // ① 拖到工作区顶缘（真实吸附：delta 钩子内联 detectSnap，同真实拖动轮询判定；
+  //    会话武装条件=snapped，未吸附的展开态显示不武装——测试须先构造吸附态）
+  const wa = await h.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea)
+  const mb0 = await mainBounds()
+  await setFakeCursor({ x: mb0.x + mb0.w / 2, y: mb0.y + 40 }) // 光标在组件内：吸附不触发渲染层自动缩进
+  await h.main.evaluate(
+    (dy) =>
+      (window as unknown as { desktopTodoTest?: { clusterDragDelta(dx: number, dy: number): Promise<void> } })
+        .desktopTodoTest!.clusterDragDelta(0, dy),
+    wa.y - mb0.y
+  )
+  await h.main.waitForTimeout(400)
+
+  // ② 缩进（白条）
   await setTucked(true)
   await expect
     .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 })
     .toBeLessThanOrEqual(1)
 
-  // ② 隐藏 → ③ 显示#1（弹出+会话）→ ④ 会话期内隐藏（用户路径：弹出不足 3s 又隐藏）
+  // ③ 隐藏 → ④ 显示#1（弹出+会话）→ 会话期内隐藏（用户路径：弹出不足 3s 又隐藏）
   await setVis(false)
   await setVis(true)
   await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
@@ -171,7 +191,7 @@ test('每次显示都重置 3 秒弹出：缩进→隐藏→显示（已展开�
   await setVis(true)
   await h.main.waitForTimeout(800)
   const holdA = await mainBounds()
-  expect(holdA.w).toBeGreaterThan(200) // 显示后保持展开（当前实现：~0.4s 内被自动缩回=红）
+  expect(holdA.w).toBeGreaterThan(200)
 
   // ⑥ 会话中段（~2s）仍应保持展开
   await h.main.waitForTimeout(1200)
@@ -179,17 +199,11 @@ test('每次显示都重置 3 秒弹出：缩进→隐藏→显示（已展开�
   expect(holdB.w).toBeGreaterThan(200)
 
   // ⑦ 3 秒到 → 光标不在组件上（fake 光标注入到屏幕左下）→ 自动缩回白条
-  await h.main.evaluate(() =>
-    (window as unknown as { desktopTodoTest?: { setFakeCursor(p: { x: number; y: number } | null): Promise<void> } })
-      .desktopTodoTest!.setFakeCursor({ x: 30, y: 700 })
-  )
+  await setFakeCursor({ x: 30, y: 700 })
   await expect
     .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 6_500 })
     .toBeLessThanOrEqual(1)
-  await h.main.evaluate(() =>
-    (window as unknown as { desktopTodoTest?: { setFakeCursor(p: { x: number; y: number } | null): Promise<void> } })
-      .desktopTodoTest!.setFakeCursor(null)
-  )
+  await setFakeCursor(null)
 })
 
 test('二级窗开着：隐藏→显示 → 保持弹出不缩回、取消计时（用户 2026-10-08 裁定）', async () => {
@@ -199,13 +213,22 @@ test('二级窗开着：隐藏→显示 → 保持弹出不缩回、取消计时
     return b as W
   }
 
-  // ① 拖到屏幕顶缘（吸附态：边缘可缩进位置）
+  // ① 拖到工作区顶缘（真实吸附：delta 钩子内联 detectSnap；正确签名=双数字参数——
+  //    原对象单参调用把 payload 当 dx 传入 → NaN 锚点 → 三窗被 Windows 钳塌 4×38@(0,0)）
+  const wa = await h.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea)
   const mb0 = await mainBounds()
   await h.main.evaluate(
+    (pt) =>
+      (window as unknown as { desktopTodoTest?: { setFakeCursor(pt: { x: number; y: number } | null): Promise<void> } })
+        .desktopTodoTest!.setFakeCursor(pt),
+    { x: mb0.x + mb0.w / 2, y: mb0.y + 40 } // 光标在组件内：吸附不触发渲染层自动缩进
+  )
+  await h.main.evaluate(
     (dy) =>
-      (window as unknown as { desktopTodoTest?: { clusterDragDelta(p: { dx: number; dy: number }): Promise<void> } })
-        .desktopTodoTest!.clusterDragDelta({ dx: 0, dy })
-  , -(mb0.y - 48))
+      (window as unknown as { desktopTodoTest?: { clusterDragDelta(dx: number, dy: number): Promise<void> } })
+        .desktopTodoTest!.clusterDragDelta(0, dy),
+    wa.y - mb0.y
+  )
   await h.main.waitForTimeout(400)
 
   // ② 打开设置二级窗
@@ -234,22 +257,8 @@ test('二级窗开着：隐藏→显示 → 保持弹出不缩回、取消计时
 
   // ⑤ 裁定：二级窗开着 → 保持弹出 + 取消计时（3.5s 后不得被 3 秒会话缩回）
   await h.main.waitForTimeout(3500)
-  // TEMP-DUMP: 全窗几何 + 簇跟踪状态
-  const dump = await h.app.evaluate(({ BrowserWindow }) => {
-    const wins = BrowserWindow.getAllWindows().map((w) => {
-      if (w.isDestroyed()) return { url: 'destroyed' }
-      const b = w.getBounds()
-      return { url: w.webContents.getURL().slice(-40), x: b.x, y: b.y, w: b.width, h: b.height, vis: w.isVisible(), mini: w.isMinimized() }
-    })
-    return wins
-  })
-  console.log('WINDUMP:', JSON.stringify(dump))
-  const cs = await h.main.evaluate(() =>
-    (window as unknown as { desktopTodoTest?: { clusterState(): Promise<Record<string, unknown>> } }).desktopTodoTest!.clusterState()
-  )
-  console.log('CLUSTERSTATE:', JSON.stringify(cs))
   const st = await mainBounds()
-  expect(st.w).toBeGreaterThan(200) // 二级窗开着：保持弹出（当前实现：3s 会话到期缩回=红）
+  expect(st.w).toBeGreaterThan(200)
   expect(await h.app.windows().filter((w) => w.url().includes('win=settings')).length).toBe(1)
 
   // ⑥ 关闭二级窗 → 应用保持展开（缩进禁止仅二级窗开着时生效）
