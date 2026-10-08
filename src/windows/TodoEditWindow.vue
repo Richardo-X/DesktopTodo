@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { getApi } from '../services/api'
-import { attachSolidCaret } from '../components/solid-caret'
 import { fmtLocalDateTime } from '../core/utils/date'
 import { MAX_CONTENT_LENGTH } from '../core/models/factories'
 
@@ -16,16 +15,6 @@ const ui = useUiStore()
 const item = computed(() => store.todos.find((t) => t.id === props.itemId))
 const draft = ref('')
 
-const inputEl = ref<HTMLTextAreaElement | null>(null)
-let disposeSolidCaret: (() => void) | null = null
-// 文本框异步渲染（item 加载后）——watch 模板 ref 在其出现时接线（onMounted 时元素尚不存在）
-watch(inputEl, (el) => {
-  if (disposeSolidCaret) disposeSolidCaret()
-  disposeSolidCaret = el ? attachSolidCaret(el) : null
-})
-onUnmounted(() => {
-  if (disposeSolidCaret) disposeSolidCaret()
-})
 
 // TEMP 文本光标诊断（用户 2026-10-06 报告：插入点恒在末尾；发版前移除）
 function diag(tag: string, e: Event): void {
@@ -143,7 +132,6 @@ async function onBack(): Promise<void> {
       </div>
 
       <textarea
-        ref="inputEl"
         v-model="draft"
         class="input"
         data-testid="edit-input"
