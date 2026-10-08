@@ -103,6 +103,33 @@ test('已完成窗透明常驻（C4 批次1）：隐藏=透明待机（物理常
   await h.close()
 })
 
+test('快捷添加窗透明常驻（C4 批次2）：隐藏=透明待机，显示=拧亮', async () => {
+  const h = await launchApp()
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+  await waitMainVisible(h)
+
+  const quickState = (): Promise<{ vis: boolean; opacity: number } | null> =>
+    h.app.evaluate(({ BrowserWindow }) => {
+      const w = BrowserWindow.getAllWindows().find(
+        (win) => !win.isDestroyed() && win.webContents.getURL().includes('panel=quick')
+      )
+      return w ? { vis: w.isVisible(), opacity: w.getOpacity() } : null
+    })
+
+  expect(await quickState()).toEqual({ vis: true, opacity: 1 })
+
+  await h.main.click('[data-testid="op-quick-toggle"]')
+  await expect
+    .poll(quickState, { timeout: 5_000 })
+    .toEqual({ vis: true, opacity: 0 })
+
+  await h.main.click('[data-testid="op-quick-toggle"]')
+  await expect
+    .poll(quickState, { timeout: 5_000 })
+    .toEqual({ vis: true, opacity: 1 })
+  await h.close()
+})
+
 test('重启恢复：pos 语义=待办左上角锚点（待办窗口屏幕位置=存档值）', async () => {
   // 两阶段、屏幕无关：先启动读取实际锚点（屏幕坐标），关闭后把它作为存档值写回 data.json，
   // 重启断言待办窗口原位恢复——硬编码种子锚点在窄屏上会越界被正确的钳制改写，不可用作存档
