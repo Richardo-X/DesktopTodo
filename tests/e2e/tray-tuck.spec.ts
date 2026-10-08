@@ -192,6 +192,83 @@ test('每次显示都重置 3 秒弹出：缩进→隐藏→显示（已展开�
   )
 })
 
+test('二级窗开着：隐藏→显示 → 保持弹出不缩回、取消计时（用户 2026-10-08 裁定）', async () => {
+  const mainBounds = async (): Promise<W> => {
+    const b = await winByPanel('main')
+    expect(b).toBeTruthy()
+    return b as W
+  }
+
+  // ① 拖到屏幕顶缘（吸附态：边缘可缩进位置）
+  const mb0 = await mainBounds()
+  await h.main.evaluate(
+    (dy) =>
+      (window as unknown as { desktopTodoTest?: { clusterDragDelta(p: { dx: number; dy: number }): Promise<void> } })
+        .desktopTodoTest!.clusterDragDelta({ dx: 0, dy })
+  , -(mb0.y - 48))
+  await h.main.waitForTimeout(400)
+
+  // ② 打开设置二级窗
+  await h.main.click('[data-testid="tb-settings"]')
+  await expect
+    .poll(
+      async () => h.app.windows().filter((w) => w.url().includes('win=settings')).length,
+      { timeout: 10_000 }
+    )
+    .toBe(1)
+
+  // ③ fake 光标注入屏幕左下（确定性：模拟双击托盘后光标停在托盘上）
+  await h.main.evaluate(() =>
+    (window as unknown as { desktopTodoTest?: { setFakeCursor(p: { x: number; y: number } | null): Promise<void> } })
+      .desktopTodoTest!.setFakeCursor({ x: 30, y: 700 })
+  )
+
+  // ④ 双击隐藏 → 双击显示
+  await h.main.evaluate(() =>
+    (window as unknown as { desktopTodo: { setVisibility(v: boolean): Promise<void> } }).desktopTodo.setVisibility(false)
+  )
+  await h.main.waitForTimeout(400)
+  await h.main.evaluate(() =>
+    (window as unknown as { desktopTodo: { setVisibility(v: boolean): Promise<void> } }).desktopTodo.setVisibility(true)
+  )
+
+  // ⑤ 裁定：二级窗开着 → 保持弹出 + 取消计时（3.5s 后不得被 3 秒会话缩回）
+  await h.main.waitForTimeout(3500)
+  // TEMP-DUMP: 全窗几何 + 簇跟踪状态
+  const dump = await h.app.evaluate(({ BrowserWindow }) => {
+    const wins = BrowserWindow.getAllWindows().map((w) => {
+      if (w.isDestroyed()) return { url: 'destroyed' }
+      const b = w.getBounds()
+      return { url: w.webContents.getURL().slice(-40), x: b.x, y: b.y, w: b.width, h: b.height, vis: w.isVisible(), mini: w.isMinimized() }
+    })
+    return wins
+  })
+  console.log('WINDUMP:', JSON.stringify(dump))
+  const cs = await h.main.evaluate(() =>
+    (window as unknown as { desktopTodoTest?: { clusterState(): Promise<Record<string, unknown>> } }).desktopTodoTest!.clusterState()
+  )
+  console.log('CLUSTERSTATE:', JSON.stringify(cs))
+  const st = await mainBounds()
+  expect(st.w).toBeGreaterThan(200) // 二级窗开着：保持弹出（当前实现：3s 会话到期缩回=红）
+  expect(await h.app.windows().filter((w) => w.url().includes('win=settings')).length).toBe(1)
+
+  // ⑥ 关闭二级窗 → 应用保持展开（缩进禁止仅二级窗开着时生效）
+  const child = h.app.windows().find((w) => w.url().includes('win=settings'))!
+  await child
+    .evaluate(() =>
+      (window as unknown as { desktopTodo: { closeSelf(): Promise<void> } }).desktopTodo.closeSelf()
+    )
+    .catch(() => {})
+  await expect
+    .poll(
+      async () => h.app.windows().filter((w) => w.url().includes('win=settings')).length,
+      { timeout: 5_000 }
+    )
+    .toBe(0)
+  await h.main.waitForTimeout(500)
+  expect((await mainBounds()).w).toBeGreaterThan(200)
+})
+
 test('展开态托盘最小化→显示：三窗原位恢复（placeAll 修跨 DPI 尺寸残留）', async () => {
   const before = await winByPanel('main')
   expect(before?.vis).toBe(true)

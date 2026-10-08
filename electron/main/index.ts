@@ -15,6 +15,7 @@ import { setAutoStart, syncAutoStartOnBoot } from './auto-start'
 import { clampPosToWorkArea } from '../../src/core/utils/screen-clamp'
 import { shouldWakeModalFocus } from '../../src/core/utils/modal-wake'
 import { isLeftButtonPressed } from './win32'
+import { setModalChildOpen } from './cluster-windows'
 import { showBubble, hideBubble, resizeBubble } from './bubble'
 import { localDateKey } from '../../src/core/utils/date'
 import { IPC, type ChildKind } from '../../src/ipc/contract'
@@ -310,6 +311,7 @@ function openChildWindow(kind: ChildKind, id?: string): void {
   })
   childWindows.add(child)
   lockNonChildWindows(true)
+  setModalChildOpen(true) // 二级窗开着：缩进禁止+保持弹出+取消 3 秒弹出会话（用户 2026-10-08 裁定）
   refreshModalWakePoll()
 
   // 用户验收#5：打开二级窗=组件聚焦该窗并禁用缩进——若已缩进立即弹出；
@@ -341,6 +343,7 @@ function openChildWindow(kind: ChildKind, id?: string): void {
     broadcastVeilOff()
     childWindows.delete(child)
     if (childWindows.size === 0) lockNonChildWindows(false)
+    setModalChildOpen(false)
     refreshModalWakePoll()
     broadcastChildCount()
     getMainWindow()?.webContents.send(IPC.childClosed)

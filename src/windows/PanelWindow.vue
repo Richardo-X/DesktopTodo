@@ -104,17 +104,10 @@ function onWindowBlur(): void {
 }
 
 watch(tucked, async (v) => {
-  // 缩回时序实验（用户 2026-10-07）：缩回先画白条视图再收缩窗口（消除展开矩形
-  // 空白块中间帧）；弹出维持原序（窗口先展开、DOM 后切，避免胶囊内裁剪闪烁）
-  // 缩回时序实验（用户 2026-10-07）：缩回先画白条视图再收缩窗口（消除展开矩形
-  // 空白块中间帧）；弹出维持原序（窗口先展开、DOM 后切，避免胶囊内裁剪闪烁）
-  if (v) {
-    domTucked.value = true
-    await getApi().setTucked(true).catch(() => {})
-  } else {
-    await getApi().setTucked(false).catch(() => {})
-    domTucked.value = false
-  }
+  // 时序定稿（2026-10-08 回退实验）：窗口几何先行、DOM 后切——DOM 先切的中间态
+  // （展开尺寸+白条视图）可交互滞留（真机：标题栏方块可拖动），实验判定失败
+  await getApi().setTucked(v).catch(() => {})
+  domTucked.value = v
 })
 
 onMounted(() => {

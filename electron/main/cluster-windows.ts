@@ -53,8 +53,8 @@ export function geoLog(msg: string): void {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const fs = require('node:fs') as typeof import('node:fs')
     fs.appendFileSync('C:/tmp/geo.log', new Date().toISOString().slice(11, 23) + ' ' + msg + '\n')
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.error('[geo-log-err]', err)
   }
 }
 
@@ -64,6 +64,12 @@ let quitRequested = false
  * 会话期内光标轮询强制 inside=true（状态机保持弹出），到期恢复真实判定 */
 const AUTO_EXPAND_MS = 3000
 let autoExpandUntil = 0
+/** 二级窗开着（模态锁）：缩进禁止、窗口保持弹出——3 秒弹出会话不武装（用户 2026-10-08 裁定） */
+let modalChildOpen = false
+export function setModalChildOpen(open: boolean): void {
+  modalChildOpen = open
+  if (open) autoExpandUntil = 0 // 取消计时：二级窗开着期间不自动缩回
+}
 /** E2E fake 光标（CI 虚拟鼠标不移动系统光标，GetCursorScreenPoint 不可判定） */
 let fakeCursorPoint: { x: number; y: number } | null = null
 function cursorPoint(): { x: number; y: number } {
@@ -278,6 +284,7 @@ export function applyClusterBounds(placeAll = false): void {
   if (cluster.tucked) {
     // 用户验收定稿：胶囊与待办窗口上边缘中心对齐（不算侧窗）——锚点=待办左上角
     const cap = tuckBarBounds({ x: cluster.anchor.x, y: cluster.anchor.y }, Math.round(470 * cluster.scale))
+    geoLog(`tuck-cap anchor=(${cluster.anchor.x},${cluster.anchor.y}) scale=${cluster.scale.toFixed(3)} cap=${cap.x},${cap.y} ${cap.width}x${cap.height}`)
     if (safe(cluster.windows.main)) cluster.windows.main.setBounds(cap)
     lastAppliedAnchor = { x: cluster.anchor.x, y: cluster.anchor.y }
     return
@@ -356,6 +363,7 @@ export function syncClusterBounds(ui: {
 export function setClusterTucked(v: boolean): void {
   if (!cluster) return
   cluster.tucked = v
+  geoLog(`setClusterTucked(${v})`)
   if (v) autoExpandUntil = 0 // 重新缩进同样清除挂起会话（防跨状态闪退）
   const { quick, done, main } = cluster.windows
   if (v) {
@@ -474,7 +482,7 @@ export function showCluster(): void {
     // 光标轮询强制 inside=true，到期按真实光标位置收尾：在组件上=保持展开
     // （之后光标离开经状态机自动缩回）；不在=状态机自动缩回白条
     geoLog('showCluster tucked-enter tucked=' + cluster.tucked)
-    autoExpandUntil = Date.now() + AUTO_EXPAND_MS
+    if (!modalChildOpen) autoExpandUntil = Date.now() + AUTO_EXPAND_MS
     setClusterTucked(false)
     const pendMain = pendingBounds.get(cluster.windows.main.id)
     if (pendMain) {
@@ -490,7 +498,7 @@ export function showCluster(): void {
     // 用户 2026-10-07 裁定：顶部吸附位的展开态显示，**每次都**重新获得 3 秒弹出保持
     // （强制 inside=true 压住"光标离开→吸附缩进"的立即缩回——修复二次显示闪退），
     // 到期按真实光标位置收尾：光标不在组件上 → 缩回白条
-    if (cluster.snapped) {
+    if (cluster.snapped && !modalChildOpen) {
       autoExpandUntil = Date.now() + AUTO_EXPAND_MS
       sendToMain(IPC.cursorInside, true)
     }
