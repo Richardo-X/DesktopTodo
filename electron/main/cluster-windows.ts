@@ -210,8 +210,9 @@ export function createClusterWindows(opts: {
     topMost: opts.topMost,
     visible: true
   }
-  if (!opts.quickVisible) quick.hide()
-  if (!opts.doneVisible) done.hide()
+  // 创建期尚未首显：常驻窗预设透明+穿透（与后续显隐语义一致），非常驻窗真 hide
+  if (!opts.quickVisible) hideSideWindow(quick, 'quick')
+  if (!opts.doneVisible) hideSideWindow(done, 'done')
 }
 
 function safe(w: BrowserWindow | null | undefined): w is BrowserWindow {
@@ -254,11 +255,11 @@ export function clusterTopMost(): boolean {
 /** 隐藏窗的待落位 bounds（Windows setBounds 会显示隐藏窗，故隐藏期间只登记） */
 const pendingBounds = new Map<number, WinBounds>()
 
-/** 透明常驻侧窗集合（C4 批次1 用户裁定：done 动态内容窗先行）。
+/** 透明常驻侧窗集合（C4 批次1 done 动态内容窗先行；批次2 quick 跟进——机制同源共用）。
  * hide→Chromium 挂起 GPU 表面，再显示时表面重建产生"出现→快速消失→再出现"三段闪动
  * （气泡同源问题，用户视频慢放实锤+气泡 A/B 对照验证透明常驻有效）。
  * 常驻窗隐藏=透明度 0+鼠标穿透（物理可见、表面永不销毁），显示=关穿透+拧亮。 */
-const PERSISTENT_SIDE_PANELS: ReadonlySet<ClusterPanel> = new Set(['done'])
+const PERSISTENT_SIDE_PANELS: ReadonlySet<ClusterPanel> = new Set(['done', 'quick'])
 
 /** 侧窗物理常驻？透明常驻窗 isVisible 恒 true，可见性判定一律走本函数 */
 function isPersistent(panel: ClusterPanel): boolean {
@@ -399,7 +400,7 @@ export function syncClusterBounds(ui: {
   const { quick, done } = cluster.windows
   if (safe(quick)) {
     if (ui.quickVisible && cluster.visible && !cluster.tucked) showSidePanel('quick')
-    else quick.hide()
+    else hideSideWindow(quick, 'quick')
   }
   if (safe(done)) {
     if (ui.doneVisible && cluster.visible && !cluster.tucked) showSidePanel('done')
@@ -419,7 +420,7 @@ export function setClusterTucked(v: boolean): void {
   const { quick, done, main } = cluster.windows
   if (v) {
     // 缩进：先藏侧窗，主窗收胶囊
-    if (safe(quick)) quick.hide()
+    if (safe(quick)) hideSideWindow(quick, 'quick')
     if (safe(done)) hideSideWindow(done, 'done')
     lastAppliedAnchor = null
     applyClusterBounds()
@@ -566,7 +567,7 @@ export function showCluster(): void {
     }
     if (safe(quick)) {
       if (cluster.quickVisible) showSidePanel('quick')
-      else quick.hide()
+      else hideSideWindow(quick, 'quick')
     }
     if (safe(done)) {
       if (cluster.doneVisible) showSidePanel('done')
