@@ -121,9 +121,9 @@ describe('气泡显示门控（量完贴合再显示）', () => {
     expect(settle).toBeLessThan(restore)
   })
 
-  it('100ms 兜底：渲染层失联（无 resize 回包）按全尺寸几何强制显示', () => {
+  it('300ms 兜底：渲染层失联（无 resize 回包）按全尺寸几何强制显示；299ms 内不抢先', () => {
     const win = requestShow()
-    vi.advanceTimersByTime(99)
+    vi.advanceTimersByTime(299)
     expect(win.showInactive).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1)
     expect(win.showInactive).toHaveBeenCalledTimes(1)
@@ -132,10 +132,18 @@ describe('气泡显示门控（量完贴合再显示）', () => {
 
   it('兜底显示后迟到的回包：窗口已可见 → 仍贴合尺寸、不重复显示', () => {
     const win = requestShow()
-    vi.advanceTimersByTime(100) // 兜底已显示
+    vi.advanceTimersByTime(300) // 兜底已显示
     api.resizeBubble({ w: 200, h: 60 })
     expect(win.showInactive).toHaveBeenCalledTimes(1)
     expect(win.setBounds).toHaveBeenLastCalledWith({ x: 296, y: 408, width: 200, height: 60 })
+  })
+
+  it('慢回包 82ms（真机 p99 实测）不触发兜底：回包直接贴合显示', () => {
+    const win = requestShow()
+    vi.advanceTimersByTime(82)
+    api.resizeBubble({ w: 245, h: 52 })
+    expect(win.showInactive).toHaveBeenCalledTimes(1)
+    expect(win.setBounds).toHaveBeenLastCalledWith({ x: 251, y: 412, width: 245, height: 52 })
   })
 
   it('隐藏清挂起：移开后迟到的 resize 回包不复活气泡、不动隐藏窗几何', () => {
@@ -161,7 +169,7 @@ describe('气泡显示门控（量完贴合再显示）', () => {
       theme: 'day',
       side: 'left'
     })
-    vi.advanceTimersByTime(99)
+    vi.advanceTimersByTime(299)
     expect(win.showInactive).not.toHaveBeenCalled()
     api.resizeBubble({ w: 245, h: 52 })
     expect(win.showInactive).toHaveBeenCalledTimes(1)
