@@ -47,6 +47,8 @@ function presentBubble(win: BrowserWindow, x: number, y: number, w: number, h: n
   if (!win.isVisible()) win.showInactive() // 冷启动首显（此后窗口常驻可见，仅透明度变化）
   win.setOpacity(1)
   bubbleShown = true
+  const b = win.getBounds()
+  bubbleLog(`PRESENT bounds=${b.x},${b.y},${b.width}x${b.height} opacityNow=${win.getOpacity()}`)
 }
 
 function armShowFallback(): void {
@@ -134,18 +136,20 @@ export function showBubble(
   lastGeom = { x: geom.x, y: geom.y }
   lastPlacement = { row: screenRow, side: geom.side }
   lastPayload = { text: payload.text, theme: payload.theme, side: geom.side }
-  bubbleLog(`SHOW-BUBBLE side=${geom.side} geom=${geom.x},${geom.y} textLen=${payload.text.length} loaded=${bubbleLoaded} vis=${win.isVisible()}`)
+  const cur = win.getBounds()
+  bubbleLog(`SHOW-BUBBLE side=${geom.side} target=${geom.x},${geom.y} cur=${cur.x},${cur.y},${cur.width}x${cur.height} opacity=${win.getOpacity()} textLen=${payload.text.length}`)
   win.webContents.send('bubble:payload', lastPayload) // 页面未加载完时无监听者会丢——did-finish-load 重发
   if (bubbleLoaded) armShowFallback() // 兜底只在 payload 有机会送达后武装（冷启动由 did-finish-load 武装）
   // 不立即显示：等渲染层量尺寸回包贴合（resizeBubble）或兜底——防全尺寸闪现
 }
 
 export function hideBubble(): void {
-  if (showFallbackTimer !== null) bubbleLog('HIDE cancel-fallback')
   cancelShowFallback()
   if (bubbleWin !== null && !bubbleWin.isDestroyed()) {
     bubbleWin.setOpacity(0) // 透明替代 hide：表面常驻（C3 闪现修复本体）
     bubbleShown = false
+    const b = bubbleWin.getBounds()
+    bubbleLog(`HIDE opacity=0 bounds=${b.x},${b.y},${b.width}x${b.height} opacityNow=${bubbleWin.getOpacity()}`)
   }
 }
 

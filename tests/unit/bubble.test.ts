@@ -12,14 +12,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 interface MockWin {
   visible: boolean
   opacity: number
+  bounds: { x: number; y: number; width: number; height: number }
   setIgnoreMouseEvents: ReturnType<typeof vi.fn>
   setAlwaysOnTop: ReturnType<typeof vi.fn>
   setBounds: ReturnType<typeof vi.fn>
+  getBounds: ReturnType<typeof vi.fn>
   setResizable: ReturnType<typeof vi.fn>
   isResizable: ReturnType<typeof vi.fn>
   showInactive: ReturnType<typeof vi.fn>
   hide: ReturnType<typeof vi.fn>
   setOpacity: ReturnType<typeof vi.fn>
+  getOpacity: ReturnType<typeof vi.fn>
   isDestroyed: ReturnType<typeof vi.fn>
   isVisible: ReturnType<typeof vi.fn>
   loadFile: ReturnType<typeof vi.fn>
@@ -36,10 +39,16 @@ vi.mock('electron', () => {
   class MockBrowserWindow {
     visible = false
     opacity = 1
+    bounds = { x: 176, y: 358, width: 320, height: 160 }
     webContents = new MockWebContents()
     setIgnoreMouseEvents = vi.fn()
     setAlwaysOnTop = vi.fn()
-    setBounds = vi.fn()
+    setBounds = vi.fn(function (this: MockWin, b: { x: number; y: number; width: number; height: number }) {
+      this.bounds = { ...b }
+    })
+    getBounds = vi.fn(function (this: MockWin) {
+      return { ...this.bounds }
+    })
     setResizable = vi.fn()
     isResizable = vi.fn(() => false)
     showInactive = vi.fn(() => {
@@ -50,6 +59,9 @@ vi.mock('electron', () => {
     })
     setOpacity = vi.fn(function (this: MockWin, v: number) {
       this.opacity = v
+    })
+    getOpacity = vi.fn(function (this: MockWin) {
+      return this.opacity
     })
     isDestroyed = vi.fn(() => false)
     isVisible = vi.fn(function (this: MockWin) {
