@@ -22,7 +22,8 @@ async function bubbleBounds(app: ElectronApplication): Promise<{ x: number; y: n
     const w = BrowserWindow.getAllWindows().find((win) => win.webContents.getURL().includes('win=bubble'))
     if (!w) return null
     const r = w.getBounds()
-    return { x: r.x, y: r.y, width: r.width, height: r.height, visible: w.isVisible() }
+    // C3 透明常驻：隐藏=setOpacity(0)，isVisible 恒 true——视觉可见判据=透明度>0
+    return { x: r.x, y: r.y, width: r.width, height: r.height, visible: w.isVisible() && w.getOpacity() > 0 }
   })
 }
 

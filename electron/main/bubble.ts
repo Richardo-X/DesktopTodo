@@ -27,11 +27,27 @@ function bubbleLog(msg: string): void {
 
 let bubbleWin: BrowserWindow | null = null
 let bubbleLoaded = false
+/** 逻辑显示状态：opacity 0 期间窗口物理可见（透明）——Chromium 持续产帧、表面常驻 */
+let bubbleShown = false
 let lastGeom: { x: number; y: number } | null = null
 let lastPlacement: { row: ScreenRow; side: 'left' | 'right' } | null = null
 let lastPayload: { text: string; theme: 'day' | 'night'; side: 'left' | 'right' } | null = null
 let showFallbackTimer: ReturnType<typeof setTimeout> | null = null
 let payloadSentAt = 0
+
+/** 落位+显示：setBounds（resizable 临时解除）→ 冷启动首显 showInactive → 透明度恢复 1。
+ * C3 定稿：窗口从不 hide——Chromium 隐藏窗挂起 GPU 表面、再显示时表面重建，
+ * 用户视频慢放实锤「出现→快速消失→再出现」（主进程日志零异常=纯合成层行为）；
+ * 透明常驻=表面永不销毁，显示即透明度 0→1，无空帧窗口期 */
+function presentBubble(win: BrowserWindow, x: number, y: number, w: number, h: number): void {
+  const wasResizable = win.isResizable()
+  if (!wasResizable) win.setResizable(true)
+  win.setBounds({ x, y, width: w, height: h })
+  if (!wasResizable) win.setResizable(false)
+  if (!win.isVisible()) win.showInactive() // 冷启动首显（此后窗口常驻可见，仅透明度变化）
+  win.setOpacity(1)
+  bubbleShown = true
+}
 
 function armShowFallback(): void {
   if (showFallbackTimer !== null) clearTimeout(showFallbackTimer)
@@ -41,8 +57,7 @@ function armShowFallback(): void {
     if (bubbleWin === null || bubbleWin.isDestroyed() || lastGeom === null) return
     // 渲染层失联兜底：按全尺寸几何落位后强制显示（退化路径，位置仍正确）
     bubbleLog(`FALLBACK-SHOW elapsed=${Date.now() - payloadSentAt}ms`)
-    bubbleWin.setBounds({ x: lastGeom.x, y: lastGeom.y, width: BUBBLE_W, height: BUBBLE_H })
-    if (!bubbleWin.isVisible()) bubbleWin.showInactive()
+    presentBubble(bubbleWin, lastGeom.x, lastGeom.y, BUBBLE_W, BUBBLE_H)
   }, SHOW_FALLBACK_MS)
 }
 
@@ -128,7 +143,10 @@ export function showBubble(
 export function hideBubble(): void {
   if (showFallbackTimer !== null) bubbleLog('HIDE cancel-fallback')
   cancelShowFallback()
-  if (bubbleWin !== null && !bubbleWin.isDestroyed()) bubbleWin.hide()
+  if (bubbleWin !== null && !bubbleWin.isDestroyed()) {
+    bubbleWin.setOpacity(0) // 透明替代 hide：表面常驻（C3 闪现修复本体）
+    bubbleShown = false
+  }
 }
 
 /** 气泡页量得实际内容尺寸后回调：按已定 side 重排（垂直仍对齐行中心），窗口收缩贴合内容；
@@ -136,7 +154,7 @@ export function hideBubble(): void {
 export function resizeBubble(p: { w: number; h: number }): void {
   if (bubbleWin === null || bubbleWin.isDestroyed() || lastPlacement === null) return
   const pending = showFallbackTimer !== null
-  if (!pending && !bubbleWin.isVisible()) return // 已隐藏的迟到回包：整个跳过（隐藏窗 setBounds 会将其显示）
+  if (!pending && !bubbleShown) return // 透明期迟到回包：整个跳过（setBounds 会改变隐藏中的气泡几何）
   const w = Math.min(BUBBLE_W, Math.max(80, Math.round(p.w)))
   const h = Math.min(BUBBLE_H, Math.max(30, Math.round(p.h)))
   const cy = (lastPlacement.row.top + lastPlacement.row.bottom) / 2
@@ -144,14 +162,9 @@ export function resizeBubble(p: { w: number; h: number }): void {
     lastPlacement.side === 'left' ? lastPlacement.row.left - 14 - w : lastPlacement.row.right + 14
   ) // 行坐标来自 zoom 视觉空间常为分数——取整防分数 DIP 在非整数缩放屏上放大取整斜差
   bubbleLog(`RESIZE w=${w} h=${h} pending=${pending} elapsed=${payloadSentAt ? Date.now() - payloadSentAt : -1}ms`)
-  // Windows：resizable=false 时收缩不生效——临时解除（同 index.ts resizeSelf 先例）
-  const wasResizable = bubbleWin.isResizable()
-  if (!wasResizable) bubbleWin.setResizable(true)
-  bubbleWin.setBounds({ x, y: Math.round(cy - h / 2), width: w, height: h })
-  if (!wasResizable) bubbleWin.setResizable(false)
+  presentBubble(bubbleWin, x, Math.round(cy - h / 2), w, h)
   if (pending) {
     cancelShowFallback()
-    if (!bubbleWin.isVisible()) bubbleWin.showInactive()
     bubbleLog('SHOW fitted')
   }
 }

@@ -14,9 +14,12 @@ onMounted(() => {
     theme.value = p.theme
     side.value = p.side
     void nextTick(() => {
-      // 量实际内容尺寸回传主进程，窗口收缩贴合气泡（位置按 side 重排由主进程完成）
-      const el = rootEl.value
-      if (el) void getApi().bubbleResize({ w: el.offsetWidth, h: el.offsetHeight })
+      // 常驻透明窗口 visibility=visible 持续产帧；等一帧确保新内容已渲染上屏再回包，
+      // 主进程 setBounds+透明度恢复时首帧即新内容
+      requestAnimationFrame(() => {
+        const el = rootEl.value
+        if (el) void getApi().bubbleResize({ w: el.offsetWidth, h: el.offsetHeight })
+      })
     })
   })
 })
