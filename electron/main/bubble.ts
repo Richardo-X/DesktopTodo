@@ -9,7 +9,21 @@ import { placeBubbleScreen, type ScreenRow } from '../../src/components/content-
 
 const BUBBLE_W = 320
 const BUBBLE_H = 160
-const SHOW_FALLBACK_MS = 100
+// 兜底窗口：真机实测回包 p99=82ms（bubble.log 2026-10-08）——100ms 余量不足，
+// 系统繁忙时兜底抢先以全尺寸显示、回包到达再收缩=用户所见"缩放一下/出现两次"。
+// 悬停显示延迟本身 500ms 垫底，300ms 兜底（总感知 ≤800ms）无观感代价
+const SHOW_FALLBACK_MS = 300
+
+/** TEMP 气泡诊断日志（闪现调查用，随 geoLog 一并清理） */
+function bubbleLog(msg: string): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require('node:fs') as typeof import('node:fs')
+    fs.appendFileSync('C:/tmp/bubble.log', new Date().toISOString().slice(11, 23) + ' ' + msg + '\n')
+  } catch (err) {
+    console.error('[bubble-log-err]', err)
+  }
+}
 
 let bubbleWin: BrowserWindow | null = null
 let bubbleLoaded = false
@@ -17,13 +31,16 @@ let lastGeom: { x: number; y: number } | null = null
 let lastPlacement: { row: ScreenRow; side: 'left' | 'right' } | null = null
 let lastPayload: { text: string; theme: 'day' | 'night'; side: 'left' | 'right' } | null = null
 let showFallbackTimer: ReturnType<typeof setTimeout> | null = null
+let payloadSentAt = 0
 
 function armShowFallback(): void {
   if (showFallbackTimer !== null) clearTimeout(showFallbackTimer)
+  payloadSentAt = Date.now()
   showFallbackTimer = setTimeout(() => {
     showFallbackTimer = null
     if (bubbleWin === null || bubbleWin.isDestroyed() || lastGeom === null) return
     // 渲染层失联兜底：按全尺寸几何落位后强制显示（退化路径，位置仍正确）
+    bubbleLog(`FALLBACK-SHOW elapsed=${Date.now() - payloadSentAt}ms`)
     bubbleWin.setBounds({ x: lastGeom.x, y: lastGeom.y, width: BUBBLE_W, height: BUBBLE_H })
     if (!bubbleWin.isVisible()) bubbleWin.showInactive()
   }, SHOW_FALLBACK_MS)
@@ -36,12 +53,21 @@ function cancelShowFallback(): void {
   }
 }
 
-function webPreferences(): { preload: string; contextIsolation: boolean; nodeIntegration: boolean; sandbox: boolean } {
+function webPreferences(): {
+  preload: string
+  contextIsolation: boolean
+  nodeIntegration: boolean
+  sandbox: boolean
+  backgroundThrottling: boolean
+} {
   return {
     preload: join(__dirname, '../preload/index.js'),
     contextIsolation: true,
     nodeIntegration: false,
-    sandbox: false
+    sandbox: false,
+    // 纯展示窗：禁后台节流——隐藏期渲染器全速处理 IPC，量尺寸回包稳定毫秒级
+    // （隐藏渲染器被 Chromium 节流是慢回包根源，慢回包逼近兜底窗口=全尺寸闪现风险）
+    backgroundThrottling: false
   }
 }
 
@@ -67,6 +93,7 @@ function ensureBubbleWindow(): BrowserWindow {
   // 重发点同时武装显示兜底（冷启动首显不经全尺寸、也不提前显示）
   bubbleWin.webContents.on('did-finish-load', () => {
     bubbleLoaded = true
+    bubbleLog('DID-FINISH-LOAD resend=' + (lastPayload !== null))
     if (lastPayload !== null && bubbleWin !== null && !bubbleWin.isDestroyed()) {
       bubbleWin.webContents.send('bubble:payload', lastPayload)
       armShowFallback()
@@ -92,12 +119,14 @@ export function showBubble(
   lastGeom = { x: geom.x, y: geom.y }
   lastPlacement = { row: screenRow, side: geom.side }
   lastPayload = { text: payload.text, theme: payload.theme, side: geom.side }
+  bubbleLog(`SHOW-BUBBLE side=${geom.side} geom=${geom.x},${geom.y} textLen=${payload.text.length} loaded=${bubbleLoaded} vis=${win.isVisible()}`)
   win.webContents.send('bubble:payload', lastPayload) // 页面未加载完时无监听者会丢——did-finish-load 重发
   if (bubbleLoaded) armShowFallback() // 兜底只在 payload 有机会送达后武装（冷启动由 did-finish-load 武装）
   // 不立即显示：等渲染层量尺寸回包贴合（resizeBubble）或兜底——防全尺寸闪现
 }
 
 export function hideBubble(): void {
+  if (showFallbackTimer !== null) bubbleLog('HIDE cancel-fallback')
   cancelShowFallback()
   if (bubbleWin !== null && !bubbleWin.isDestroyed()) bubbleWin.hide()
 }
@@ -114,6 +143,7 @@ export function resizeBubble(p: { w: number; h: number }): void {
   const x = Math.round(
     lastPlacement.side === 'left' ? lastPlacement.row.left - 14 - w : lastPlacement.row.right + 14
   ) // 行坐标来自 zoom 视觉空间常为分数——取整防分数 DIP 在非整数缩放屏上放大取整斜差
+  bubbleLog(`RESIZE w=${w} h=${h} pending=${pending} elapsed=${payloadSentAt ? Date.now() - payloadSentAt : -1}ms`)
   // Windows：resizable=false 时收缩不生效——临时解除（同 index.ts resizeSelf 先例）
   const wasResizable = bubbleWin.isResizable()
   if (!wasResizable) bubbleWin.setResizable(true)
@@ -122,5 +152,6 @@ export function resizeBubble(p: { w: number; h: number }): void {
   if (pending) {
     cancelShowFallback()
     if (!bubbleWin.isVisible()) bubbleWin.showInactive()
+    bubbleLog('SHOW fitted')
   }
 }
