@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
  * 另：Windows 上 resizable=false 时收缩不生效——收缩前临时解除（同 index.ts resizeSelf 先例）。 */
 
 interface MockWin {
+  visible: boolean
   setIgnoreMouseEvents: ReturnType<typeof vi.fn>
   setAlwaysOnTop: ReturnType<typeof vi.fn>
   setBounds: ReturnType<typeof vi.fn>
