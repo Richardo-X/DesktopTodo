@@ -6,7 +6,6 @@ import {
   disableDwmTransitions,
   getDwmTransitionsDisabled,
   getWindowExstyleFlags,
-  hitProbe,
   makeToolWindow,
   postWmClose,
   screenPixelAt,
@@ -634,16 +633,13 @@ export function startTuckCursorPoll(): void {
     let inside = false
     if (cluster.tucked) {
       const m = cluster.windows.main
-      // 双重判定（C6.6，用户 2026-10-09 定调"碰到白条本体才弹"）：
-      // ① 白条带判定：垂直方向收紧到白条可视带（顶部 TUCK_BAR_HEIGHT=12px）——
-      //    窗口下部 26px 透明区（OS 最小高度钳制产生）不算"碰到胶囊"（用户报告：垂直没碰到就弹出）
-      // ② 遮挡判定：hitProbe 恒返回该点最上层窗口——白条可见时命中主窗、被其他应用窗口
-      //    遮挡时命中遮挡者（两轮实验 4 次采样验证）——未置顶且白条被遮挡时划过不触发弹出
+      // 白条带判定（C6.6，用户 2026-10-09 定调"碰到白条本体才弹"）：垂直方向收紧到白条
+      // 可视带（顶部 TUCK_BAR_HEIGHT=12px）——窗口下部 26px 透明区（OS 最小高度钳制产生）
+      // 不算"碰到胶囊"（用户报告：垂直没碰到就弹出）。
+      // 遮挡判定实验结论（hitProbe）：白条贴顶为命中测试异常区（穿透/空与遮挡状态无关），
+      // 遮挡判定不可行已撤销；误触规避转交互方案（悬停延迟等，待用户决策）
       const b = m.getBounds()
-      inside =
-        safe(m) &&
-        contains({ x: b.x, y: b.y, width: b.width, height: TUCK_BAR_HEIGHT }, pt) &&
-        hitProbe(pt.x, pt.y) === m.getNativeWindowHandle().readBigUInt64LE(0).toString()
+      inside = safe(m) && contains({ x: b.x, y: b.y, width: b.width, height: TUCK_BAR_HEIGHT }, pt)
     } else {
       for (const w of [cluster.windows.quick, cluster.windows.main, cluster.windows.done]) {
         if (safe(w) && sideWindowVisible(w) && contains(w.getBounds(), pt)) {

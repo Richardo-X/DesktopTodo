@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, type AppHandle } from './helpers'
-import { hitProbe } from '../../electron/main/win32'
+
 
 /**
  * 用户真机反馈修复验证（批次 B 验收轮）：
@@ -356,24 +356,10 @@ test('C6.6 胶囊弹出判定收紧：碰白条本体才弹（带下方透明区
   await expect.poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 }).toBeLessThanOrEqual(1)
   await h.main.waitForTimeout(300)
 
-  // ③ 遮挡判定语义（环境自适应）：hitProbe 命中主窗=白条可见→划过弹出；命中他窗=被遮挡→不弹。
-  // 测试机白条位置可能被 ZCode 终端等环境窗口覆盖——两种环境都验证对应语义
+  // ③ 划过弹出（既有语义：白条带内 hover 即弹；遮挡误触的规避待交互方案）
   const capNow = await barPoint()
-  const mainHwndNow = await h.app.evaluate(({ BrowserWindow }) => {
-    const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))
-    return w!.getNativeWindowHandle().readBigUInt64LE(0).toString()
-  })
-  const hitEnv = hitProbe(capNow.x, capNow.y)
-  const barVisible = hitEnv === mainHwndNow
   await setFakeCursor(capNow)
-  await h.main.waitForTimeout(1_000)
-  if (barVisible) {
-    // 白条可见：划过弹出（既有语义）
-    expect((await mainBounds()).w).toBeGreaterThan(200)
-  } else {
-    // 白条被环境窗口遮挡：遮挡判定生效，划过不弹
-    expect((await mainBounds()).w).toBeLessThanOrEqual(162)
-  }
+  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
 
   // ③b 白条带下方透明区（y+25，窗口 38px 高的下部）：垂直方向未碰到白条本体 → 不弹出
   //（现状纯几何判定用整窗 bounds 会弹=红；修复后判定收紧到白条带 → 不弹）
