@@ -119,7 +119,8 @@ describe('T31 已完成面板', () => {
 /** T32 详情窗口（纯查看四项 + 关闭，速查 #13） */
 describe('T32 详情窗口', () => {
   it('显示内容、创建时间、完成时间、逾期标签（已逾期）+ 仅「关闭」按钮', async () => {
-    const item = { ...createTodoItem({ content: '跨天完成', now: new Date(T.getFullYear(), T.getMonth(), 10, 9), id: 'x' }), completedAt: new Date(T.getFullYear(), T.getMonth(), T.getDate(), 8).toISOString() }
+    // 相对日期（防月内日期炸弹：硬编码当月 10 日在 9 日后变为未来日期，逾期判定翻转）
+    const item = { ...createTodoItem({ content: '跨天完成', now: new Date(T.getFullYear(), T.getMonth(), T.getDate() - 2, 9), id: 'x' }), completedAt: new Date(T.getFullYear(), T.getMonth(), T.getDate() - 1, 8).toISOString() }
     const { wrapper, api } = await mountWithStore(DonePanel, { completed: [item] }, { itemId: 'x' })
     // 用 DonePanel 挂载环境直接测 DetailWindow 组件
     const detail = await mountWithStore(DetailWindow, { completed: [item] }, { itemId: 'x' })
