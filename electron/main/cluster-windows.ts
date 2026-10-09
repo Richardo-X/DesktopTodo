@@ -529,6 +529,7 @@ export function clusterDragDeltaBy(dx: number, dy: number): void {
 }
 
 /** 托盘隐藏=组件整体隐藏（决策#9）；拖动中隐藏则终止轮询。
+ * 三窗统一真隐藏（用户 2026-10-09 定调：托盘显隐全用真隐藏/重新唤醒，不做透明待机特判）；
  * Win+D 抢设标志复位：隐藏期间守卫不动作（重申真实语义） */
 export function hideCluster(): void {
   if (!cluster) return
@@ -536,8 +537,7 @@ export function hideCluster(): void {
   cluster.visible = false
   autoExpandUntil = 0 // 清除挂起的自动弹出会话：否则下次显示时过期会话立即缩回（闪退根因，2026-10-07 日志实锤）
   for (const w of getAllClusterWindows()) {
-    if (w === cluster.windows.done) hideSideWindow(w, 'done')
-    else if (safe(w)) w.hide()
+    if (safe(w)) w.hide()
   }
 }
 
