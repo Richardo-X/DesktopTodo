@@ -184,10 +184,6 @@ const childCountListeners: Array<(n: number) => void> = []
     setTucked: async (tucked: boolean) => {
       tuckedCalls.push(tucked)
     },
-    onForceTuck: (cb: () => void) => {
-      void cb
-      return () => {}
-    },
     onSnapChanged: (cb: (snapped: boolean) => void) => {
       snapListeners.add(cb)
       return () => snapListeners.delete(cb)

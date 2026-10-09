@@ -23,28 +23,17 @@ interface W {
   w: number
   h: number
   vis: boolean
-  offscreen: boolean
 }
 
 const winByPanel = (panel: string): Promise<W | null> =>
-  h.app.evaluate(({ BrowserWindow, screen }, p) => {
+  h.app.evaluate(({ BrowserWindow }, p) => {
     const w = BrowserWindow.getAllWindows().find(
       (win) => !win.isDestroyed() && win.webContents.getURL().includes(`panel=${p}`)
     )
     if (!w) return null
     const b = w.getBounds()
-    // 视觉可见判据（透明常驻/屏外悬挂兼容）：物理可见 且 透明度>0 且 在任一显示器工作区内
-          const offscreen = screen
-          .getAllDisplays()
-          .every((d) => b.y + b.height <= d.workArea.y || b.y >= d.workArea.y + d.workArea.height)
-    return {
-      x: b.x,
-      y: b.y,
-      w: b.width,
-      h: b.height,
-      vis: w.isVisible() && w.getOpacity() > 0 && !offscreen,
-      offscreen
-    }
+    // 视觉可见判据（透明常驻兼容）：物理可见 且 透明度>0——对真 hide 与透明待机两种实现语义一致
+    return { x: b.x, y: b.y, w: b.width, h: b.height, vis: w.isVisible() && w.getOpacity() > 0 }
   }, panel)
 
 const setTucked = (v: boolean): Promise<void> =>
@@ -69,9 +58,8 @@ test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活�
   await expect
     .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 })
     .toBeLessThanOrEqual(1) // OS DPI 取整容差
-  // 缩进=侧窗滑出屏外悬挂（C5）：物理常驻、完全在工作区并集外
-  await expect.poll(async () => (await winByPanel('quick'))?.offscreen, { timeout: 5_000 }).toBe(true)
-  await expect.poll(async () => (await winByPanel('done'))?.offscreen, { timeout: 5_000 }).toBe(true)
+  await expect.poll(async () => (await winByPanel('quick'))?.vis, { timeout: 5_000 }).toBe(false)
+  await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(false)
 
   // ② 托盘最小化（×按钮同路径）：全部隐藏
   await h.main.click('[data-testid="tb-minimize"]')
@@ -109,9 +97,8 @@ test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活�
     (window as unknown as { desktopTodoTest?: { setFakeCursor(p: { x: number; y: number } | null): Promise<void> } })
       .desktopTodoTest!.setFakeCursor(null)
   )
-  // 缩进=侧窗滑出屏外悬挂（C5）：物理常驻、完全在工作区并集外
-  await expect.poll(async () => (await winByPanel('quick'))?.offscreen, { timeout: 5_000 }).toBe(true)
-  await expect.poll(async () => (await winByPanel('done'))?.offscreen, { timeout: 5_000 }).toBe(true)
+  await expect.poll(async () => (await winByPanel('quick'))?.vis, { timeout: 5_000 }).toBe(false)
+  await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(false)
 
   // ⑤ 弹出回归（setTucked(false) 等价触碰短条后光标进入）：待办窗还原、侧窗按开关恢复
   await setTucked(false)

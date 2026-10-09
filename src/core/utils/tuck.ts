@@ -31,7 +31,6 @@ export type TuckEvent =
   | { type: 'mouse-leave'; now: number }
   | { type: 'mouse-enter'; now: number }
   | { type: 'lock'; on: boolean }
-  | { type: 'force-tuck' }
   | { type: 'child-open' }
   | { type: 'child-closed' }
   | { type: 'resize-start' }
@@ -92,13 +91,6 @@ export function reduceTuck(state: TuckState, event: TuckEvent, delayMs: number =
         s.tucked = false
         s.leaveAt = null
       }
-      return s
-
-    case 'force-tuck':
-      // 主动收尾（3 秒会话到期/兜底）的即时缩进：跳过 400ms 防抖（几何已同步收胶囊，
-      // 白条迟到即"标题条"分裂窗）；二级窗门由主进程收尾守卫保证，此处信任之
-      s.tucked = true
-      s.leaveAt = null
       return s
 
     case 'child-open':

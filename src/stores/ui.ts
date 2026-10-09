@@ -51,7 +51,6 @@ export const useUiStore = defineStore('ui', () => {
   /** 装配系统事件（吸附变化/子窗口关闭/指针活动记录） */
   function initSystemEvents(): void {
     getApi().onSnapChanged((snapped) => dispatchTuck({ type: snapped ? 'snap' : 'unsnap' }))
-    getApi().onForceTuck(() => dispatchTuck({ type: 'force-tuck' }))
     getApi().onChildClosed(() => dispatchTuck({ type: 'child-closed' }))
     // 三轮8.2-1：主进程窗口移动事件 → moving 抑制（修拖动中伪 leave 误缩回）
     getApi().onWindowMoving((now) => dispatchTuck({ type: 'window-move', now }))

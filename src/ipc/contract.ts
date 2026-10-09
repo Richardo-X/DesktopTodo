@@ -20,7 +20,6 @@ export const IPC = {
   resizeSelf: 'window:resize-self',
   setTucked: 'window:set-tucked',
   snapChanged: 'app:snap-state',
-  forceTuck: 'app:force-tuck',
   windowMoving: 'window:moving',
   resizeFreeze: 'window:resize-freeze',
   veil: 'window:veil',
@@ -98,8 +97,6 @@ export interface DesktopTodoApi {
   onCursorInside(cb: (inside: boolean) => void): () => void
   /** 主进程吸附状态变化（窗口移动到/离开上边缘） */
   onSnapChanged(cb: (snapped: boolean) => void): () => void
-  /** 主进程主动收尾（3 秒会话到期/兜底）：界面层跳过防抖立即缩进（防白条迟到的标题条分裂窗） */
-  onForceTuck(cb: () => void): () => void
   /** 任一子窗口关闭（缩进状态机 child-closed） */
   onChildClosed(cb: () => void): () => void
   /** 批次 A spike：三窗手写整体拖动（spike 标题栏按下=开始光标轮询，window pointerup=结束） */

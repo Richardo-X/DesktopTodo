@@ -268,7 +268,7 @@ const pendingBounds = new Map<number, WinBounds>()
  * hide→Chromium 挂起 GPU 表面，再显示时表面重建产生"出现→快速消失→再出现"三段闪动
  * （气泡同源问题，用户视频慢放实锤+气泡 A/B 对照验证透明常驻有效）。
  * 常驻窗隐藏=透明度 0+鼠标穿透（物理可见、表面永不销毁），显示=关穿透+拧亮。 */
-const PERSISTENT_SIDE_PANELS: ReadonlySet<ClusterPanel> = new Set(['done', 'quick']) // 按钮显隐=透明常驻（用户定调）；缩进路径已独立为屏外滑动，不经此集合
+const PERSISTENT_SIDE_PANELS: ReadonlySet<ClusterPanel> = new Set(['done', 'quick'])
 
 /** 侧窗物理常驻？透明常驻窗 isVisible 恒 true，可见性判定一律走本函数 */
 function isPersistent(panel: ClusterPanel): boolean {
@@ -281,8 +281,6 @@ function sideWindowVisible(w: BrowserWindow): boolean {
   return w.isVisible() && w.getOpacity() > 0
 }
 
-// ===== 缩进屏外滑动（C5，用户定调 2026-10-09：缩进不做显隐——侧窗滑出屏幕边缘=滑动即动画；
-// 表面常驻不销毁，从机制上消灭显隐弹动）=====
 /** 侧窗隐藏：常驻窗透明待机+穿透（不挡桌面），非常驻窗真 hide */
 function hideSideWindow(w: BrowserWindow, panel: ClusterPanel): void {
   if (!safe(w)) return
@@ -422,40 +420,28 @@ export function syncClusterBounds(ui: {
 }
 
 /** 缩进切换（渲染层状态机经 IPC setTucked）。
- * 弹出（v=false）：侧窗滑入回锚点几何、主窗从胶囊同帧展开——三窗单时钟同步滑动（2026-10-09 用户要求滑动对齐） */
+ * 弹出（v=false）：先落位并显示侧窗，最后主窗从胶囊展开——三窗呈现同步（用户验收#4） */
 export function setClusterTucked(v: boolean): void {
   if (!cluster) return
-  if (!cluster.visible) {
-    geoLog('setClusterTucked ignored (hidden) v=' + v) // 托盘隐藏态不接受缩进切换（防 animateTuck 的 showInactive 唤醒隐藏组件）
-    return
-  }
   cluster.tucked = v
   geoLog(`setClusterTucked(${v})`)
   if (v) autoExpandUntil = 0 // 重新缩进同样清除挂起会话（防跨状态闪退）
-  animateTuck(v)
-}
-
-/** 统一三窗缩进落位：同帧直上直下（2026-10-09 用户定调"同步直上直下不要多余的动作"——
- * 无插值动画：滑动分帧在真实快速操作下互相打断产生半透明中间态/看似消失的竞态，
- * 一步到位零中间帧零竞态）——主窗"全宽↔胶囊"、侧窗"原位↔顶缘上方屏外"，三窗同帧落位 */
-function animateTuck(tucked: boolean): void {
-  if (!cluster) return
-  const { quick, main, done } = cluster.windows
-  const b3 = threeWindowBoundsForAnchor(cluster.anchor, cluster.scale, cluster.quickVisible, cluster.doneVisible)
-  const cap = tuckBarBounds({ x: cluster.anchor.x, y: cluster.anchor.y }, Math.round(470 * cluster.scale))
-  const unionTop = Math.min(...screen.getAllDisplays().map((d) => d.workArea.y))
-
-  const place = (w: BrowserWindow | null, to: WinBounds, active: boolean): void => {
-    if (!safe(w) || !active) return
-    if (!w.isVisible()) w.showInactive() // 屏外停靠/托盘隐藏窗补显示（落位即其当前几何直切）
-    w.setIgnoreMouseEvents(false)
-    w.setOpacity(1)
-    w.setBounds(to)
+  const { quick, done, main } = cluster.windows
+  if (v) {
+    // 缩进：先藏侧窗，主窗收胶囊
+    if (safe(quick)) hideSideWindow(quick, 'quick')
+    if (safe(done)) hideSideWindow(done, 'done')
+    lastAppliedAnchor = null
+    applyClusterBounds()
+    return
   }
-  place(quick, tucked ? { x: quick.getBounds().x, y: unionTop - quick.getBounds().height - 8, width: quick.getBounds().width, height: quick.getBounds().height } : b3.quick ?? b3.main, cluster.quickVisible && cluster.visible)
-  place(main, tucked ? cap : b3.main, true)
-  place(done, tucked ? { x: done.getBounds().x, y: unionTop - done.getBounds().height - 8, width: done.getBounds().width, height: done.getBounds().height } : b3.done ?? b3.main, cluster.doneVisible && cluster.visible)
+  // 弹出：侧窗先落位显示（带完整内容），主窗最后从胶囊展开
+  if (safe(quick) && cluster.quickVisible && cluster.visible) showSidePanel('quick')
+  if (safe(done) && cluster.doneVisible && cluster.visible) showSidePanel('done')
   lastAppliedAnchor = null
+  applyClusterBounds()
+  if (safe(main) && !main.isVisible() && cluster.topMost) main.show()
+  else if (safe(main) && !main.isVisible()) main.showInactive()
 }
 
 /** 吸附检测：待办窗顶边触碰工作区顶 → 三窗贴齐；状态变化通知待办窗状态机 */
@@ -667,7 +653,6 @@ export function startTuckCursorPoll(): void {
       geoLog('session-expired over=' + over)
       if (!over) {
         sendToMain(IPC.cursorInside, false)
-        sendToMain(IPC.forceTuck) // 白条即时化：跳过渲染层 400ms 防抖（几何已同帧收胶囊，白条迟到即标题条分裂窗）
         lastInside = false
         // 负载兜底：渲染层 400ms 缩进链在高负载下可能延迟——900ms 未完成且无二级窗
         // （=渲染层门必然放行，直调不产生分裂）时主进程强制收尾，几何不卡在全宽
@@ -676,7 +661,6 @@ export function startTuckCursorPoll(): void {
           const mw = cluster.windows.main
           if (safe(mw) && mw.isVisible() && mw.getBounds().width > 200) {
             geoLog('session-expired fallback force-tuck')
-            sendToMain(IPC.forceTuck)
             setClusterTucked(true)
           }
         }, 900)
