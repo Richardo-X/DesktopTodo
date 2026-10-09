@@ -25,9 +25,6 @@ onMounted(() => {
 /** 缩放分组：单一来源 electron/main/child-windows（B3） */
 const group = computed(() => GROUP_OF[props.kind] ?? 'todo')
 const scale = computed(() => store.uiState.childScales[group.value] ?? 1)
-/** 决策#24：内容按基准尺寸渲染（不随窗口流式重排），zoom=组缩放等比缩放至真窗口（=基准×scale）——
- * 文本框/文字/间距全部跟随窗口等比缩放（用户 2026-10-09 恢复此形态，替换二轮的流式 reflow） */
-const baseSize = computed(() => CHILD_SIZES[props.kind] ?? { w: 410, h: 410 })
 
 function rendererWorkArea(): { x: number; y: number; width: number; height: number } {
   const s = window.screen as unknown as {
@@ -100,7 +97,6 @@ const page = computed(() => {
     class="child-root"
     data-testid="child-root"
     :data-theme="store.uiState.theme"
-    :style="{ width: baseSize.w + 'px', height: baseSize.h + 'px', zoom: scale }"
   >
     <component :is="page" :item-id="id" />
     <!-- 气泡纯展示不可缩放：不渲染缩放角标（用户报告气泡右下角出现角标） -->
