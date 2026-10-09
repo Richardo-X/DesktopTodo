@@ -71,6 +71,20 @@ describe('tuck 状态机', () => {
     expect(s.tucked).toBe(true)
   })
 
+  it('C5.4 主动收尾 force-tuck：跳过 400ms 防抖立即 tucked（防主窗胶囊已收而白条迟到的标题条分裂窗）', () => {
+    const s = fire([{ type: 'snap' }, { type: 'mouse-leave', now: 1000 }, { type: 'force-tuck' }])
+    expect(s.tucked).toBe(true)
+    expect(s.leaveAt).toBe(null)
+    // 二级窗打开时主进程收尾守卫已拦（不发 force-tuck）；若门失效，force-tuck 后 child-open 立即弹出恢复
+    const gated = fire([
+      { type: 'snap' },
+      { type: 'mouse-leave', now: 1000 },
+      { type: 'force-tuck' },
+      { type: 'child-open' }
+    ])
+    expect(gated.tucked).toBe(false)
+  })
+
   it('I2 tucked 后鼠标进入小条 → 弹出', () => {
     const s = fire([
       { type: 'snap' },

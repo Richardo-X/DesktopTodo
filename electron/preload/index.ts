@@ -28,6 +28,11 @@ const api = {
     ipcRenderer.on(IPC.snapChanged, listener)
     return () => ipcRenderer.removeListener(IPC.snapChanged, listener)
   },
+  onForceTuck: (cb: () => void) => {
+    const listener = (): void => cb()
+    ipcRenderer.on(IPC.forceTuck, listener)
+    return () => ipcRenderer.removeListener(IPC.forceTuck, listener)
+  },
   onWindowMoving: (cb: (now: number) => void) => {
     const listener = (_e: unknown, now: number): void => cb(now)
     ipcRenderer.on(IPC.windowMoving, listener)

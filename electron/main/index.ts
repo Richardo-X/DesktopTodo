@@ -135,7 +135,16 @@ function createTray(): void {
   tray.on('double-click', () => toggleVisibility())
 }
 
+/** 托盘显隐 1 秒去抖（§11.3 恢复，当前代码曾缺失）：双击/狂点时 Windows 连发激活事件，
+ * 无去抖则 visible 疯狂交替——隐藏/显示链（会话/缩进/滑入）被反复打断绞成"标题条"分裂态 */
+let lastToggleAt = 0
 function toggleVisibility(): void {
+  const now = Date.now()
+  if (now - lastToggleAt < 1000) {
+    geoLog('toggleVisibility debounced')
+    return
+  }
+  lastToggleAt = now
   geoLog('toggleVisibility visible=' + visible)
   if (visible) hideToTray()
   else showWindow()

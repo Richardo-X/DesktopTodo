@@ -425,6 +425,10 @@ export function syncClusterBounds(ui: {
  * 弹出（v=false）：侧窗滑入回锚点几何、主窗从胶囊同帧展开——三窗单时钟同步滑动（2026-10-09 用户要求滑动对齐） */
 export function setClusterTucked(v: boolean): void {
   if (!cluster) return
+  if (!cluster.visible) {
+    geoLog('setClusterTucked ignored (hidden) v=' + v) // 托盘隐藏态不接受缩进切换（防 animateTuck 的 showInactive 唤醒隐藏组件）
+    return
+  }
   cluster.tucked = v
   geoLog(`setClusterTucked(${v})`)
   if (v) autoExpandUntil = 0 // 重新缩进同样清除挂起会话（防跨状态闪退）
@@ -663,6 +667,7 @@ export function startTuckCursorPoll(): void {
       geoLog('session-expired over=' + over)
       if (!over) {
         sendToMain(IPC.cursorInside, false)
+        sendToMain(IPC.forceTuck) // 白条即时化：跳过渲染层 400ms 防抖（几何已同帧收胶囊，白条迟到即标题条分裂窗）
         lastInside = false
         // 负载兜底：渲染层 400ms 缩进链在高负载下可能延迟——900ms 未完成且无二级窗
         // （=渲染层门必然放行，直调不产生分裂）时主进程强制收尾，几何不卡在全宽
@@ -671,6 +676,7 @@ export function startTuckCursorPoll(): void {
           const mw = cluster.windows.main
           if (safe(mw) && mw.isVisible() && mw.getBounds().width > 200) {
             geoLog('session-expired fallback force-tuck')
+            sendToMain(IPC.forceTuck)
             setClusterTucked(true)
           }
         }, 900)
