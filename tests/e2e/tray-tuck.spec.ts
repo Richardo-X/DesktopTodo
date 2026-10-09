@@ -23,6 +23,7 @@ interface W {
   w: number
   h: number
   vis: boolean
+  offscreen: boolean
 }
 
 const winByPanel = (panel: string): Promise<W | null> =>
