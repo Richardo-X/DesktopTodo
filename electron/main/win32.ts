@@ -10,8 +10,13 @@ import koffi from 'koffi'
 
 const user32 = koffi.load('user32.dll')
 
-// 结构体声明必须先于引用它的 func 声明（否则运行时 "Unknown type name" 崩溃）
-koffi.struct('POINT', { x: 'long', y: 'long' })
+// 结构体声明必须先于引用它的 func 声明（否则运行时 "Unknown type name" 崩溃）；
+// koffi 类型注册全局唯一——模块被多次实例化（vitest resetModules 等）时跳过重复注册
+try {
+  koffi.struct('POINT', { x: 'long', y: 'long' })
+} catch {
+  /* 已注册 */
+}
 
 // Win32 BOOL 是 4 字节 int——koffi 'bool' 是 1 字节 C99 bool，混用会导致
 // IsWindowVisible 恒 false 等假象（实测教训），一律 'int32'
@@ -80,6 +85,43 @@ export function isLeftButtonPressed(): boolean {
   if (process.platform !== 'win32') return false
   try {
     return GetAsyncKeyState(VK_LBUTTON) < 0
+  } catch {
+    return false
+  }
+}
+
+// ===== DWM 窗口过渡动画禁用（2026-10-09 用户慢放实锤：托盘/缩进显隐时系统给窗口播放
+// "中心缩放+淡入淡出"过渡动画——三窗显隐弹动的共同根源，关掉即硬切） =====
+const dwmapi = koffi.load('dwmapi.dll')
+const DWMWA_TRANSITIONS_FORCEDISABLED = 3
+const DwmSetWindowAttribute = dwmapi.func(
+  'int32 __stdcall DwmSetWindowAttribute(intptr hwnd, uint32 attr, int32 *val, uint32 cb)'
+)
+
+/** 已禁用过渡动画的窗口（E2E 验证用）——DWMWA_TRANSITIONS_FORCEDISABLED 为只写属性
+ * （实测 DwmGetWindowAttribute 对其返回 0x80070009），故用 Set 返回值缓存 */
+const dwmTransitionsDisabled = new Set<string>()
+
+/** 禁用该窗口的 DWM 过渡动画（出现/消失不再播放系统缩放淡入动画，显隐为瞬间硬切）。
+ * 实测验证（2026-10-09，任务栏窗口直调）：Set 返回 0=生效；Get 对此属性恒报错不可用 */
+export function disableDwmTransitions(nativeHandle: Buffer): boolean {
+  if (process.platform !== 'win32' || nativeHandle.length < 8) return false
+  try {
+    const hwnd = nativeHandle.readBigUInt64LE(0)
+    const hr = DwmSetWindowAttribute(hwnd, DWMWA_TRANSITIONS_FORCEDISABLED, [1], 4)
+    const ok = hr === 0
+    if (ok) dwmTransitionsDisabled.add(String(hwnd))
+    return ok
+  } catch {
+    return false
+  }
+}
+
+/** 过渡动画禁用状态（E2E 断言用；读 Set 成功缓存） */
+export function getDwmTransitionsDisabled(nativeHandle: Buffer): boolean {
+  if (process.platform !== 'win32' || nativeHandle.length < 8) return false
+  try {
+    return dwmTransitionsDisabled.has(String(nativeHandle.readBigUInt64LE(0)))
   } catch {
     return false
   }

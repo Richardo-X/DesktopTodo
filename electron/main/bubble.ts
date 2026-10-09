@@ -1,4 +1,5 @@
 import { BrowserWindow } from 'electron'
+import { disableDwmTransitions } from './win32'
 import { join } from 'node:path'
 import { placeBubbleScreen, type ScreenRow } from '../../src/components/content-bubble'
 
@@ -104,6 +105,7 @@ function ensureBubbleWindow(): BrowserWindow {
     show: false,
     webPreferences: webPreferences()
   })
+  disableDwmTransitions(bubbleWin.getNativeWindowHandle()) // 关系统过渡动画（全局一致）
   bubbleWin.setIgnoreMouseEvents(true) // 纯展示：绝不拦截桌面/组件点击
   bubbleWin.setAlwaysOnTop(true, 'screen-saver', 1) // 高于置顶主窗（relativeLevel 数值）
   // 首次加载完成前 send 会丢——加载完成后重发缓存 payload（页面脚本在 load 事件前已挂好监听）；

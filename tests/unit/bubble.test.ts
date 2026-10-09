@@ -23,6 +23,7 @@ interface MockWin {
   hide: ReturnType<typeof vi.fn>
   setOpacity: ReturnType<typeof vi.fn>
   getOpacity: ReturnType<typeof vi.fn>
+  getNativeWindowHandle: ReturnType<typeof vi.fn>
   isDestroyed: ReturnType<typeof vi.fn>
   isVisible: ReturnType<typeof vi.fn>
   loadFile: ReturnType<typeof vi.fn>
@@ -30,6 +31,8 @@ interface MockWin {
 }
 
 const h = vi.hoisted(() => ({ windows: [] as MockWin[] }))
+
+vi.mock('../../electron/main/win32', () => ({ disableDwmTransitions: vi.fn(() => true) }))
 
 vi.mock('electron', () => {
   class MockWebContents {
@@ -68,6 +71,7 @@ vi.mock('electron', () => {
       return this.visible
     })
     loadFile = vi.fn(() => Promise.resolve())
+    getNativeWindowHandle = vi.fn(() => Buffer.alloc(8))
     constructor() {
       h.windows.push(this as unknown as MockWin)
     }

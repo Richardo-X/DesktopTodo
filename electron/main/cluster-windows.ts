@@ -2,7 +2,15 @@ import { app, BrowserWindow, screen, type IpcMain } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '../../src/ipc/contract'
 import { applyClusterTopMost } from './window-state'
-import { getWindowExstyleFlags, makeToolWindow, postWmClose, screenPixelAt, sysShowWindow } from './win32'
+import {
+  disableDwmTransitions,
+  getDwmTransitionsDisabled,
+  getWindowExstyleFlags,
+  makeToolWindow,
+  postWmClose,
+  screenPixelAt,
+  sysShowWindow
+} from './win32'
 import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
@@ -135,6 +143,7 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
     show: false,
     webPreferences: webPreferences()
   })
+  disableDwmTransitions(w.getNativeWindowHandle()) // 关系统"出现/消失"过渡动画（显隐弹动根因，2026-10-09 用户慢放实锤）
   w.on('ready-to-show', () => {
     // 迟到的 ready-to-show 不得复活已被隐藏的窗口（用户实测：点击隐藏后又弹回）
     if (!shouldShowPanel(panel)) return
@@ -709,6 +718,18 @@ export function registerClusterIpc(ipcMain: IpcMain): void {
     ipcMain.handle('test:set-fake-cursor', (_e, p: { x: number; y: number } | null) => {
       fakeCursorPoint = p
       return true
+    })
+    ipcMain.handle('test:dwm-transitions', () => {
+      const read = (w: BrowserWindow | null | undefined): unknown =>
+        w && safe(w)
+          ? {
+              dis: getDwmTransitionsDisabled(w.getNativeWindowHandle()),
+              handle: w.getNativeWindowHandle().readBigUInt64LE(0).toString()
+            }
+          : null
+      return cluster
+        ? { quick: read(cluster.windows.quick), main: read(cluster.windows.main), done: read(cluster.windows.done) }
+        : { quick: null, main: null, done: null }
     })
     ipcMain.handle('test:exstyle', (_e, panel: string) => {
       const w = panel === 'quick' ? cluster?.windows.quick : panel === 'done' ? cluster?.windows.done : cluster?.windows.main
