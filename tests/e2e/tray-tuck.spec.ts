@@ -309,15 +309,20 @@ test('二级窗开着：隐藏→显示 → 保持弹出不缩回、取消计时
   expect((await mainBounds()).w).toBeGreaterThan(200)
 })
 
-test('C6.4 遮挡判定回归：白条可见时划过弹出；被遮挡时划过不弹；点击始终弹出', async () => {
+test('C6.6 胶囊弹出判定收紧：碰白条本体才弹（带下方透明区不弹）+遮挡判定（命中主窗才弹）', async () => {
   const mainBounds = async (): Promise<W> => {
     const b = await winByPanel('main')
     expect(b).toBeTruthy()
     return b as W
   }
-  const capCenter = async (): Promise<{ x: number; y: number }> => {
+  // 采样点：barY=白条可视带内（顶部 12px）；belowY=白条带下方透明区（窗口 38px 的下部，不应触发）
+  const barPoint = async (): Promise<{ x: number; y: number }> => {
     const b = await mainBounds()
-    return { x: b.x + b.w / 2, y: b.y + 19 }
+    return { x: b.x + b.w / 2, y: b.y + 6 }
+  }
+  const belowPoint = async (): Promise<{ x: number; y: number }> => {
+    const b = await mainBounds()
+    return { x: b.x + b.w / 2, y: b.y + 25 }
   }
   const setFakeCursor = (p: { x: number; y: number } | null): Promise<void> =>
     h.main.evaluate(
@@ -344,7 +349,7 @@ test('C6.4 遮挡判定回归：白条可见时划过弹出；被遮挡时划过
   }
 
   // ② 真实缩进链（白条显示）
-  const c = await capCenter()
+  const c = await barPoint()
   await setFakeCursor(c)
   await h.main.waitForTimeout(400)
   await setFakeCursor({ x: c.x + 600, y: c.y + 400 })
@@ -353,7 +358,7 @@ test('C6.4 遮挡判定回归：白条可见时划过弹出；被遮挡时划过
 
   // ③ 遮挡判定语义（环境自适应）：hitProbe 命中主窗=白条可见→划过弹出；命中他窗=被遮挡→不弹。
   // 测试机白条位置可能被 ZCode 终端等环境窗口覆盖——两种环境都验证对应语义
-  const capNow = await capCenter()
+  const capNow = await barPoint()
   const mainHwndNow = await h.app.evaluate(({ BrowserWindow }) => {
     const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))
     return w!.getNativeWindowHandle().readBigUInt64LE(0).toString()
@@ -370,7 +375,14 @@ test('C6.4 遮挡判定回归：白条可见时划过弹出；被遮挡时划过
     expect((await mainBounds()).w).toBeLessThanOrEqual(162)
   }
 
-  // ④ 点击白条弹出（附加途径，渲染层定位不依赖遮挡）→ 弹出
+  // ③b 白条带下方透明区（y+25，窗口 38px 高的下部）：垂直方向未碰到白条本体 → 不弹出
+  //（现状纯几何判定用整窗 bounds 会弹=红；修复后判定收紧到白条带 → 不弹）
+  const below = await belowPoint()
+  await setFakeCursor(below)
+  await h.main.waitForTimeout(1_000)
+  expect((await mainBounds()).w).toBeLessThanOrEqual(162)
+
+  // ④ 点击白条弹出（附加途径，渲染层定位不依赖系统遮挡）→ 弹出
   await h.main.locator('.tuck-bar').click()
   await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
   await setFakeCursor(null)
