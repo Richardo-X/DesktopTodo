@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, type AppHandle } from './helpers'
+import { hitProbe } from '../../electron/main/win32'
 
 /**
  * 用户真机反馈修复验证（批次 B 验收轮）：
@@ -308,7 +309,7 @@ test('二级窗开着：隐藏→显示 → 保持弹出不缩回、取消计时
   expect((await mainBounds()).w).toBeGreaterThan(200)
 })
 
-test('C6.4 划过弹出回归：未置顶缩进态 hover 胶囊弹出（既有语义）+白条点击弹出（附加途径）', async () => {
+test('C6.4 遮挡判定回归：白条可见时划过弹出；被遮挡时划过不弹；点击始终弹出', async () => {
   const mainBounds = async (): Promise<W> => {
     const b = await winByPanel('main')
     expect(b).toBeTruthy()
@@ -342,20 +343,34 @@ test('C6.4 划过弹出回归：未置顶缩进态 hover 胶囊弹出（既有�
     await h.main.waitForTimeout(800)
   }
 
-  // ② 真实缩进链：光标进胶囊 → 移出 → 400ms 自动缩进（白条显示）
+  // ② 真实缩进链（白条显示）
   const c = await capCenter()
   await setFakeCursor(c)
   await h.main.waitForTimeout(400)
   await setFakeCursor({ x: c.x + 600, y: c.y + 400 })
   await expect.poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 }).toBeLessThanOrEqual(1)
+  await h.main.waitForTimeout(300)
 
-  // ③ 未置顶：hover 胶囊中心 → 划过弹出（既有语义）
-  await setFakeCursor(c)
-  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
+  // ③ 遮挡判定语义（环境自适应）：hitProbe 命中主窗=白条可见→划过弹出；命中他窗=被遮挡→不弹。
+  // 测试机白条位置可能被 ZCode 终端等环境窗口覆盖——两种环境都验证对应语义
+  const capNow = await capCenter()
+  const mainHwndNow = await h.app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))
+    return w!.getNativeWindowHandle().readBigUInt64LE(0).toString()
+  })
+  const hitEnv = hitProbe(capNow.x, capNow.y)
+  const barVisible = hitEnv === mainHwndNow
+  await setFakeCursor(capNow)
+  await h.main.waitForTimeout(1_000)
+  if (barVisible) {
+    // 白条可见：划过弹出（既有语义）
+    expect((await mainBounds()).w).toBeGreaterThan(200)
+  } else {
+    // 白条被环境窗口遮挡：遮挡判定生效，划过不弹
+    expect((await mainBounds()).w).toBeLessThanOrEqual(162)
+  }
 
-  // ④ 白条点击弹出（附加途径）回归：再缩进后点击白条 → 弹出
-  await setFakeCursor({ x: c.x + 600, y: c.y + 400 })
-  await expect.poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 }).toBeLessThanOrEqual(1)
+  // ④ 点击白条弹出（附加途径，渲染层定位不依赖遮挡）→ 弹出
   await h.main.locator('.tuck-bar').click()
   await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
   await setFakeCursor(null)
