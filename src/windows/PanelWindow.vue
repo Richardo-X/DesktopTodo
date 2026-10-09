@@ -22,6 +22,11 @@ const props = defineProps<{ panel: 'quick' | 'main' | 'done' }>()
 
 const store = useAppStore()
 const ui = useUiStore()
+/** 白条点击弹出（未置顶态的弹出途径）：划过弹出仅置顶态可用（未置顶胶囊可能被其他
+ * 窗口遮挡，几何判定无法感知遮挡），点击天然感知遮挡——被盖住时点击落在上层窗口 */
+function onTuckBarClick(): void {
+  ui.dispatchTuck({ type: 'mouse-enter', now: Date.now() })
+}
 
 const tucked = computed(() => ui.tuck.tucked)
 /** DOM 形态跟随的 tucked：主进程窗口几何调整完成后才切换（先几何后 DOM，消弹出呼吸/闪烁） */
@@ -161,7 +166,8 @@ onUnmounted(() => {
         v-show="domTucked"
         class="tuck-bar"
         :style="{ height: TUCK_BAR_HEIGHT + 'px', width: TUCK_BAR_WIDTH + 'px' }"
-        title="鼠标移到此条上弹出组件"
+        title="点击或鼠标移入弹出组件"
+        @click="onTuckBarClick"
       />
     </template>
     <template v-else>

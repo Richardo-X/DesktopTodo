@@ -633,7 +633,9 @@ export function startTuckCursorPoll(): void {
     let inside = false
     if (cluster.tucked) {
       const m = cluster.windows.main
-      inside = safe(m) && contains(m.getBounds(), pt)
+      // 未置顶时胶囊可能被其他窗口遮挡（几何判定无法感知遮挡）——划过弹出仅置顶态可用；
+      // 未置顶的弹出走白条点击（点击天然感知遮挡：被盖住时点击落在上层窗口）
+      inside = safe(m) && clusterTopMost() && contains(m.getBounds(), pt)
     } else {
       for (const w of [cluster.windows.quick, cluster.windows.main, cluster.windows.done]) {
         if (safe(w) && sideWindowVisible(w) && contains(w.getBounds(), pt)) {
