@@ -326,13 +326,6 @@ test('C6.4 遮挡语义：未置顶缩进态 hover 不弹出（胶囊可能被�
           .desktopTodoTest!.setFakeCursor(p),
       pt
     )
-  const setTopMost = (on: boolean): Promise<void> =>
-    h.main.evaluate(
-      (on) =>
-        (window as unknown as { desktopTodo: { setTopMost(on: boolean): Promise<void> } }).desktopTodo.setTopMost(on),
-      on
-    )
-
   // ① 真实吸附
   const wa = await h.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea)
   const y0 = await h.app.evaluate(({ BrowserWindow }) => {
