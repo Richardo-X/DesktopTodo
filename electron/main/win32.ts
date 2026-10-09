@@ -77,7 +77,21 @@ export function screenPixelAt(x: number, y: number): number {
   }
 }
 
+const WindowFromPoint = user32.func('intptr __stdcall WindowFromPoint(POINT pt)')
 const GetAsyncKeyState = user32.func('int16 __stdcall GetAsyncKeyState(int32 vk)')
+
+/** 命中探针：查询屏幕坐标上最顶层的窗口句柄（字符串；无窗口返回空串）。
+ * 遮挡判定用（C6.4）：透明主窗的白条不透明带可被正常命中，遮挡它的普通窗口亦可——
+ * 实测（2026-10-09）：白条可见时命中主窗 hwnd、被设置窗遮挡时命中设置窗 hwnd，两者可区分 */
+export function hitProbe(x: number, y: number): string {
+  if (process.platform !== 'win32') return ''
+  try {
+    const hwnd = WindowFromPoint({ x: Math.round(x), y: Math.round(y) })
+    return hwnd ? String(hwnd) : ''
+  } catch {
+    return ''
+  }
+}
 const VK_LBUTTON = 0x01
 
 /** 左键当前是否按下（模态唤醒轮询用：禁用窗口不产生点击事件，需全局按键采样） */
