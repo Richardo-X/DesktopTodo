@@ -308,7 +308,7 @@ test('二级窗开着：隐藏→显示 → 保持弹出不缩回、取消计时
   expect((await mainBounds()).w).toBeGreaterThan(200)
 })
 
-test('C6.4 遮挡语义：未置顶缩进态 hover 不弹出（胶囊可能被遮挡）+点击弹出；置顶缩进 hover 弹出', async () => {
+test('C6.4 划过弹出回归：未置顶缩进态 hover 胶囊弹出（既有语义）+白条点击弹出（附加途径）', async () => {
   const mainBounds = async (): Promise<W> => {
     const b = await winByPanel('main')
     expect(b).toBeTruthy()
@@ -349,18 +349,16 @@ test('C6.4 遮挡语义：未置顶缩进态 hover 不弹出（胶囊可能被�
   await setFakeCursor({ x: c.x + 600, y: c.y + 400 })
   await expect.poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 }).toBeLessThanOrEqual(1)
 
-  // ③ 未置顶：hover 胶囊中心 → 不弹出（胶囊可能被其他窗口遮挡，几何判定无法感知遮挡）
+  // ③ 未置顶：hover 胶囊中心 → 划过弹出（既有语义）
   await setFakeCursor(c)
-  await h.main.waitForTimeout(1_200)
-  expect((await mainBounds()).w).toBeLessThanOrEqual(162)
-
-  // ④ 点击白条（未置顶弹出途径：点击天然感知遮挡）→ 弹出
-  await h.main.locator('.tuck-bar').click()
   await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
 
+  // ④ 白条点击弹出（C6.4 附加途径）回归：再缩进后点击白条 → 弹出
+  await setFakeCursor({ x: c.x + 600, y: c.y + 400 })
+  await expect.poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 }).toBeLessThanOrEqual(1)
+  await h.main.locator('.tuck-bar').click()
+  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
   await setFakeCursor(null)
-  // TODO（置顶态划过弹出的 E2E 待深查）：置顶切换后渲染层缩进链存在间歇断链，
-  // 置顶 hover 弹出的验证暂依赖真机（主进程 tick 已实现 clusterTopMost 门）
 })
 
 test('展开态托盘最小化→显示：三窗原位恢复（placeAll 修跨 DPI 尺寸残留）', async () => {
