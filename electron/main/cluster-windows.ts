@@ -295,18 +295,15 @@ function stopSlide(panel: ClusterPanel): void {
   }
 }
 
-/** 滑出到屏外停靠位：方向=距窗口中心最近的屏缘；终点越过所有显示器工作区并集（双屏保护） */
+/** 滑出到屏外停靠位：向上越过所有显示器工作区顶缘并集（组件贴顶收纳，滑动即动画） */
 function slideOff(w: BrowserWindow, panel: ClusterPanel): void {
   if (!safe(w)) return
   stopSlide(panel)
   if (w.getOpacity() === 0) return // 按钮隐藏态（透明待机）已不可见，无需滑动
   const b = w.getBounds()
-  const displays = screen.getAllDisplays()
-  const unionMinX = Math.min(...displays.map((d) => d.workArea.x))
-  const unionMaxX = Math.max(...displays.map((d) => d.workArea.x + d.workArea.width))
-  const center = b.x + b.width / 2
-  const targetX = center - unionMinX < unionMaxX - center ? unionMinX - b.width - 8 : unionMaxX + 8
-  const startX = b.x
+  const unionTop = Math.min(...screen.getAllDisplays().map((d) => d.workArea.y))
+  const targetY = unionTop - b.height - 8
+  const startY = b.y
   let step = 0
   const timer = setInterval(() => {
     if (w.isDestroyed()) {
@@ -314,24 +311,19 @@ function slideOff(w: BrowserWindow, panel: ClusterPanel): void {
       return
     }
     step += 1
-    const x = step >= SLIDE_STEPS ? targetX : Math.round(startX + ((targetX - startX) * step) / SLIDE_STEPS)
-    w.setBounds({ x, y: b.y, width: b.width, height: b.height })
+    const y = step >= SLIDE_STEPS ? targetY : Math.round(startY + ((targetY - startY) * step) / SLIDE_STEPS)
+    w.setBounds({ x: b.x, y, width: b.width, height: b.height })
     if (step >= SLIDE_STEPS) stopSlide(panel)
   }, SLIDE_STEP_MS)
   slideTimers.set(panel, timer)
 }
 
-/** 滑入回目标位：从当前位置（屏外/原位）分帧滑向锚点几何；隐藏态先补显示（屏外 show 不可见） */
+/** 滑入回目标位：从屏外上方分帧滑下至锚点几何；隐藏态先补显示（屏外 show 不可见） */
 function slideIn(w: BrowserWindow, panel: ClusterPanel, target: WinBounds): void {
   if (!safe(w)) return
   stopSlide(panel)
   if (!w.isVisible()) w.showInactive() // 屏外停靠窗从托盘恢复时物理已隐藏——补显示（屏外不可见）
-  const b = w.getBounds()
-  if (b.x === target.x && b.width === target.width) {
-    w.setBounds(target)
-    return
-  }
-  const startX = b.x
+  const startY = w.getBounds().y
   let step = 0
   const timer = setInterval(() => {
     if (w.isDestroyed()) {
@@ -339,8 +331,8 @@ function slideIn(w: BrowserWindow, panel: ClusterPanel, target: WinBounds): void
       return
     }
     step += 1
-    const x = step >= SLIDE_STEPS ? target.x : Math.round(startX + ((target.x - startX) * step) / SLIDE_STEPS)
-    w.setBounds({ x, y: target.y, width: target.width, height: target.height })
+    const y = step >= SLIDE_STEPS ? target.y : Math.round(startY + ((target.y - startY) * step) / SLIDE_STEPS)
+    w.setBounds({ x: target.x, y, width: target.width, height: target.height })
     if (step >= SLIDE_STEPS) stopSlide(panel)
   }, SLIDE_STEP_MS)
   slideTimers.set(panel, timer)

@@ -34,9 +34,9 @@ const winByPanel = (panel: string): Promise<W | null> =>
     if (!w) return null
     const b = w.getBounds()
     // 视觉可见判据（透明常驻/屏外悬挂兼容）：物理可见 且 透明度>0 且 在任一显示器工作区内
-    const offscreen = screen
-      .getAllDisplays()
-      .every((d) => b.x + b.width <= d.workArea.x || b.x >= d.workArea.x + d.workArea.width)
+          const offscreen = screen
+          .getAllDisplays()
+          .every((d) => b.y + b.height <= d.workArea.y || b.y >= d.workArea.y + d.workArea.height)
     return {
       x: b.x,
       y: b.y,

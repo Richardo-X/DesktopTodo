@@ -67,7 +67,7 @@ test('缩进时待办窗收窄为胶囊、侧窗隐藏，弹出还原且位置�
         const b = w.getBounds()
         const offscreen = screen
           .getAllDisplays()
-          .every((d) => b.x + b.width <= d.workArea.x || b.x >= d.workArea.x + d.workArea.width)
+          .every((d) => b.y + b.height <= d.workArea.y || b.y >= d.workArea.y + d.workArea.height)
         return { vis: w.isVisible(), offscreen }
       },
       panel
