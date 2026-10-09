@@ -9,14 +9,23 @@ test('缩进时待办窗收窄为胶囊、侧窗隐藏，弹出还原且位置�
   await h.main.waitForSelector('[data-testid="home-panel"]')
 
   const winByPanel = (panel: string) =>
-    h.app.evaluate(({ BrowserWindow }, p) => {
+    h.app.evaluate(({ BrowserWindow, screen }, p) => {
       const w = BrowserWindow.getAllWindows().find(
         (win) => !win.isDestroyed() && win.webContents.getURL().includes(`panel=${p}`)
       )
       if (!w) return null
       const b = w.getBounds()
-      // 视觉可见判据（透明常驻兼容）：物理可见 且 透明度>0——对真 hide 与透明待机两种实现语义一致
-      return { x: b.x, y: b.y, w: b.width, h: b.height, vis: w.isVisible() && w.getOpacity() > 0 }
+      // 视觉可见判据：物理可见 且 透明度>0 且 与任一显示器工作区相交（缩进=滑出屏外悬挂，物理仍在）
+      const offscreen = screen
+        .getAllDisplays()
+        .every((d) => b.x + b.width <= d.workArea.x || b.x >= d.workArea.x + d.workArea.width)
+      return {
+        x: b.x,
+        y: b.y,
+        w: b.width,
+        h: b.height,
+        vis: w.isVisible() && w.getOpacity() > 0 && !offscreen
+      }
     }, panel)
 
   const mainBounds = async (): Promise<{ x: number; y: number; w: number; h: number; vis: boolean }> => {
@@ -47,11 +56,26 @@ test('缩进时待办窗收窄为胶囊、侧窗隐藏，弹出还原且位置�
   const tucked = await mainBounds()
   expect(tucked.h).toBeGreaterThanOrEqual(12)
   expect(tucked.h).toBeLessThanOrEqual(60)
-  // 侧窗整窗隐藏（形态 B）
-  const quickVis = (await winByPanel('quick'))?.vis
-  const doneVis = (await winByPanel('done'))?.vis
-  expect(quickVis).toBe(false)
-  expect(doneVis).toBe(false)
+  // 侧窗收纳（C5 新形态）：滑出屏幕边缘=屏外悬挂——物理常驻（表面不销毁防弹动）、完全在工作区并集外
+  const sideState = (panel: string): Promise<{ vis: boolean; offscreen: boolean } | null> =>
+    h.app.evaluate(
+      ({ BrowserWindow, screen }, p) => {
+        const w = BrowserWindow.getAllWindows().find(
+          (win) => !win.isDestroyed() && win.webContents.getURL().includes(`panel=${p}`)
+        )
+        if (!w) return null
+        const b = w.getBounds()
+        const offscreen = screen
+          .getAllDisplays()
+          .every((d) => b.x + b.width <= d.workArea.x || b.x >= d.workArea.x + d.workArea.width)
+        return { vis: w.isVisible(), offscreen }
+      },
+      panel
+    )
+  const quickState = (await sideState('quick'))!
+  const doneState = (await sideState('done'))!
+  expect(quickState).toEqual({ vis: true, offscreen: true })
+  expect(doneState).toEqual({ vis: true, offscreen: true })
 
 
   setTucked(false)
