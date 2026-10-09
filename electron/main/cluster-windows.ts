@@ -314,14 +314,15 @@ function showSidePanel(panel: ClusterPanel): void {
     }
     w.setIgnoreMouseEvents(false)
     // 应用级聚焦（用户 2026-10-07 裁定）：侧窗与主窗同层出现——透明常驻下
-    // isVisible 恒真，原 !isVisible 守卫不再触发，moveTop 无条件执行保住同层语义
-    w.moveTop()
+    // isVisible 恒真，原 !isVisible 守卫不再触发，moveTop 无条件执行保住同层语义。
+    // 模态锁定期间（二级窗开着）例外：moveTop 会越过二级窗将其盖住（用户 2026-10-09 报告）
+    if (!modalChildOpen) w.moveTop()
   } else if (!w.isVisible()) {
     w.showInactive()
     // 应用级聚焦（用户 2026-10-07 裁定）：侧窗与主窗同层出现——showInactive
     // 的插入层在真机上可能落在其它应用窗口之下，moveTop 显式提到应用组顶部
     // （不夺焦点：前台主窗保持前台，侧窗紧随其下）
-    w.moveTop()
+    if (!modalChildOpen) w.moveTop()
   }
 }
 
@@ -383,6 +384,7 @@ export function applyClusterBounds(placeAll = false): void {
  * （用户实测：胶囊态托盘显示后侧窗复活）——重新显示走 showSidePanel 落位路径 */
 export function raiseClusterAll(): void {
   if (!cluster) return
+  if (modalChildOpen) return // 模态锁定期间三窗不抬升：moveTop 会越过二级窗将其盖住
   for (const w of [cluster.windows.quick, cluster.windows.main, cluster.windows.done]) {
     if (safe(w) && w.isVisible()) w.moveTop()
   }
