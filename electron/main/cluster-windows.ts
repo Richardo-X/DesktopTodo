@@ -268,7 +268,7 @@ const pendingBounds = new Map<number, WinBounds>()
  * hide→Chromium 挂起 GPU 表面，再显示时表面重建产生"出现→快速消失→再出现"三段闪动
  * （气泡同源问题，用户视频慢放实锤+气泡 A/B 对照验证透明常驻有效）。
  * 常驻窗隐藏=透明度 0+鼠标穿透（物理可见、表面永不销毁），显示=关穿透+拧亮。 */
-const PERSISTENT_SIDE_PANELS: ReadonlySet<ClusterPanel> = new Set(['done', 'quick'])
+const PERSISTENT_SIDE_PANELS: ReadonlySet<ClusterPanel> = new Set(['done', 'quick']) // 按钮显隐=透明常驻（用户定调）；缩进路径已独立为屏外滑动，不经此集合
 
 /** 侧窗物理常驻？透明常驻窗 isVisible 恒 true，可见性判定一律走本函数 */
 function isPersistent(panel: ClusterPanel): boolean {
@@ -279,6 +279,71 @@ function isPersistent(panel: ClusterPanel): boolean {
  * 物理可见 且 透明度>0——对真 hide 窗与透明待机窗语义一致 */
 function sideWindowVisible(w: BrowserWindow): boolean {
   return w.isVisible() && w.getOpacity() > 0
+}
+
+// ===== 缩进屏外滑动（C5，用户定调 2026-10-09：缩进不做显隐——侧窗滑出屏幕边缘=滑动即动画；
+// 表面常驻不销毁，从机制上消灭显隐弹动）=====
+const SLIDE_STEP_MS = 25
+const SLIDE_STEPS = 10
+const slideTimers = new Map<ClusterPanel, ReturnType<typeof setInterval>>()
+
+function stopSlide(panel: ClusterPanel): void {
+  const t = slideTimers.get(panel)
+  if (t) {
+    clearInterval(t)
+    slideTimers.delete(panel)
+  }
+}
+
+/** 滑出到屏外停靠位：方向=距窗口中心最近的屏缘；终点越过所有显示器工作区并集（双屏保护） */
+function slideOff(w: BrowserWindow, panel: ClusterPanel): void {
+  if (!safe(w)) return
+  stopSlide(panel)
+  if (w.getOpacity() === 0) return // 按钮隐藏态（透明待机）已不可见，无需滑动
+  const b = w.getBounds()
+  const displays = screen.getAllDisplays()
+  const unionMinX = Math.min(...displays.map((d) => d.workArea.x))
+  const unionMaxX = Math.max(...displays.map((d) => d.workArea.x + d.workArea.width))
+  const center = b.x + b.width / 2
+  const targetX = center - unionMinX < unionMaxX - center ? unionMinX - b.width - 8 : unionMaxX + 8
+  const startX = b.x
+  let step = 0
+  const timer = setInterval(() => {
+    if (w.isDestroyed()) {
+      stopSlide(panel)
+      return
+    }
+    step += 1
+    const x = step >= SLIDE_STEPS ? targetX : Math.round(startX + ((targetX - startX) * step) / SLIDE_STEPS)
+    w.setBounds({ x, y: b.y, width: b.width, height: b.height })
+    if (step >= SLIDE_STEPS) stopSlide(panel)
+  }, SLIDE_STEP_MS)
+  slideTimers.set(panel, timer)
+}
+
+/** 滑入回目标位：从当前位置（屏外/原位）分帧滑向锚点几何；隐藏态先补显示（屏外 show 不可见） */
+function slideIn(w: BrowserWindow, panel: ClusterPanel, target: WinBounds): void {
+  if (!safe(w)) return
+  stopSlide(panel)
+  if (!w.isVisible()) w.showInactive() // 屏外停靠窗从托盘恢复时物理已隐藏——补显示（屏外不可见）
+  const b = w.getBounds()
+  if (b.x === target.x && b.width === target.width) {
+    w.setBounds(target)
+    return
+  }
+  const startX = b.x
+  let step = 0
+  const timer = setInterval(() => {
+    if (w.isDestroyed()) {
+      stopSlide(panel)
+      return
+    }
+    step += 1
+    const x = step >= SLIDE_STEPS ? target.x : Math.round(startX + ((target.x - startX) * step) / SLIDE_STEPS)
+    w.setBounds({ x, y: target.y, width: target.width, height: target.height })
+    if (step >= SLIDE_STEPS) stopSlide(panel)
+  }, SLIDE_STEP_MS)
+  slideTimers.set(panel, timer)
 }
 
 /** 侧窗隐藏：常驻窗透明待机+穿透（不挡桌面），非常驻窗真 hide */
@@ -428,16 +493,31 @@ export function setClusterTucked(v: boolean): void {
   if (v) autoExpandUntil = 0 // 重新缩进同样清除挂起会话（防跨状态闪退）
   const { quick, done, main } = cluster.windows
   if (v) {
-    // 缩进：先藏侧窗，主窗收胶囊
-    if (safe(quick)) hideSideWindow(quick, 'quick')
-    if (safe(done)) hideSideWindow(done, 'done')
+    // 缩进：侧窗滑出屏幕边缘（屏外悬挂，滑动即动画），主窗收胶囊
+    if (safe(quick)) slideOff(quick, 'quick')
+    if (safe(done)) slideOff(done, 'done')
     lastAppliedAnchor = null
     applyClusterBounds()
     return
   }
-  // 弹出：侧窗先落位显示（带完整内容），主窗最后从胶囊展开
-  if (safe(quick) && cluster.quickVisible && cluster.visible) showSidePanel('quick')
-  if (safe(done) && cluster.doneVisible && cluster.visible) showSidePanel('done')
+  // 弹出：侧窗滑入回锚点几何（滑动即动画），主窗最后从胶囊展开
+  const bIn = threeWindowBoundsForAnchor(cluster.anchor, cluster.scale, cluster.quickVisible, cluster.doneVisible)
+  if (safe(quick) && cluster.quickVisible && cluster.visible) {
+    stopSlide('quick')
+    if (!quick.isVisible()) quick.showInactive()
+    quick.setIgnoreMouseEvents(false)
+    quick.setOpacity(1)
+    slideIn(quick, 'quick', bIn.quick ?? bIn.main)
+    quick.moveTop()
+  }
+  if (safe(done) && cluster.doneVisible && cluster.visible) {
+    stopSlide('done')
+    if (!done.isVisible()) done.showInactive()
+    done.setIgnoreMouseEvents(false)
+    done.setOpacity(1)
+    slideIn(done, 'done', bIn.done ?? bIn.main)
+    done.moveTop()
+  }
   lastAppliedAnchor = null
   applyClusterBounds()
   if (safe(main) && !main.isVisible() && cluster.topMost) main.show()

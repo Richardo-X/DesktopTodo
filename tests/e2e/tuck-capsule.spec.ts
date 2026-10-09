@@ -72,10 +72,15 @@ test('缩进时待办窗收窄为胶囊、侧窗隐藏，弹出还原且位置�
       },
       panel
     )
-  const quickState = (await sideState('quick'))!
-  const doneState = (await sideState('done'))!
-  expect(quickState).toEqual({ vis: true, offscreen: true })
-  expect(doneState).toEqual({ vis: true, offscreen: true })
+  // 滑出动画 250ms——poll 等待滑动完成
+  await expect
+    .poll(async () => (await sideState('quick'))?.offscreen, { timeout: 3_000 })
+    .toBe(true)
+  await expect
+    .poll(async () => (await sideState('done'))?.offscreen, { timeout: 3_000 })
+    .toBe(true)
+  expect((await sideState('quick'))?.vis).toBe(true)
+  expect((await sideState('done'))?.vis).toBe(true)
 
 
   setTucked(false)
