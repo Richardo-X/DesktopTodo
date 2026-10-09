@@ -285,59 +285,6 @@ function sideWindowVisible(w: BrowserWindow): boolean {
 // 表面常驻不销毁，从机制上消灭显隐弹动）=====
 const SLIDE_STEP_MS = 25
 const SLIDE_STEPS = 10
-const slideTimers = new Map<ClusterPanel, ReturnType<typeof setInterval>>()
-
-function stopSlide(panel: ClusterPanel): void {
-  const t = slideTimers.get(panel)
-  if (t) {
-    clearInterval(t)
-    slideTimers.delete(panel)
-  }
-}
-
-/** 滑出到屏外停靠位：向上越过所有显示器工作区顶缘并集（组件贴顶收纳，滑动即动画） */
-function slideOff(w: BrowserWindow, panel: ClusterPanel): void {
-  if (!safe(w)) return
-  stopSlide(panel)
-  if (w.getOpacity() === 0) return // 按钮隐藏态（透明待机）已不可见，无需滑动
-  const b = w.getBounds()
-  const unionTop = Math.min(...screen.getAllDisplays().map((d) => d.workArea.y))
-  const targetY = unionTop - b.height - 8
-  const startY = b.y
-  let step = 0
-  const timer = setInterval(() => {
-    if (w.isDestroyed()) {
-      stopSlide(panel)
-      return
-    }
-    step += 1
-    const y = step >= SLIDE_STEPS ? targetY : Math.round(startY + ((targetY - startY) * step) / SLIDE_STEPS)
-    w.setBounds({ x: b.x, y, width: b.width, height: b.height })
-    if (step >= SLIDE_STEPS) stopSlide(panel)
-  }, SLIDE_STEP_MS)
-  slideTimers.set(panel, timer)
-}
-
-/** 滑入回目标位：从屏外上方分帧滑下至锚点几何；隐藏态先补显示（屏外 show 不可见） */
-function slideIn(w: BrowserWindow, panel: ClusterPanel, target: WinBounds): void {
-  if (!safe(w)) return
-  stopSlide(panel)
-  if (!w.isVisible()) w.showInactive() // 屏外停靠窗从托盘恢复时物理已隐藏——补显示（屏外不可见）
-  const startY = w.getBounds().y
-  let step = 0
-  const timer = setInterval(() => {
-    if (w.isDestroyed()) {
-      stopSlide(panel)
-      return
-    }
-    step += 1
-    const y = step >= SLIDE_STEPS ? target.y : Math.round(startY + ((target.y - startY) * step) / SLIDE_STEPS)
-    w.setBounds({ x: target.x, y, width: target.width, height: target.height })
-    if (step >= SLIDE_STEPS) stopSlide(panel)
-  }, SLIDE_STEP_MS)
-  slideTimers.set(panel, timer)
-}
-
 /** 侧窗隐藏：常驻窗透明待机+穿透（不挡桌面），非常驻窗真 hide */
 function hideSideWindow(w: BrowserWindow, panel: ClusterPanel): void {
   if (!safe(w)) return
@@ -387,6 +334,7 @@ function showSidePanel(panel: ClusterPanel): void {
  * 迟到的 ready-to-show 若只 show 不落位，窗口会出现在旧位置（用户实测） */
 export function applyClusterBounds(placeAll = false): void {
   if (!cluster) return
+  if (tuckAnimTimer !== null) return // 缩进滑动动画驱动三窗，直接落位会与插值帧竞争（动画结束帧写精确终态）
   if (lastAppliedAnchor && lastAppliedAnchor.x === cluster.anchor.x && lastAppliedAnchor.y === cluster.anchor.y) return
   if (cluster.tucked) {
     // 用户验收定稿：胶囊与待办窗口上边缘中心对齐（不算侧窗）——锚点=待办左上角
@@ -477,43 +425,76 @@ export function syncClusterBounds(ui: {
 }
 
 /** 缩进切换（渲染层状态机经 IPC setTucked）。
- * 弹出（v=false）：先落位并显示侧窗，最后主窗从胶囊展开——三窗呈现同步（用户验收#4） */
+ * 弹出（v=false）：侧窗滑入回锚点几何、主窗从胶囊同帧展开——三窗单时钟同步滑动（2026-10-09 用户要求滑动对齐） */
 export function setClusterTucked(v: boolean): void {
   if (!cluster) return
   cluster.tucked = v
   geoLog(`setClusterTucked(${v})`)
   if (v) autoExpandUntil = 0 // 重新缩进同样清除挂起会话（防跨状态闪退）
-  const { quick, done, main } = cluster.windows
-  if (v) {
-    // 缩进：侧窗滑出屏幕边缘（屏外悬挂，滑动即动画），主窗收胶囊
-    if (safe(quick)) slideOff(quick, 'quick')
-    if (safe(done)) slideOff(done, 'done')
-    lastAppliedAnchor = null
-    applyClusterBounds()
-    return
+  animateTuck(v)
+}
+
+/** 缩进滑动动画时钟（单实例驱动三窗；活动期间 applyClusterBounds 让位，防插值帧竞争） */
+let tuckAnimTimer: ReturnType<typeof setInterval> | null = null
+function stopTuckAnim(): void {
+  if (tuckAnimTimer !== null) {
+    clearInterval(tuckAnimTimer)
+    tuckAnimTimer = null
   }
-  // 弹出：侧窗滑入回锚点几何（滑动即动画），主窗最后从胶囊展开
-  const bIn = threeWindowBoundsForAnchor(cluster.anchor, cluster.scale, cluster.quickVisible, cluster.doneVisible)
-  if (safe(quick) && cluster.quickVisible && cluster.visible) {
-    stopSlide('quick')
-    if (!quick.isVisible()) quick.showInactive()
-    quick.setIgnoreMouseEvents(false)
-    quick.setOpacity(1)
-    slideIn(quick, 'quick', bIn.quick ?? bIn.main)
-    quick.moveTop()
+}
+
+/** 统一三窗缩进动画：单时钟同帧插值——主窗"全宽↔胶囊"缩放与侧窗"原位↔屏外上方"滑动严格对齐，
+ * 消除各窗独立动画的错帧（2026-10-09 用户要求三窗滑动对齐） */
+function animateTuck(tucked: boolean): void {
+  if (!cluster) return
+  stopTuckAnim()
+  const { quick, main, done } = cluster.windows
+  const b3 = threeWindowBoundsForAnchor(cluster.anchor, cluster.scale, cluster.quickVisible, cluster.doneVisible)
+  const cap = tuckBarBounds({ x: cluster.anchor.x, y: cluster.anchor.y }, Math.round(470 * cluster.scale))
+  const unionTop = Math.min(...screen.getAllDisplays().map((d) => d.workArea.y))
+
+  interface AnimWin {
+    w: BrowserWindow
+    from: WinBounds
+    to: WinBounds
+    visible: boolean
   }
-  if (safe(done) && cluster.doneVisible && cluster.visible) {
-    stopSlide('done')
-    if (!done.isVisible()) done.showInactive()
-    done.setIgnoreMouseEvents(false)
-    done.setOpacity(1)
-    slideIn(done, 'done', bIn.done ?? bIn.main)
-    done.moveTop()
+  const wins: AnimWin[] = []
+  const prepare = (w: BrowserWindow | null, to: WinBounds, active: boolean): void => {
+    if (!safe(w) || !active) return
+    if (!w.isVisible()) w.showInactive() // 屏外停靠/托盘隐藏窗补显示（起点即其当前几何）
+    w.setIgnoreMouseEvents(false)
+    w.setOpacity(1)
+    wins.push({ w, from: w.getBounds(), to, visible: true })
   }
-  lastAppliedAnchor = null
-  applyClusterBounds()
-  if (safe(main) && !main.isVisible() && cluster.topMost) main.show()
-  else if (safe(main) && !main.isVisible()) main.showInactive()
+  prepare(quick, tucked ? { ...quick.getBounds(), y: unionTop - quick.getBounds().height - 8 } : b3.quick ?? b3.main, cluster.quickVisible && cluster.visible)
+  prepare(main, tucked ? cap : b3.main, true)
+  prepare(done, tucked ? { ...done.getBounds(), y: unionTop - done.getBounds().height - 8 } : b3.done ?? b3.main, cluster.doneVisible && cluster.visible)
+  if (wins.length === 0) return
+
+  let step = 0
+  tuckAnimTimer = setInterval(() => {
+    step += 1
+    const done_ = step >= SLIDE_STEPS
+    for (const { w, from, to } of wins) {
+      if (w.isDestroyed()) continue
+      if (done_) {
+        w.setBounds(to)
+        continue
+      }
+      const t = step / SLIDE_STEPS
+      w.setBounds({
+        x: Math.round(from.x + (to.x - from.x) * t),
+        y: Math.round(from.y + (to.y - from.y) * t),
+        width: Math.round(from.width + (to.width - from.width) * t),
+        height: Math.round(from.height + (to.height - from.height) * t)
+      })
+    }
+    if (done_) {
+      stopTuckAnim()
+      lastAppliedAnchor = null
+    }
+  }, SLIDE_STEP_MS)
 }
 
 /** 吸附检测：待办窗顶边触碰工作区顶 → 三窗贴齐；状态变化通知待办窗状态机 */
