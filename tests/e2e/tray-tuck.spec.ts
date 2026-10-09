@@ -316,16 +316,16 @@ test('C6.4 划过弹出回归：未置顶缩进态 hover 胶囊弹出（既有�
   }
   const capCenter = async (): Promise<{ x: number; y: number }> => {
     const b = await mainBounds()
-    // 胶囊窗口 OS 钳制后高约 38px，白条只占顶部 12px——取白条可视带中心（y=b.y+6）
-    return { x: b.x + b.w / 2, y: b.y + 6 }
+    return { x: b.x + b.w / 2, y: b.y + 19 }
   }
-  const setFakeCursor = (pt: { x: number; y: number } | null): Promise<void> =>
+  const setFakeCursor = (p: { x: number; y: number } | null): Promise<void> =>
     h.main.evaluate(
-      (p) =>
-        (window as unknown as { desktopTodoTest?: { setFakeCursor(p: { x: number; y: number } | null): Promise<void> } })
-          .desktopTodoTest!.setFakeCursor(p),
-      pt
+      (pt) =>
+        (window as unknown as { desktopTodoTest?: { setFakeCursor(pt: { x: number; y: number } | null): Promise<void> } })
+          .desktopTodoTest!.setFakeCursor(pt),
+      p
     )
+
   // ① 真实吸附
   const wa = await h.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea)
   const y0 = await h.app.evaluate(({ BrowserWindow }) => {
@@ -342,7 +342,7 @@ test('C6.4 划过弹出回归：未置顶缩进态 hover 胶囊弹出（既有�
     await h.main.waitForTimeout(800)
   }
 
-  // ② 真实缩进链：光标进胶囊（inside）→ 移出 → 400ms 自动缩进（渲染层 domTucked 置位、白条显示）
+  // ② 真实缩进链：光标进胶囊 → 移出 → 400ms 自动缩进（白条显示）
   const c = await capCenter()
   await setFakeCursor(c)
   await h.main.waitForTimeout(400)
@@ -353,7 +353,7 @@ test('C6.4 划过弹出回归：未置顶缩进态 hover 胶囊弹出（既有�
   await setFakeCursor(c)
   await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
 
-  // ④ 白条点击弹出（C6.4 附加途径）回归：再缩进后点击白条 → 弹出
+  // ④ 白条点击弹出（附加途径）回归：再缩进后点击白条 → 弹出
   await setFakeCursor({ x: c.x + 600, y: c.y + 400 })
   await expect.poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 }).toBeLessThanOrEqual(1)
   await h.main.locator('.tuck-bar').click()

@@ -633,6 +633,9 @@ export function startTuckCursorPoll(): void {
     let inside = false
     if (cluster.tucked) {
       const m = cluster.windows.main
+      // 遮挡判定实验结论（C6.4，2026-10-09）：白条贴顶（屏幕最顶部 0-38px）为命中测试异常区——
+      // hitProbe 在该区域返回穿透/空（与遮挡状态无关），遮挡判定不可行，维持纯几何判定；
+      // 误触（未置顶且胶囊被遮挡时划过弹出）的规避转交交互方案（悬停延迟等，待用户决策）
       inside = safe(m) && contains(m.getBounds(), pt)
     } else {
       for (const w of [cluster.windows.quick, cluster.windows.main, cluster.windows.done]) {
