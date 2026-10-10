@@ -259,3 +259,90 @@ test('L1-⑪：操作区两枚图标为原型 SVG 且光学配平 + 已完成空
 
   await h.close()
 })
+
+/** L1.5 图标系统统一（用户 2026-10-10 决策：全量对齐原型图标集；步进器保持字形；勾统一 I.check）：
+ * 同一图标跨页=同一 SVG（勾 4 页与品牌同源）；＋/←/×/🕘 字形清零；二级窗按钮补齐图标。 */
+test('L1-⑫：跨页图标统一（同一图标同一套 SVG，字形/emoji 清零）', async () => {
+  const CHECK = 'M5 12.5l4.5 4.5L19 7.5'
+  const h = await launchApp({
+    seed: {
+      todos: [createTodoItem({ content: '待办甲', now: new Date(), id: 't1' })],
+      completed: [{ ...createTodoItem({ content: '已完成甲', now: new Date(), id: 'd1' }), completedAt: new Date().toISOString() }],
+      templates: [{ id: 'tp1', content: '模板甲', createdAt: new Date().toISOString() } as never]
+    }
+  })
+  await h.main.waitForSelector('[data-testid="todo-row"]')
+  await h.done.waitForSelector('[data-testid="done-check"]')
+  await h.quick.waitForSelector('[data-testid="tpl-add"]')
+
+  const read = (page: typeof h.main, sel: string) =>
+    page.evaluate((s) => {
+      const el = document.querySelector(s) as HTMLElement | null
+      if (!el) return null
+      const svg = el.querySelector('svg')
+      const d = svg?.querySelector('path')?.getAttribute('d') ?? ''
+      const path = svg?.querySelector('path') as SVGPathElement | null
+      return {
+        hasSvg: !!svg,
+        d,
+        stroke: path ? getComputedStyle(path).strokeWidth : null,
+        text: (el.textContent ?? '').trim(),
+        svgW: svg ? svg.getBoundingClientRect().width : 0,
+        boxW: el.getBoundingClientRect().width
+      }
+    }, sel)
+
+  // ① 勾：主窗勾选框 / 已完成勾选框 / 标题栏品牌勾 = 同一路径（原型 I.check，跨页统一核心断言）
+  const mainCheck = await read(h.main, '[data-testid="row-checkbox"]')
+  const doneCheck = await read(h.done, '[data-testid="done-check"]')
+  const brand = await read(h.main, '[data-testid="tb-brand"]')
+  expect(mainCheck!.d).toBe(CHECK)
+  expect(mainCheck!.stroke).toBe('3px') // 原型 .checkbox svg 口径
+  expect(doneCheck!.d).toBe(CHECK)
+  expect(doneCheck!.stroke).toBe('3px')
+  expect(brand!.d).toBe(CHECK) // 与勾选框同源（品牌线宽按原型 3.4）
+  expect(brand!.stroke).toBe('3.4px')
+
+  // ② 字形/emoji 清零：＋ / 批量删除 / 历史记录 / 模板＋框 = SVG + 文字（或无文字）
+  const plusMain = await read(h.main, '[data-testid="op-new"]')
+  expect(plusMain!.hasSvg).toBe(true)
+  expect(plusMain!.text).toBe('')
+  expect(Math.abs(plusMain!.svgW / plusMain!.boxW - 16 / 32)).toBeLessThan(0.05) // 16px 随 32px 按钮
+  const batchMain = await read(h.main, '[data-testid="op-batch"]')
+  expect(batchMain!.hasSvg).toBe(true)
+  expect(batchMain!.text).toBe('批量删除')
+  const batchQuick = await read(h.quick, '[data-testid="quick-batch"]')
+  expect(batchQuick!.hasSvg).toBe(true)
+  expect(batchQuick!.text).toBe('批量删除')
+  const plusQuick = await read(h.quick, '[data-testid="quick-new"]')
+  expect(plusQuick!.hasSvg).toBe(true)
+  expect(plusQuick!.text).toBe('')
+  const tplAdd = await read(h.quick, '[data-testid="tpl-add"]')
+  expect(tplAdd!.hasSvg).toBe(true)
+  expect(tplAdd!.text).toBe('')
+  expect(Math.abs(tplAdd!.svgW / tplAdd!.boxW - 11 / 20)).toBeLessThan(0.05) // 原型 .plusbox svg 11px 规格
+  const histBtn = await read(h.done, '[data-testid="done-history"]')
+  expect(histBtn!.hasSvg).toBe(true)
+  expect(histBtn!.text).toBe('历史记录') // 🕘 emoji 已移除
+
+  // ③ 二级窗：返回/关闭 = 原型 SVG；步进器保持字形（原型本身即字形，用户决策）
+  const sp = h.app.waitForEvent('window')
+  await h.main.click('[data-testid="tb-settings"]')
+  const sw = await sp
+  await sw.waitForSelector('[data-testid="set-back"]')
+  const back = await read(sw as never, '[data-testid="set-back"]')
+  expect(back!.hasSvg).toBe(true)
+  expect(back!.d).toBe('M15 18l-6-6 6-6') // 原型 I.chevL
+  expect(back!.text).toBe('')
+  const stepper = await sw.evaluate(() => {
+    const minus = document.querySelector('[data-testid="set-max-minus"]') as HTMLElement
+    const plus = document.querySelector('[data-testid="set-max-plus"]') as HTMLElement
+    return { minus: minus.textContent?.trim(), minusSvg: !!minus.querySelector('svg'), plus: plus.textContent?.trim(), plusSvg: !!plus.querySelector('svg') }
+  })
+  expect(stepper.minus).toBe('−')
+  expect(stepper.plus).toBe('＋')
+  expect(stepper.minusSvg).toBe(false)
+  expect(stepper.plusSvg).toBe(false)
+
+  await h.close()
+})
