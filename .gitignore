@@ -2,7 +2,8 @@ node_modules/
 out/
 dist/
 dist-e2e/
-dist-v*/   # 打版临时输出（三杀软死锁残留，待解锁后删除）
+# 打版临时输出目录（三杀软死锁残留，解锁后可删除）
+dist-v*/
 coverage/
 test-results/
 playwright-report/
