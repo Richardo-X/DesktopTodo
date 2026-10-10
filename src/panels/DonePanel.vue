@@ -251,6 +251,14 @@ function fmtDone(iso: string | null): string {
   padding: 2px;
 }
 
+/* 空列表文案垂直居中（对齐原型 v3.4：.panel-empty 以 flex:1 在滚动区内居中；
+ * 应用侧空态挂在 .list-wrap 直下——补 flex 列上下文使 flex:1 生效，
+ * 原 block 上下文下 flex:1 失效、文案贴在列表区顶部） */
+.list-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
 .todo-row {
   display: flex;
   align-items: center;

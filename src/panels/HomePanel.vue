@@ -277,7 +277,10 @@ async function onComplete(id: string): Promise<void> {
             title="快捷添加"
             @click="toggleQuick"
           >
-            ⚡
+            <!-- 对齐原型 v3.4：线性闪电 SVG（原 ⚡ 字符在 Windows 渲染为彩色 emoji，与原型单色图标不符） -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
+            </svg>
           </button>
           <div class="clock-inline">
             <div class="clock-time" data-testid="clock-time">{{ timeText }}</div>
@@ -496,6 +499,11 @@ async function onComplete(id: string): Promise<void> {
 
 .icon-btn:hover {
   background: var(--btn-hover);
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .icon-btn.on {
