@@ -49,6 +49,48 @@ test('布局：待办面板精确充满窗口视口，无裁切（批次 B-1 三
   expect(Math.abs(g.home.right - g.vw)).toBeLessThanOrEqual(1)
 })
 
+/** L1.5 对齐（用户 2026-10-10 反馈）：操作区按钮/批量条与列表行左右端同边。 */
+test('布局：操作区按钮与待办行左右端对齐（±0.5px）', async () => {
+  await createTodo(h.main, '对齐用')
+  await h.main.waitForSelector('[data-testid="todo-row"]')
+  await h.main.waitForTimeout(200)
+  const m = await h.main.evaluate(() => {
+    const r = (sel: string) => {
+      const el = document.querySelector(sel) as HTMLElement | null
+      if (!el) return null
+      const b = el.getBoundingClientRect()
+      return { l: b.left, r: b.right }
+    }
+    return {
+      row: r('[data-testid="todo-row"]'),
+      bolt: r('[data-testid="op-quick-toggle"]'),
+      done: r('[data-testid="op-done-toggle"]'),
+      plus: r('[data-testid="op-new"]')
+    }
+  })
+  expect(m.row).not.toBeNull()
+  const near = (a: number | undefined, b: number | undefined): void => {
+    expect(Math.abs((a ?? 0) - (b ?? 0))).toBeLessThanOrEqual(0.5)
+  }
+  near(m.bolt?.l, m.row?.l) // 左端：⚡ 左缘 = 列表行左缘
+  near(m.done?.r, m.row?.r) // 右端：☑ 右缘 = 列表行右缘
+  near(m.plus?.r, m.row?.r) // 右端：＋ 右缘（同排按钮）
+  // 批量条同边
+  await h.main.click('[data-testid="op-batch"]')
+  await h.main.waitForTimeout(250)
+  const b = await h.main.evaluate(() => {
+    const r = (sel: string) => {
+      const el = document.querySelector(sel) as HTMLElement | null
+      if (!el) return null
+      const bb = el.getBoundingClientRect()
+      return { l: bb.left, r: bb.right }
+    }
+    return { bar: r('[data-testid="batch-bar"]') }
+  })
+  expect(Math.abs((b.bar?.l ?? 0) - (m.row?.l ?? 0))).toBeLessThanOrEqual(0.5)
+  expect(Math.abs((b.bar?.r ?? 0) - (m.row?.r ?? 0))).toBeLessThanOrEqual(0.5)
+})
+
 test('验收7：首次启动空列表并显示引导文案', async () => {
   await expect(h.main.locator('[data-testid="empty-state"]')).toContainText('今日做点什么好呢')
 })
