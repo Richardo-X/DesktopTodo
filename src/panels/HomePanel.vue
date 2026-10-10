@@ -277,9 +277,14 @@ async function onComplete(id: string): Promise<void> {
             title="快捷添加"
             @click="toggleQuick"
           >
-            <!-- 对齐原型 v3.4：线性闪电 SVG（原 ⚡ 字符在 Windows 渲染为彩色 emoji，与原型单色图标不符） -->
+            <!-- 对齐原型 v3.4：线性闪电 SVG（原 ⚡ 字符在 Windows 渲染为彩色 emoji，与原型单色图标不符）；
+                 g 缩放=光学配平（技能 3.C 图标系统一致性）：原路径墨迹 16×20 单位，比 ☑ 面板图标
+                 （18×16）高一档；0.8 等比缩放后两者墨迹同高（16 单位），同排观感一致。
+                 路径保持原型原样（I.bolt），仅外层缩放——如需原型原始比例，删此 g 的 transform 即可 -->
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
+              <g transform="translate(12 12) scale(0.8) translate(-12 -12)">
+                <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
+              </g>
             </svg>
           </button>
           <div class="clock-inline">
@@ -293,7 +298,13 @@ async function onComplete(id: string): Promise<void> {
             title="已完成"
             @click="toggleDone"
           >
-            ☑
+            <!-- 对齐原型 v3.4（I.panelCheck）：单色线性 SVG；原 ☑ 为 12.5px 字形，
+                 与 16px 线性闪电视觉重量不一致（技能 3.C 图标系统一致性） -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="3" />
+              <path d="M14.5 4v16" />
+              <path d="M6.5 12.5l2 2 3.5-4.5" />
+            </svg>
           </button>
         </div>
         <div class="row-bottom">
