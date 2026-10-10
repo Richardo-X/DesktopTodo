@@ -3,6 +3,16 @@ import { acquireSingleInstanceLock } from '../../electron/main/single-instance'
 import { setAutoStart, getAutoStart, loginItemSettingsFor, syncAutoStartOnBoot } from '../../electron/main/auto-start'
 import { applyTopMost, applyTopMostAll, applyClusterTopMost, refocusChildWindows, withTopMost, withTuckLock, withTheme } from '../../electron/main/window-state'
 
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>()
+  return {
+    ...actual,
+    execFile: vi.fn(() => {
+      /* 测试环境不真执行 reg.exe（生产行为：清除 StartupApproved 启动项禁用标记） */
+    })
+  }
+})
+
 /** T16 单实例锁 */
 vi.mock('electron', () => {
   const handlers = new Map<string, () => void>()
@@ -12,6 +22,7 @@ vi.mock('electron', () => {
       requestSingleInstanceLock: vi.fn(() => true),
       on: vi.fn((ev: string, cb: () => void) => handlers.set(ev, cb)),
       getPath: vi.fn(() => 'C:\\Program Files\\Desktop Todo\\桌面待办.exe'),
+      getName: vi.fn(() => '桌面待办'),
       getLoginItemSettings: vi.fn(() => ({ openAtLogin: false })),
       setLoginItemSettings: vi.fn()
     }
