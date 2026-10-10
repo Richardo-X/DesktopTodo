@@ -515,3 +515,42 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - **v1.1.0 已发布**：github.com/Richardo-X/DesktopTodo/releases/tag/v1.1.0（Setup/Portable ASCII 资产）
 - 应用开发版=生产版（三窗）；全部用户确认需求实现并经真机验收
 - 遗留（低优先级，未排期）：Win+D 实测行为复查（§10.4.1 ⑦，本轮真机未复报问题）
+
+---
+
+# 11.C v1.1.1 / L1 视觉精修轮（跨会话决策固化，2026-10-10 用户拍板）
+
+> **新会话主任务**：按 `docs/交互原型-v3.4-taste.html` 把 L1 视觉精修落地到应用。
+
+## 决策（用户已拍板，不得再问）
+
+1. **实施依据**：`docs/交互原型-v3.4-taste.html`（L1 版，≈30 处 CSS 精修，diff 35+/29-）。**v3.3 保留为纯净基线**——不得删除、不得再修改 v3.3。
+2. **授权边界**：颜色/圆角/阴影/动效曲线等"纯视觉参数"按 3.4 **直接落地**（含按钮圆角 5→6px 这类已验收数值的微调）；**布局结构/交互逻辑/功能一律不动**。
+3. **覆盖范围**：令牌级精修**全应用统一套用**——含原型未画全的界面（批量条中间态、各二级窗细节、气泡等），保证全局一致。
+4. **发版节奏**：L1 验收通过即**发 v1.1.1**（升版→打包→冒烟→tag/Release，同 v1.1.0 流程 + 验收报告 §十二）。
+5. **L2 推进**：L1 验收后**停下**——用户择机另开会话推进 L2（不连做长会话）。
+
+## L1 精修清单（11 类）与应用侧入口
+
+1. 文字对比度令牌（日 `#666→#5d616b` 族/夜同步）——入口：`src/panels/*.vue` 令牌区 + `src/windows/child-window.css`（`--text/--muted/--faint`）+ 各处 `var(--muted,#666)` 回退值
+2. 阴影色调化（纯黑→蓝黑 6 处）——各面板/对话框 box-shadow
+3. 圆角统一 5→6px（应用侧 ≥8 处：QuickPanel/DonePanel/BatchBar/HomePanel/TodoRow…）
+4. 时钟等宽数字（tabular-nums + Display 字体）——HomePanel 时钟
+5. 对话框（420px/圆角 10/双层柔和阴影）——ConfirmDialog
+6. 待办行 hover 过渡——TodoRow
+7. 按钮/勾选框按压反馈（scale 0.96）
+8. 键盘焦点描边（focus-visible）
+9. 全局过渡缓出曲线（--ease-out）
+10. prefers-reduced-motion 支持
+11. 托盘/时钟微调
+
+## 受影响 E2E（更新期望到新行为，禁止删测试降标准）
+
+- `tests/e2e/shadow.spec.ts`（颜色/底色断言）、`tests/e2e/child-window.spec.ts`（元素尺寸/样式）
+- 实施前先跑全量确认基线，实施后全量+CI 绿
+
+## 原型对照
+
+- `docs/交互原型-v3.3.html` = 当前应用形态（纯净基线）
+- `docs/交互原型-v3.4-taste.html` = 基线 + L1（实施靶子）
+- 两文件 diff 即实施清单：`git diff --no-index docs/交互原型-v3.3.html docs/交互原型-v3.4-taste.html`
