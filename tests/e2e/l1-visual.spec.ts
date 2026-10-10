@@ -199,27 +199,52 @@ test('L1-⑩：prefers-reduced-motion 关闭过渡与动画', async () => {
 /** 用户验收 2026-10-10 反馈两项对齐 3.4：
  * ① 快捷添加按钮=原型线性 SVG 闪电（原 ⚡ 字符在 Windows 渲染为彩色 emoji）；
  * ② 已完成窗空列表文案垂直居中于列表区（原型 .panel-empty flex:1 居中；原 block 上下文失效贴顶）。 */
-test('L1-⑪：快捷添加按钮为原型 SVG 闪电 + 已完成空文案垂直居中', async () => {
+test('L1-⑪：操作区两枚图标为原型 SVG 且光学配平 + 已完成空文案垂直居中', async () => {
   const h = await launchApp()
   await h.main.waitForSelector('[data-testid="home-panel"]')
   await h.done.waitForSelector('[data-testid="done-panel"]')
 
-  // ① 图标：SVG 线性闪电（原型 I.bolt 路径），无字符内容；尺寸 16px（按钮 32px，比例免 zoom 影响）
-  const bolt = await h.main.evaluate(() => {
-    const btn = document.querySelector('[data-testid="op-quick-toggle"]') as HTMLElement
-    const svg = btn.querySelector('svg')
-    return {
-      hasSvg: !!svg,
-      d: svg?.querySelector('path')?.getAttribute('d') ?? '',
-      text: (btn.textContent ?? '').trim(),
-      svgW: svg ? svg.getBoundingClientRect().width : 0,
-      btnW: btn.getBoundingClientRect().width
+  // ① 两枚图标：均为原型同款单色线性 SVG（无字符内容），16px 盒（按钮 32px，比例免 zoom 影响），
+  //    且渲染墨迹等高（光学配平——原 ⚡ 字符/原尺寸闪电都比 ☑ 面板图标大一档，同排观感不一致）
+  const icons = await h.main.evaluate(() => {
+    const box = (tid: string): { hasSvg: boolean; text: string; svgW: number; btnW: number; rects: number; paths: number; d: string; inkW: number; inkH: number } => {
+      const btn = document.querySelector(`[data-testid="${tid}"]`) as HTMLElement
+      const svg = btn.querySelector('svg')
+      const shapes = btn.querySelectorAll('svg path, svg rect')
+      let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity
+      shapes.forEach((s) => {
+        const r = s.getBoundingClientRect()
+        x1 = Math.min(x1, r.left); y1 = Math.min(y1, r.top)
+        x2 = Math.max(x2, r.right); y2 = Math.max(y2, r.bottom)
+      })
+      return {
+        hasSvg: !!svg,
+        text: (btn.textContent ?? '').trim(),
+        svgW: svg ? svg.getBoundingClientRect().width : 0,
+        btnW: btn.getBoundingClientRect().width,
+        rects: shapes.length ? btn.querySelectorAll('svg rect').length : 0,
+        paths: btn.querySelectorAll('svg path').length,
+        d: btn.querySelector('svg path')?.getAttribute('d') ?? '',
+        inkW: x2 - x1,
+        inkH: y2 - y1
+      }
     }
+    return { bolt: box('op-quick-toggle'), check: box('op-done-toggle') }
   })
-  expect(bolt.hasSvg).toBe(true)
-  expect(bolt.d).toBe('M13 2L3 14h7l-1 8 10-12h-7l1-8z')
-  expect(bolt.text).toBe('')
-  expect(Math.abs(bolt.svgW / bolt.btnW - 16 / 32)).toBeLessThan(0.05)
+  // ⚡：原型 I.bolt 路径（缩放配平用外层 g transform，路径保持原样）
+  expect(icons.bolt.hasSvg).toBe(true)
+  expect(icons.bolt.d).toBe('M13 2L3 14h7l-1 8 10-12h-7l1-8z')
+  expect(icons.bolt.text).toBe('')
+  expect(Math.abs(icons.bolt.svgW / icons.bolt.btnW - 16 / 32)).toBeLessThan(0.05)
+  // ☑：原型 I.panelCheck（1 rect + 2 path），无字符内容
+  expect(icons.check.hasSvg).toBe(true)
+  expect(icons.check.text).toBe('')
+  expect(icons.check.rects).toBe(1)
+  expect(icons.check.paths).toBe(2)
+  expect(Math.abs(icons.check.svgW / icons.check.btnW - 16 / 32)).toBeLessThan(0.05)
+  // 光学配平：两图标墨迹高度一致（±5%）
+  expect(icons.bolt.inkH).toBeGreaterThan(4)
+  expect(Math.abs(icons.bolt.inkH - icons.check.inkH) / icons.check.inkH).toBeLessThan(0.05)
 
   // ② 空文案：垂直中心 = 列表区垂直中心（±2px）
   const pos = await h.done.evaluate(() => {
