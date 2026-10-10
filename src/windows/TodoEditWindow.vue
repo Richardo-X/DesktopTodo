@@ -109,7 +109,12 @@ async function onBack(): Promise<void> {
 <template>
   <div class="child-window">
     <header class="titlebar">
-      <button class="back" data-testid="edit-back" aria-label="返回" @click="onBack">←</button>
+      <button class="back" data-testid="edit-back" aria-label="返回" @click="onBack">
+        <!-- L1.5 图标统一：← 字形换原型 I.chevL SVG -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+      </button>
       <span class="title">编辑待办事项</span>
       <span class="spacer" />
       <button v-if="item" class="save" data-testid="edit-save" @click="onSave">保存</button>
@@ -133,15 +138,34 @@ async function onBack(): Promise<void> {
       />
       <div class="meta">
         <span class="count" :class="{ danger }">{{ draft.length }}/{{ MAX_CONTENT_LENGTH }}</span>
-        <button class="b" data-testid="edit-revert" :disabled="!dirty" @click="revert">还原</button>
+        <button class="b" data-testid="edit-revert" :disabled="!dirty" @click="revert">
+          <!-- L1.5 图标统一：原型 = I.undo + 文字 -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 4v6h6" />
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          </svg>
+          <span>还原</span>
+        </button>
       </div>
 
       <p v-if="error" class="error" data-testid="edit-error">{{ error }}</p>
 
       <div class="row">
-        <button class="b" data-testid="edit-to-template" @click="addToTemplate">添加到模板</button>
+        <button class="b" data-testid="edit-to-template" @click="addToTemplate">
+          <!-- L1.5 图标统一：原型 = I.bolt + 文字 -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />
+          </svg>
+          <span>添加到模板</span>
+        </button>
         <span class="spacer" />
-        <button class="b danger" data-testid="edit-delete" @click="onDelete">删除</button>
+        <button class="b danger" data-testid="edit-delete" @click="onDelete">
+          <!-- L1.5 图标统一：原型 = I.trash + 文字 -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+          </svg>
+          <span>删除</span>
+        </button>
       </div>
     </div>
     <div v-else class="missing">事项不存在</div>

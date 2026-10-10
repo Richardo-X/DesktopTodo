@@ -112,6 +112,14 @@
   background: var(--hover);
 }
 
+/* L1.5 图标统一：←/× 由字形换原型 SVG（I.chevL / I.x，13px 随 .wbtn svg 规格） */
+.child-window .titlebar .back svg,
+.child-window .titlebar .close svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+
 .child-window .titlebar .close:hover {
   background: var(--danger);
   color: #fff;
@@ -187,6 +195,18 @@
   font-size: 11.5px;
   cursor: pointer;
   font-family: inherit;
+  /* L1.5 图标统一：带图标按钮（undo/bolt/trash + 文字）行内居中对齐 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+/* L1.5：按钮内图标统一 13px（原型 .btn svg 规格） */
+.child-window .b svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
 }
 
 .child-window .b:hover:not(:disabled) {

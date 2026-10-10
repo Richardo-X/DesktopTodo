@@ -69,7 +69,7 @@ function onCheckboxClick(): void {
     <span v-if="item.overdue" class="tag overdue" data-testid="row-overdue-tag">逾期</span>
     <!-- 决策#25：批量模式下同一勾选框原位变为选中示意（选中=accent 白勾） -->
     <button type="button" class="checkbox" :class="{ checked: batchMode && selected }" data-testid="row-checkbox" @click.stop="onCheckboxClick" @dblclick.stop>
-      <svg viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5" /></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
     </button>
   </div>
 </template>
@@ -193,7 +193,7 @@ function onCheckboxClick(): void {
   height: 12px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.4;
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }

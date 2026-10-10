@@ -63,7 +63,12 @@ async function onBack(): Promise<void> {
 <template>
   <div class="child-window">
     <header class="titlebar">
-      <button class="back" data-testid="set-back" title="返回" @click="onBack">←</button>
+      <button class="back" data-testid="set-back" title="返回" @click="onBack">
+        <!-- L1.5 图标统一：← 字形换原型 I.chevL SVG（13px 随 child-window .back svg） -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+      </button>
       <span class="title">设置</span>
       <span class="spacer" />
     </header>

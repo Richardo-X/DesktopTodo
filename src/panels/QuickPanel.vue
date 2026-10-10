@@ -105,8 +105,19 @@ onUnmounted(() => {
       <div class="panel-head">
         <span class="panel-title" data-testid="quick-title">{{ title }}</span>
         <!-- 四轮3：自身批量进行中头部两按钮冻结（批量条「取消」可退出） -->
-        <button class="btn sm" data-testid="quick-batch" :class="{ frozen: ui.batchMode }" @click="enterBatch">批量删除</button>
-        <button class="icon-btn accent" data-testid="quick-new" :class="{ frozen: ui.batchMode }" title="新建模板" @click="ui.openChild('template-new')">＋</button>
+        <button class="btn sm" data-testid="quick-batch" :class="{ frozen: ui.batchMode }" @click="enterBatch">
+          <!-- L1.5 图标统一：批量删除（原型 = I.trash + 文字） -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+          </svg>
+          <span>批量删除</span>
+        </button>
+        <button class="icon-btn accent" data-testid="quick-new" :class="{ frozen: ui.batchMode }" title="新建模板" @click="ui.openChild('template-new')">
+          <!-- L1.5 图标统一：＋ 由字形换原型 I.plus SVG -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
       </div>
 
       <p v-if="error" class="error" data-testid="quick-error">{{ error }}</p>
@@ -133,9 +144,14 @@ onUnmounted(() => {
             <span class="tt-in">{{ t.content }}</span>
           </span>
           <!-- 决策#25：批量时右端「＋」换为同款勾选框选中示意 -->
-          <span v-if="!ui.batchMode" class="plusbox" data-testid="tpl-add" title="添加到待办列表" @click.stop="quickAdd(t.id)" @dblclick.stop>＋</span>
+          <span v-if="!ui.batchMode" class="plusbox" data-testid="tpl-add" title="添加到待办列表" @click.stop="quickAdd(t.id)" @dblclick.stop>
+            <!-- L1.5 图标统一：＋ 由字形换原型 I.plus SVG（11px 随 .plusbox svg） -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </span>
           <button v-else type="button" class="checkbox" :class="{ checked: ui.selectedIds.includes(t.id) }" @click.stop="ui.toggleSelect(t.id)" @dblclick.stop>
-            <svg viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5" /></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
           </button>
         </div>
       </div>
@@ -229,6 +245,15 @@ onUnmounted(() => {
   color: inherit;
   font-size: 11.5px;
   cursor: pointer;
+  display: inline-flex; /* L1.5：带图标按钮（trash+文字）行内居中对齐 */
+  align-items: center;
+  gap: 5px;
+}
+
+.btn.sm svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
 }
 
 .btn.sm:hover {
@@ -249,6 +274,12 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+/* L1.5：＋ 图标（原型 I.plus；按 0.5 比例随 26px 按钮 → 13px） */
+.icon-btn.accent svg {
+  width: 13px;
+  height: 13px;
 }
 
 .icon-btn.accent:hover {
@@ -357,6 +388,13 @@ onUnmounted(() => {
   background: transparent;
 }
 
+/* L1.5：＋ 图标（原型 I.plus 11px 规格） */
+.plusbox svg {
+  width: 11px;
+  height: 11px;
+  display: block;
+}
+
 .plusbox:hover {
   border-color: var(--accent);
   color: var(--accent);
@@ -393,7 +431,7 @@ onUnmounted(() => {
   height: 12px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.4;
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }

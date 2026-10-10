@@ -210,7 +210,7 @@ async function onComplete(id: string): Promise<void> {
     <header class="titlebar">
       <div class="tb-left">
         <span class="tb-brand" data-testid="tb-brand">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
             <path d="M5 12.5l4.5 4.5L19 7.5" />
           </svg>
         </span>
@@ -309,8 +309,19 @@ async function onComplete(id: string): Promise<void> {
         </div>
         <div class="row-bottom">
           <span class="cap-chip" data-testid="op-count">{{ countText }}</span>
-          <button class="btn sm" data-testid="op-batch" :class="{ frozen: ui.batchMode }" @click="ui.enterBatch('todos')">批量删除</button>
-          <button class="icon-btn accent" data-testid="op-new" :class="{ frozen: ui.batchMode }" title="新建待办" @click="ui.openChild('todo-new')">＋</button>
+          <button class="btn sm" data-testid="op-batch" :class="{ frozen: ui.batchMode }" @click="ui.enterBatch('todos')">
+            <!-- L1.5 图标统一：批量删除（原型 .a-batch = I.trash + 文字） -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            </svg>
+            <span>批量删除</span>
+          </button>
+          <button class="icon-btn accent" data-testid="op-new" :class="{ frozen: ui.batchMode }" title="新建待办" @click="ui.openChild('todo-new')">
+            <!-- L1.5 图标统一：＋ 由字形换原型 I.plus SVG（16px 随 .icon-btn svg） -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -551,6 +562,15 @@ async function onComplete(id: string): Promise<void> {
   color: inherit;
   font-size: 12px;
   cursor: pointer;
+  display: inline-flex; /* L1.5：带图标按钮（trash+文字）行内居中对齐 */
+  align-items: center;
+  gap: 5px;
+}
+
+.btn.sm svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
 }
 
 .btn.sm:hover {

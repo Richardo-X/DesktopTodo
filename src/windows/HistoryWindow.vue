@@ -83,8 +83,10 @@ async function doExport(): Promise<void> {
     <header class="titlebar">
       <span class="title">历史记录</span>
       <span class="spacer" />
-      <!-- 决策#6：浏览类窗口标题栏右「×」 -->
-      <button class="close" data-testid="hist-close" title="关闭" @click="getApi().closeSelf()">×</button>
+      <!-- 决策#6：浏览类窗口标题栏右「×」；L1.5 图标统一：字形换原型 I.x SVG -->
+      <button class="close" data-testid="hist-close" title="关闭" @click="getApi().closeSelf()">
+        <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" fill="none"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
     </header>
 
     <div class="body">
@@ -134,7 +136,7 @@ async function doExport(): Promise<void> {
               @click.stop="ui.toggleSelect(t.id)"
               @dblclick.stop
             >
-              <svg viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5" /></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
             </button>
           </div>
         </div>
@@ -293,11 +295,11 @@ async function doExport(): Promise<void> {
 }
 
 .checkbox svg {
-  width: 11px;
-  height: 11px;
+  width: 12px;
+  height: 12px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.4;
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }

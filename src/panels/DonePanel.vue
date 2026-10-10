@@ -115,7 +115,7 @@ function fmtDone(iso: string | null): string {
               @click.stop="toggleBack(t.id)"
               @dblclick.stop
             >
-              <svg viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5" /></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
             </button>
             <span class="content ellipsis">{{ t.content }}</span>
             <span v-if="t.overdue" class="tag overdue" data-testid="done-overdue-tag">逾期</span>
@@ -136,7 +136,14 @@ function fmtDone(iso: string | null): string {
       </div>
 
       <footer class="foot">
-        <button class="btn block" data-testid="done-history" @click="ui.openChild('history')">🕘 历史记录</button>
+        <button class="btn block" data-testid="done-history" @click="ui.openChild('history')">
+          <!-- L1.5 图标统一：🕘 emoji 换原型 I.clock SVG（13px 随 .btn svg） -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 2" />
+          </svg>
+          <span>历史记录</span>
+        </button>
       </footer>
     </div>
   </section>
@@ -305,7 +312,7 @@ function fmtDone(iso: string | null): string {
   height: 12px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.4;
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -375,6 +382,16 @@ function fmtDone(iso: string | null): string {
   color: inherit;
   font-size: 12.5px;
   cursor: pointer;
+  display: inline-flex; /* L1.5：带图标按钮（clock+文字）居中 */
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn.block svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
 }
 
 .btn.block:hover {
