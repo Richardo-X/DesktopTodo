@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, type AppHandle } from './helpers'
-import { hitProbe } from '../../electron/main/win32'
 
 /**
  * 用户真机反馈修复验证（批次 B 验收轮）：
@@ -309,23 +308,12 @@ test('二级窗开着：隐藏→显示 → 保持弹出不缩回、取消计时
   expect((await mainBounds()).w).toBeGreaterThan(200)
 })
 
-test('C6.4 遮挡判定回归：白条可见时划过弹出；被遮挡时划过不弹；点击始终弹出', async () => {
+test('C7 白条 mouseenter 驱动弹出：真实鼠标事件划过白条→弹出；带外→不弹', async () => {
   const mainBounds = async (): Promise<W> => {
     const b = await winByPanel('main')
     expect(b).toBeTruthy()
     return b as W
   }
-  const capCenter = async (): Promise<{ x: number; y: number }> => {
-    const b = await mainBounds()
-    return { x: b.x + b.w / 2, y: b.y + 19 }
-  }
-  const setFakeCursor = (p: { x: number; y: number } | null): Promise<void> =>
-    h.main.evaluate(
-      (pt) =>
-        (window as unknown as { desktopTodoTest?: { setFakeCursor(pt: { x: number; y: number } | null): Promise<void> } })
-          .desktopTodoTest!.setFakeCursor(pt),
-      p
-    )
 
   // ① 真实吸附
   const wa = await h.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea)
@@ -343,99 +331,53 @@ test('C6.4 遮挡判定回归：白条可见时划过弹出；被遮挡时划过
     await h.main.waitForTimeout(800)
   }
 
-  // ② 真实缩进链（白条显示）
-  const c = await capCenter()
-  await setFakeCursor(c)
+  // ② 真实缩进链（fake 光标注入——弹出态→缩进仍走主进程轮询，历史稳定路径）
+  const capIn = await h.app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))
+    const b = w!.getBounds()
+    return { x: b.x + b.width / 2, y: b.y + 6 }
+  })
+  await h.main.evaluate(
+    (pt) =>
+      (window as unknown as { desktopTodoTest?: { setFakeCursor(pt: { x: number; y: number } | null): Promise<void> } })
+        .desktopTodoTest!.setFakeCursor(pt),
+    capIn
+  )
   await h.main.waitForTimeout(400)
-  await setFakeCursor({ x: c.x + 600, y: c.y + 400 })
+  await h.main.evaluate(
+    (pt) =>
+      (window as unknown as { desktopTodoTest?: { setFakeCursor(pt: { x: number; y: number } | null): Promise<void> } })
+        .desktopTodoTest!.setFakeCursor(pt),
+    { x: capIn.x + 600, y: capIn.y + 400 }
+  )
   await expect.poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 }).toBeLessThanOrEqual(1)
   await h.main.waitForTimeout(300)
 
-  // ③ 遮挡判定语义（环境自适应）：hitProbe 命中主窗=白条可见→划过弹出；命中他窗=被遮挡→不弹。
-  // 测试机白条位置可能被 ZCode 终端等环境窗口覆盖——两种环境都验证对应语义
-  const capNow = await capCenter()
-  const mainHwndNow = await h.app.evaluate(({ BrowserWindow }) => {
-    const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))
-    return w!.getNativeWindowHandle().readBigUInt64LE(0).toString()
-  })
-  const hitEnv = hitProbe(capNow.x, capNow.y)
-  const barVisible = hitEnv === mainHwndNow
-  await setFakeCursor(capNow)
-  await h.main.waitForTimeout(1_000)
-  if (barVisible) {
-    // 白条可见：划过弹出（既有语义）
-    expect((await mainBounds()).w).toBeGreaterThan(200)
-  } else {
-    // 白条被环境窗口遮挡：遮挡判定生效，划过不弹
-    expect((await mainBounds()).w).toBeLessThanOrEqual(162)
-  }
-
-  // ④ 点击白条弹出（附加途径，渲染层定位不依赖遮挡）→ 弹出
-  await h.main.locator('.tuck-bar').click()
+  // ③ 真实渲染层鼠标事件 hover 白条元素 → mouseenter → 弹出（C7 新机制）
+  await h.main.locator('.tuck-bar').hover()
   await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
-  await setFakeCursor(null)
-})
 
-test('C6.6 白条带判定收紧：缩进态光标在白条带下方透明区 → 不弹出（环境自适应）', async () => {
-  const mainBounds = async (): Promise<W> => {
-    const b = await winByPanel('main')
-    expect(b).toBeTruthy()
-    return b as W
-  }
-  const setFakeCursor = (p: { x: number; y: number } | null): Promise<void> =>
-    h.main.evaluate(
-      (pt) =>
-        (window as unknown as { desktopTodoTest?: { setFakeCursor(pt: { x: number; y: number } | null): Promise<void> } })
-          .desktopTodoTest!.setFakeCursor(pt),
-      p
-    )
-
-  // ① 真实吸附
-  const wa = await h.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea)
-  const y0 = await h.app.evaluate(({ BrowserWindow }) => {
-    const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))
-    return w!.getBounds().y
-  })
-  if (y0 > wa.y) {
-    await h.main.evaluate(
-      (dy) =>
-        (window as unknown as { desktopTodoTest?: { clusterDragDelta(dx: number, dy: number): Promise<void> } })
-          .desktopTodoTest!.clusterDragDelta(0, dy),
-      wa.y - y0
-    )
-    await h.main.waitForTimeout(800)
-  }
-
-  // ② 真实缩进链（白条显示）
-  const capCenter = async (): Promise<{ x: number; y: number }> => {
-    const b = await mainBounds()
-    return { x: b.x + b.w / 2, y: b.y + 6 } // 白条可视带中心（顶部 12px）
-  }
-  const c = await capCenter()
-  await setFakeCursor(c)
-  await h.main.waitForTimeout(400)
-  await setFakeCursor({ x: c.x + 600, y: c.y + 400 })
+  // ④ 再缩进 → 鼠标移到白条带外的透明区（页面上方 25px 处）→ mouseenter 不触发 → 不弹
+  await h.main.evaluate(
+    (pt) =>
+      (window as unknown as { desktopTodoTest?: { setFakeCursor(pt: { x: number; y: number } | null): Promise<void> } })
+        .desktopTodoTest!.setFakeCursor(pt),
+    { x: capIn.x + 600, y: capIn.y + 400 }
+  )
   await expect.poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 }).toBeLessThanOrEqual(1)
+  await h.main.mouse.move(capIn.x - (await mainBounds()).x, 25) // 页面坐标：白条带（12px）下方透明区
+  await h.main.waitForTimeout(800)
+  expect((await mainBounds()).w).toBeLessThanOrEqual(162)
 
-  // ③ 环境探测：hitProbe(白条中心)——命中主窗=白条可见（收紧判定可验证）；命中他窗=环境遮挡（跳过收紧断言）
-  const mainHwnd = await h.app.evaluate(({ BrowserWindow }) => {
-    const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('panel=main'))
-    return w!.getNativeWindowHandle().readBigUInt64LE(0).toString()
-  })
-  const hitEnv = hitProbe(c.x, c.y) // 主进程直调（win32 探针）
-  test.info().annotations.push({ type: 'info', description: `hitEnv=${hitEnv} mainHwnd=${mainHwnd}` })
+  // ⑤ 划回白条 → 弹出（mouseenter 再次驱动）
+  await h.main.locator('.tuck-bar').hover()
+  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
 
-  // ④ 光标移到白条带下方透明区（窗口 38px 高的下部，垂直方向未碰到白条本体）
-  const below = { x: c.x, y: c.y + 19 } // 白条带下方（12px 带外、38px 窗内）
-  await setFakeCursor(below)
-  await h.main.waitForTimeout(1_000)
-
-  const w = (await mainBounds()).w
-  if (hitEnv === mainHwnd || hitEnv === '') {
-    // 白条可见/查询空（保守放行）环境：收紧判定生效——带下透明区不弹（缩进保持）
-    expect(w).toBeLessThanOrEqual(162)
-  }
-  // 明确命中他窗（环境遮挡）时无判定语义可断言——记录即可
+  // ⑥ 清 fake cursor 恢复真实光标
+  await h.main.evaluate(() =>
+    (window as unknown as { desktopTodoTest?: { setFakeCursor(pt: null): Promise<void> } })
+      .desktopTodoTest!.setFakeCursor(null)
+  )
 })
 
 test('展开态托盘最小化→显示：三窗原位恢复（placeAll 修跨 DPI 尺寸残留）', async () => {
