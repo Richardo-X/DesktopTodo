@@ -195,3 +195,42 @@ test('L1-⑩：prefers-reduced-motion 关闭过渡与动画', async () => {
 
   await h.close()
 })
+
+/** 用户验收 2026-10-10 反馈两项对齐 3.4：
+ * ① 快捷添加按钮=原型线性 SVG 闪电（原 ⚡ 字符在 Windows 渲染为彩色 emoji）；
+ * ② 已完成窗空列表文案垂直居中于列表区（原型 .panel-empty flex:1 居中；原 block 上下文失效贴顶）。 */
+test('L1-⑪：快捷添加按钮为原型 SVG 闪电 + 已完成空文案垂直居中', async () => {
+  const h = await launchApp()
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+  await h.done.waitForSelector('[data-testid="done-panel"]')
+
+  // ① 图标：SVG 线性闪电（原型 I.bolt 路径），无字符内容；尺寸 16px（按钮 32px，比例免 zoom 影响）
+  const bolt = await h.main.evaluate(() => {
+    const btn = document.querySelector('[data-testid="op-quick-toggle"]') as HTMLElement
+    const svg = btn.querySelector('svg')
+    return {
+      hasSvg: !!svg,
+      d: svg?.querySelector('path')?.getAttribute('d') ?? '',
+      text: (btn.textContent ?? '').trim(),
+      svgW: svg ? svg.getBoundingClientRect().width : 0,
+      btnW: btn.getBoundingClientRect().width
+    }
+  })
+  expect(bolt.hasSvg).toBe(true)
+  expect(bolt.d).toBe('M13 2L3 14h7l-1 8 10-12h-7l1-8z')
+  expect(bolt.text).toBe('')
+  expect(Math.abs(bolt.svgW / bolt.btnW - 16 / 32)).toBeLessThan(0.05)
+
+  // ② 空文案：垂直中心 = 列表区垂直中心（±2px）
+  const pos = await h.done.evaluate(() => {
+    const empty = document.querySelector('[data-testid="done-empty"]') as HTMLElement
+    const wrap = empty.parentElement as HTMLElement
+    const er = empty.getBoundingClientRect()
+    const wr = wrap.getBoundingClientRect()
+    return { ec: (er.top + er.bottom) / 2, wc: (wr.top + wr.bottom) / 2, wh: wr.height }
+  })
+  expect(pos.wh).toBeGreaterThan(200) // 列表区非退化
+  expect(Math.abs(pos.ec - pos.wc)).toBeLessThanOrEqual(2)
+
+  await h.close()
+})
