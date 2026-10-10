@@ -6,6 +6,7 @@ import {
   disableDwmTransitions,
   getDwmTransitionsDisabled,
   getWindowExstyleFlags,
+  hitProbe,
   makeToolWindow,
   postWmClose,
   screenPixelAt,
@@ -639,7 +640,15 @@ export function startTuckCursorPoll(): void {
       // 遮挡判定实验结论（hitProbe）：白条贴顶为命中测试异常区（穿透/空与遮挡状态无关），
       // 遮挡判定不可行已撤销；误触规避转交互方案（悬停延迟等，待用户决策）
       const b = m.getBounds()
-      inside = safe(m) && contains({ x: b.x, y: b.y, width: b.width, height: TUCK_BAR_HEIGHT }, pt)
+      // 遮挡判定保守策略（C6.7，用户报告"划过不弹只剩点击"后修正）：只有**明确命中他窗**
+      // 才拦（防误触）；命中主窗（白条可见）或查询空（屏缘穿透/异常）都放行——确保划过弹出可用。
+      // 背景：白条贴屏幕最顶部，该处 WindowFromPoint 命中不稳定（可能返回屏缘其他窗口或空）
+      const hit = hitProbe(pt.x, pt.y)
+      const mainHwnd = m.getNativeWindowHandle().readBigUInt64LE(0).toString()
+      inside =
+        safe(m) &&
+        contains({ x: b.x, y: b.y, width: b.width, height: TUCK_BAR_HEIGHT }, pt) &&
+        (hit === '' || hit === mainHwnd)
     } else {
       for (const w of [cluster.windows.quick, cluster.windows.main, cluster.windows.done]) {
         if (safe(w) && sideWindowVisible(w) && contains(w.getBounds(), pt)) {

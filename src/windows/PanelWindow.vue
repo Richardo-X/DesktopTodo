@@ -166,7 +166,7 @@ onUnmounted(() => {
         v-show="domTucked"
         class="tuck-bar"
         :style="{ height: TUCK_BAR_HEIGHT + 'px', width: TUCK_BAR_WIDTH + 'px' }"
-        title="点击或鼠标移入弹出组件"
+        title="鼠标移入弹出组件（点击亦可）"
         @click="onTuckBarClick"
       />
     </template>

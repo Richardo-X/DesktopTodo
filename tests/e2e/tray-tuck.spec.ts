@@ -431,11 +431,11 @@ test('C6.6 白条带判定收紧：缩进态光标在白条带下方透明区 �
   await h.main.waitForTimeout(1_000)
 
   const w = (await mainBounds()).w
-  if (hitEnv === mainHwnd) {
-    // 白条可见环境：收紧判定生效——带下透明区不弹（缩进保持）
+  if (hitEnv === mainHwnd || hitEnv === '') {
+    // 白条可见/查询空（保守放行）环境：收紧判定生效——带下透明区不弹（缩进保持）
     expect(w).toBeLessThanOrEqual(162)
   }
-  // 环境遮挡（hitEnv≠主窗）时无判定语义可断言——记录即可
+  // 明确命中他窗（环境遮挡）时无判定语义可断言——记录即可
 })
 
 test('展开态托盘最小化→显示：三窗原位恢复（placeAll 修跨 DPI 尺寸残留）', async () => {
