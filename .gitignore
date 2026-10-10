@@ -18,3 +18,10 @@ blob-report/
 .pkg-err.log
 .pkg-out.log
 .proto-check.js
+
+# taste-skill 安装环境（工具目录，不入版本库；新会话使用前确认本机已安装）
+.agents/
+.claude/
+agent/
+skills-lock.json
+.zcodeignore

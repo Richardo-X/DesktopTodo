@@ -357,14 +357,19 @@ test('C7 白条 mouseenter 驱动弹出：真实鼠标事件划过白条→弹�
   await h.main.locator('.tuck-bar').hover()
   await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
 
-  // ④ 再缩进 → 鼠标移到白条带外的透明区（页面上方 25px 处）→ mouseenter 不触发 → 不弹
-  await h.main.evaluate(
-    (pt) =>
-      (window as unknown as { desktopTodoTest?: { setFakeCursor(pt: { x: number; y: number } | null): Promise<void> } })
-        .desktopTodoTest!.setFakeCursor(pt),
-    { x: capIn.x + 600, y: capIn.y + 400 }
-  )
-  await expect.poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 }).toBeLessThanOrEqual(1)
+  // ④ 再缩进（确定性两段式，同 ② 的可靠模式；消除"fake 已在移出位依赖 lastInside 重置竞态"的 CI 波动）：
+  // 先回组件（tick inside=true 稳定链路）→ 再移出 → inside=false → 渲染层 leaveAt → 缩进
+  const setFake = (pt: { x: number; y: number }): Promise<void> =>
+    h.main.evaluate(
+      (q) =>
+        (window as unknown as { desktopTodoTest?: { setFakeCursor(p: { x: number; y: number } | null): Promise<void> } })
+          .desktopTodoTest!.setFakeCursor(q),
+      pt
+    )
+  await setFake(capIn)
+  await h.main.waitForTimeout(500)
+  await setFake({ x: capIn.x + 600, y: capIn.y + 400 })
+  await expect.poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 8_000 }).toBeLessThanOrEqual(1)
   await h.main.mouse.move(capIn.x - (await mainBounds()).x, 25) // 页面坐标：白条带（12px）下方透明区
   await h.main.waitForTimeout(800)
   expect((await mainBounds()).w).toBeLessThanOrEqual(162)
