@@ -74,7 +74,6 @@ export interface DesktopTodoApi {
   /** 渲染层标记是否存在未保存的编辑输入（托盘退出确认提示用） */
   setUnsavedEdits(flag: boolean): void
   /** TEMP 文本光标诊断日志（发版前移除） */
-  diagnosticLog(msg: string): void
   /** 打开子窗口（模态、位置不记忆）；id 用于编辑/详情定位事项 */
   openChild(params: { kind: ChildKind; id?: string }): Promise<void>
   /** 子窗口自我关闭（返回/保存/删除完成后） */

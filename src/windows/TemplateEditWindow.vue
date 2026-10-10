@@ -18,14 +18,6 @@ const touched = ref(false)
 const error = ref('')
 
 
-// TEMP 文本光标诊断（用户 2026-10-06 报告：插入点恒在末尾；发版前移除）
-function diag(tag: string, e: Event): void {
-  const el = e.target as HTMLTextAreaElement
-  void getApi().diagnosticLog(
-    `[cursor-diag] ${tag} sel=${el.selectionStart}..${el.selectionEnd} len=${el.value.length}`
-  )
-}
-
 watch(
   () => item.value?.content,
   (v) => {
@@ -113,8 +105,6 @@ async function onBack(): Promise<void> {
         :maxlength="MAX_CONTENT_LENGTH"
         rows="3"
         @input="onInput"
-        @click="diag('click', $event)"
-        @keyup="diag('key', $event)"
       />
       <div class="meta">
         <span class="count" :class="{ danger }">{{ draft.length }}/{{ MAX_CONTENT_LENGTH }}</span>

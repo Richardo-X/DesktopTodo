@@ -40,7 +40,6 @@ import {
   startTuckCursorPoll
 } from './cluster-windows'
 import { anchorForWindowX, visibleClusterBounds, clampAnchorForEdges } from '../../src/core/utils/cluster-layout'
-import { geoLog } from './cluster-windows'
 
 /** 启动/恢复钳制（#31/#32/#33）：左右边缘不阻挡、主窗≥90px 可见、幂等（原样恢复） */
 function clampAnchorToWorkArea(
@@ -136,7 +135,6 @@ function createTray(): void {
 }
 
 function toggleVisibility(): void {
-  geoLog('toggleVisibility visible=' + visible)
   if (visible) hideToTray()
   else showWindow()
 }
@@ -248,7 +246,6 @@ function refreshModalWakePoll(): void {
         return pt.x >= b.x && pt.x <= b.x + b.width && pt.y >= b.y && pt.y <= b.y + b.height
       })
       if (!shouldWakeModalFocus({ pressed, prevPressed: !pressed, cursorInside, childOpen: true })) return
-      geoLog('modal-wake focus transfer')
       for (const c of childWindows) {
         if (!c.isDestroyed() && c.isVisible()) {
           c.focus()
@@ -386,7 +383,6 @@ function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.setTucked, (_e, v: boolean) => {
-    geoLog('setTucked(renderer) v=' + v + ' childCount=' + childWindows.size)
     // 用户验收#5：有二级窗口打开时禁用缩进（主进程权威拦截）
     if (v && childWindows.size > 0) return
     setClusterTucked(v)
@@ -509,9 +505,6 @@ function registerIpc(): void {
   })
 
   // TEMP 文本光标诊断日志（用户 2026-10-06 报告；发版前移除）
-  ipcMain.on('app:cursor-diag', (_e, msg: string) => {
-    geoLog(String(msg))
-  })
 
   // E2E 测试钩子：强制以偏移时钟结算（仅 DTODO_TEST=1 时注册）
   if (process.env.DTODO_TEST === '1') {

@@ -195,7 +195,6 @@ const childCountListeners: Array<(n: number) => void> = []
     setUnsavedEdits: (flag: boolean) => {
       unsavedCalls.push(flag)
     },
-    diagnosticLog: () => {},
     openChild: async (p) => {
       openChildCalls.push(p)
     },
