@@ -275,8 +275,8 @@ async function doExport(): Promise<void> {
 
 .checkbox {
   flex: none;
-  width: 19px;
-  height: 19px;
+  width: 20px; /* L1.5 规格统一：勾选框 20×20（与主窗/侧窗一致；原 19px 为孤例） */
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -554,13 +554,13 @@ async function onComplete(id: string): Promise<void> {
 }
 
 .btn.sm {
-  height: 30px;
-  padding: 0 10px;
+  height: 26px; /* L1.5 规格统一：小按钮 26px（原型 .btn.sm；与快捷窗/二级窗 .b/批量条一致，原主窗 30px 为孤例） */
+  padding: 0 9px;
   border: 1px solid var(--btn-border);
   border-radius: 6px;
   background: var(--btn);
   color: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   cursor: pointer;
   display: inline-flex; /* L1.5：带图标按钮（trash+文字）行内居中对齐 */
   align-items: center;

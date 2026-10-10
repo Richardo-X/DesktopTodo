@@ -261,8 +261,8 @@ onUnmounted(() => {
 }
 
 .icon-btn.accent {
-  width: 26px;
-  height: 26px;
+  width: 32px; /* L1.5 规格统一：图标按钮 32×32（原型 .icon-btn 全局单一规格；原 26px 为孤例） */
+  height: 32px;
   padding: 0;
   border: none;
   border-radius: 6px;
@@ -276,10 +276,10 @@ onUnmounted(() => {
   justify-content: center;
 }
 
-/* L1.5：＋ 图标（原型 I.plus；按 0.5 比例随 26px 按钮 → 13px） */
+/* L1.5：＋ 图标（原型 I.plus，16px 随 32px 图标按钮） */
 .icon-btn.accent svg {
-  width: 13px;
-  height: 13px;
+  width: 16px;
+  height: 16px;
 }
 
 .icon-btn.accent:hover {

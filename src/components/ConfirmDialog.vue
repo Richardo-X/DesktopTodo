@@ -56,10 +56,15 @@ const ui = useUiStore()
 
 .btn {
   border: none;
+  height: 30px; /* L1.5 规格统一：按原型 .btn（30px/0 13 内边距/12.5px），原为 padding 撑高的隐含尺寸 */
+  padding: 0 13px;
   border-radius: 6px; /* L1：圆角 8→6（对齐原型 .btn） */
-  padding: 6px 14px;
-  font-size: calc(var(--fs, 14px) * 13 / 14);
+  font-size: 12.5px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .cancel {

@@ -220,8 +220,8 @@ function fmtDone(iso: string | null): string {
 }
 
 .icon-btn {
-  width: 26px;
-  height: 26px;
+  width: 32px; /* L1.5 规格统一：图标按钮 32×32（原型 .icon-btn 全局单一规格；原 26px 为孤例） */
+  height: 32px;
   padding: 0;
   border: 1px solid var(--btn-border);
   border-radius: 6px;
