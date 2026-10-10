@@ -370,7 +370,8 @@ function fmtDone(iso: string | null): string {
 
 .foot {
   flex: none;
-  margin-top: 8px;
+  /* 左右端 2px：与上方已完成列表行同边（.scroll 内边距 2px）——按钮边缘和列表边缘对齐 */
+  margin: 8px 2px 0;
 }
 
 .btn.block {

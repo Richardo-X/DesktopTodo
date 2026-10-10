@@ -478,7 +478,8 @@ async function onComplete(id: string): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding-bottom: 10px; /* #36 放宽 */
+  /* 左右端 2px：与下方列表行同边（.scroll 内边距 2px）——按钮边缘和列表边缘对齐（用户 2026-10-10 反馈） */
+  padding: 0 2px 10px;
   flex: none;
 }
 

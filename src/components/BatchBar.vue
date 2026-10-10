@@ -53,7 +53,8 @@ async function onDelete(): Promise<void> {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 8px;
+  /* 左右端 2px：与上方列表行同边（.scroll 内边距 2px）——批量条边缘和列表边缘对齐 */
+  margin: 8px 2px 0;
   padding: 8px 10px;
   border: 1px solid var(--accent, #0a63b8);
   border-radius: 8px;
