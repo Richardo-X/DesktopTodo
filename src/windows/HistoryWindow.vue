@@ -177,7 +177,7 @@ async function doExport(): Promise<void> {
 .date {
   height: 28px;
   border: 1px solid var(--btn-border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--field);
   color: var(--text);
   font-family: inherit;
@@ -225,6 +225,11 @@ async function doExport(): Promise<void> {
   border: 1px solid var(--card-border);
   cursor: default;
   user-select: none;
+  /* L1（v3.4）：行 hover 过渡同主窗待办行 */
+  transition:
+    transform 0.15s var(--ease-out),
+    box-shadow 0.15s var(--ease-out),
+    background-color 0.15s var(--ease-out);
 }
 
 .hist-row:hover {
@@ -275,7 +280,7 @@ async function doExport(): Promise<void> {
   justify-content: center;
   padding: 0;
   border: 1.5px solid var(--cb-border, #8a8a8a);
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   color: transparent;
   cursor: pointer;

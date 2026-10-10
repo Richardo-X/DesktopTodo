@@ -18,6 +18,51 @@ body {
   box-sizing: border-box;
 }
 
+/* ===== L1 视觉精修（原型 v3.4-taste）===== */
+/* 动效令牌（原型 body 定义；应用侧为全局唯一来源，主题无关） */
+:root {
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', sans-serif;
+}
+
+/* 全局过渡缓出曲线（原型 *{transition:... var(--ease-out)}）：只含变色三件套，
+ * 不覆盖各组件自身声明（class 选择器优先级高于 *，声明完整者全量生效） */
+* {
+  transition:
+    background-color 0.18s var(--ease-out),
+    color 0.18s var(--ease-out),
+    border-color 0.18s var(--ease-out);
+}
+
+/* 键盘焦点可见性（原型 :focus-visible） */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* 系统减弱动效关怀（原型 prefers-reduced-motion） */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* 按压反馈（原型 .btn:active/.icon-btn:active/.checkbox:active/.plusbox:active scale .96；
+ * .b/.primary 为应用侧按钮别名，一并纳入保证全应用统一）；
+ * 过渡需整组声明——transition 不可跨规则合并，少的声明会让变色过渡失效 */
+:is(.btn, .icon-btn, .checkbox, .plusbox, .wbtn, .b, .primary) {
+  transition:
+    transform 0.12s var(--ease-out),
+    background-color 0.18s var(--ease-out),
+    border-color 0.18s var(--ease-out),
+    color 0.18s var(--ease-out);
+}
+
+:is(.btn, .icon-btn, .checkbox, .plusbox, .b, .primary):active {
+  transform: scale(0.96);
+}
+
 #app {
   height: 100%;
 }
@@ -64,7 +109,7 @@ body {
   right: -11px; /* 二轮反馈：滑块位于「行右缘与窗口边框之间」的空隙带（win-body 右内边距 14px 内），不接触行 */
   width: 5px;
   border-radius: 99px;
-  background: var(--muted, #666);
+  background: var(--muted, #5d616b);
   opacity: 0.45;
   cursor: pointer;
   z-index: 5;

@@ -260,6 +260,11 @@ function fmtDone(iso: string | null): string {
   background: var(--card);
   border: 1px solid var(--card-border);
   cursor: default;
+  /* L1（v3.4）：行 hover 过渡同主窗待办行 */
+  transition:
+    transform 0.15s var(--ease-out),
+    box-shadow 0.15s var(--ease-out),
+    background-color 0.15s var(--ease-out);
 }
 
 .todo-row:hover {
@@ -276,7 +281,7 @@ function fmtDone(iso: string | null): string {
   justify-content: center;
   padding: 0;
   border: 1.5px solid var(--cb-border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-fg);
@@ -357,7 +362,7 @@ function fmtDone(iso: string | null): string {
   width: 100%;
   height: 30px;
   border: 1px solid var(--btn-border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--btn);
   color: inherit;
   font-size: 12.5px;

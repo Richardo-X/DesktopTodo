@@ -86,6 +86,11 @@ function onCheckboxClick(): void {
   border: 1px solid var(--card-border, rgba(0, 0, 0, 0.09));
   user-select: none;
   cursor: default;
+  /* L1（v3.4）：hover 变色/拖动投影走缓出过渡（FLIP 回弹为内联 transition，不受影响） */
+  transition:
+    transform 0.15s var(--ease-out),
+    box-shadow 0.15s var(--ease-out),
+    background-color 0.15s var(--ease-out);
 }
 
 .todo-row:hover {
@@ -104,7 +109,7 @@ function onCheckboxClick(): void {
   height: 20px;
   flex: none;
   border-radius: 4px;
-  background: radial-gradient(circle, var(--faint, #9a9a9a) 1px, transparent 1.4px);
+  background: radial-gradient(circle, var(--faint, #8b8f99) 1px, transparent 1.4px);
   background-size: 6px 6px;
   cursor: grab;
   touch-action: none;
@@ -167,7 +172,7 @@ function onCheckboxClick(): void {
   justify-content: center;
   padding: 0;
   border: 1.5px solid var(--cb-border, #8a8a8a);
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   cursor: pointer;
   color: transparent;
@@ -205,7 +210,7 @@ function onCheckboxClick(): void {
   opacity: 0.5;
   background: var(--active, rgba(0, 0, 0, 0.09));
   border-color: var(--accent, #0a63b8);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 14px rgba(10, 20, 40, 0.22); /* L1：投影色调化（纯黑→蓝黑） */
   z-index: 5;
 }
 </style>

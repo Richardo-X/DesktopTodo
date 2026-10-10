@@ -59,7 +59,7 @@ async function onDelete(): Promise<void> {
   border-radius: 8px;
   background: var(--hover, rgba(0, 0, 0, 0.05));
   font-size: 12px;
-  color: var(--muted, #666);
+  color: var(--muted, #5d616b);
 }
 
 .count {
@@ -77,9 +77,9 @@ async function onDelete(): Promise<void> {
   height: 26px;
   padding: 0 9px;
   border: 1px solid var(--btn-border, rgba(0, 0, 0, 0.13));
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--btn, rgba(255, 255, 255, 0.75));
-  color: var(--text, #1c1c1c);
+  color: var(--text, #1a1c20);
   font-size: 11.5px;
   cursor: pointer;
 }

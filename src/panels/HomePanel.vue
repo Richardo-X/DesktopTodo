@@ -361,14 +361,14 @@ async function onComplete(id: string): Promise<void> {
   gap: 7px;
   align-items: center;
   font-size: 12.5px;
-  color: var(--muted, #666);
+  color: var(--muted, #5d616b);
   pointer-events: none;
 }
 
 .tb-brand {
   width: 17px;
   height: 17px;
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--accent, #0a63b8);
   color: var(--accent-fg, #ffffff);
   display: flex;
@@ -438,6 +438,8 @@ async function onComplete(id: string): Promise<void> {
   font-weight: 600;
   line-height: 1.1;
   letter-spacing: 1px;
+  font-variant-numeric: tabular-nums; /* L1：等宽数字（刷新不跳动） */
+  font-family: var(--font-display);
 }
 
 .clock-date {
@@ -562,7 +564,7 @@ async function onComplete(id: string): Promise<void> {
   right: -11px; /* 行右缘与窗口边框之间的空隙带（win-body 右内边距 14px 内），不接触行 */
   width: 5px;
   border-radius: 99px;
-  background: var(--muted, #666);
+  background: var(--muted, #5d616b);
   opacity: 0.45;
   cursor: pointer;
   z-index: 5;

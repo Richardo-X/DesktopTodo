@@ -196,9 +196,9 @@ onUnmounted(() => {
   --card: rgba(255, 255, 255, 0.7);
   --card-border: rgba(0, 0, 0, 0.09);
   --field: rgba(255, 255, 255, 0.9);
-  --text: #1c1c1c;
-  --muted: #666;
-  --faint: #9a9a9a;
+  --text: #1a1c20;
+  --muted: #5d616b;
+  --faint: #8b8f99;
   --hover: rgba(0, 0, 0, 0.05);
   --active: rgba(0, 0, 0, 0.09);
   --btn: rgba(255, 255, 255, 0.75);
@@ -227,9 +227,9 @@ onUnmounted(() => {
   --card: rgba(255, 255, 255, 0.055);
   --card-border: rgba(255, 255, 255, 0.11);
   --field: rgba(255, 255, 255, 0.07);
-  --text: #f0f0f0;
-  --muted: #a4a4a4;
-  --faint: #7a7a7a;
+  --text: #f2f3f5;
+  --muted: #abafb8;
+  --faint: #7d818c;
   --hover: rgba(255, 255, 255, 0.06);
   --active: rgba(255, 255, 255, 0.12);
   --btn: rgba(255, 255, 255, 0.08);

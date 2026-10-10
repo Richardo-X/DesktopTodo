@@ -224,7 +224,7 @@ onUnmounted(() => {
   height: 26px;
   padding: 0 9px;
   border: 1px solid var(--btn-border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--btn);
   color: inherit;
   font-size: 11.5px;
@@ -281,6 +281,11 @@ onUnmounted(() => {
   border: 1px solid var(--card-border);
   user-select: none;
   cursor: default;
+  /* L1（v3.4）：行 hover/拖动过渡同主窗待办行 */
+  transition:
+    transform 0.15s var(--ease-out),
+    box-shadow 0.15s var(--ease-out),
+    background-color 0.15s var(--ease-out);
 }
 
 .tpl-row:hover {
@@ -297,7 +302,7 @@ onUnmounted(() => {
   opacity: 0.5;
   background: var(--active);
   border-color: var(--accent);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 14px rgba(10, 20, 40, 0.22); /* L1：投影色调化（纯黑→蓝黑） */
   z-index: 5;
 }
 
@@ -344,7 +349,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   border: 1.5px solid var(--cb-border);
-  border-radius: 5px;
+  border-radius: 6px;
   color: var(--muted);
   cursor: pointer;
   font-size: 13px;
@@ -367,7 +372,7 @@ onUnmounted(() => {
   justify-content: center;
   padding: 0;
   border: 1.5px solid var(--cb-border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   cursor: pointer;
   color: transparent;

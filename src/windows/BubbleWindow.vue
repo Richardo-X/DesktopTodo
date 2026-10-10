@@ -45,7 +45,7 @@ onMounted(() => {
   max-height: 160px;
   padding: 9px 12px;
   border-radius: 8px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 28px rgba(10, 20, 40, 0.28); /* L1（v3.4）：投影色调化（纯黑→蓝黑） */
   font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
   font-size: 12.5px;
   line-height: 1.7;

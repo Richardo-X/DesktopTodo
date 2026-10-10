@@ -184,7 +184,7 @@ async function onBack(): Promise<void> {
   width: 28px;
   height: 28px;
   border: 1px solid var(--btn-border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--btn);
   color: var(--text);
   font-size: 15px;
@@ -205,7 +205,7 @@ async function onBack(): Promise<void> {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--btn-border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--field);
   color: var(--text);
   font-size: 12.5px;
