@@ -2,6 +2,7 @@ node_modules/
 out/
 dist/
 dist-e2e/
+dist-v*/   # 打版临时输出（三杀软死锁残留，待解锁后删除）
 coverage/
 test-results/
 playwright-report/
