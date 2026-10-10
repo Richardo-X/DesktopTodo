@@ -22,8 +22,13 @@ const props = defineProps<{ panel: 'quick' | 'main' | 'done' }>()
 
 const store = useAppStore()
 const ui = useUiStore()
-/** 白条点击弹出（未置顶态的弹出途径）：划过弹出仅置顶态可用（未置顶胶囊可能被其他
- * 窗口遮挡，几何判定无法感知遮挡），点击天然感知遮挡——被盖住时点击落在上层窗口 */
+/** 白条弹出驱动（C7 用户方案 2026-10-10）：mouseenter = 系统真实命中——鼠标物理碰到白条
+ * （主窗白条元素）才触发；被其他窗口遮挡时主窗收不到鼠标事件=天然不弹（无需任何遮挡检测）；
+ * 判定范围=白条元素边界（垂直 12px/水平 160px 精确，无窗口透明区误差）。
+ * 点击作为附加途径保留（CDP/特殊场景）。 */
+function onTuckBarEnter(): void {
+  ui.dispatchTuck({ type: 'mouse-enter', now: Date.now() })
+}
 function onTuckBarClick(): void {
   ui.dispatchTuck({ type: 'mouse-enter', now: Date.now() })
 }
@@ -167,6 +172,7 @@ onUnmounted(() => {
         class="tuck-bar"
         :style="{ height: TUCK_BAR_HEIGHT + 'px', width: TUCK_BAR_WIDTH + 'px' }"
         title="鼠标移入弹出组件（点击亦可）"
+        @mouseenter="onTuckBarEnter"
         @click="onTuckBarClick"
       />
     </template>

@@ -6,13 +6,12 @@ import {
   disableDwmTransitions,
   getDwmTransitionsDisabled,
   getWindowExstyleFlags,
-  hitProbe,
   makeToolWindow,
   postWmClose,
   screenPixelAt,
   sysShowWindow
 } from './win32'
-import { SNAP_THRESHOLD, TUCK_BAR_HEIGHT } from '../../src/core/constants'
+import { SNAP_THRESHOLD } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
   clampAnchorForEdges,
@@ -427,6 +426,10 @@ export function syncClusterBounds(ui: {
 export function setClusterTucked(v: boolean): void {
   if (!cluster) return
   cluster.tucked = v
+  // 弹出/缩进切换后重置 inside 记忆：下一次 tick 必发一次真实状态——渲染层依赖该信号
+  // 计算 leaveAt（C7 白条 mouseenter 弹出后，若无此重置且光标一直在组件外，渲染层收不到
+  // mouse-leave 将无法自动缩回）
+  lastInside = null
   geoLog(`setClusterTucked(${v})`)
   if (v) autoExpandUntil = 0 // 重新缩进同样清除挂起会话（防跨状态闪退）
   const { quick, done, main } = cluster.windows
@@ -626,31 +629,18 @@ export function repositionClusterToDisplays(displays: { workArea: WinBounds }[])
 /** 缩进判定光标轮询：光标是否在可见组件范围内（缩进态=胶囊窗本体）；
  * 状态变化推送待办窗（权威驱动，DOM 事件不参与——三轮8.2-1）。
  * 自动弹出会话内（缩进态托盘恢复）强制 inside=true，到期恢复真实判定 */
+let lastInside: boolean | null = true
 export function startTuckCursorPoll(): void {
-  let lastInside = true
   setInterval(() => {
     if (!cluster || !cluster.visible) return
     const pt = cursorPoint()
     let inside = false
     if (cluster.tucked) {
-      const m = cluster.windows.main
-      // 白条带判定（C6.6，用户 2026-10-09 定调"碰到白条本体才弹"）：垂直方向收紧到白条
-      // 可视带（顶部 TUCK_BAR_HEIGHT=12px）——窗口下部 26px 透明区（OS 最小高度钳制产生）
-      // 不算"碰到胶囊"（用户报告：垂直没碰到就弹出）。
-      // 遮挡判定实验结论（hitProbe）：白条贴顶为命中测试异常区（穿透/空与遮挡状态无关），
-      // 遮挡判定不可行已撤销；误触规避转交互方案（悬停延迟等，待用户决策）
-      const b = m.getBounds()
-      // 几何判定先行（无原生调用）；仅当光标落在白条带内才做遮挡查询——
-      // 原生调用（WindowFromPoint/getNativeWindowHandle）降频至必要时刻（CI 慢机器上
-      // 每 tick 无条件调用曾致主进程响应拖垮、用例超时挂死）
-      inside = safe(m) && contains({ x: b.x, y: b.y, width: b.width, height: TUCK_BAR_HEIGHT }, pt)
-      if (inside) {
-        // 遮挡判定保守策略（C6.7）：只有**明确命中他窗**才拦（防误触）；命中主窗（白条可见）
-        // 或查询空（屏缘穿透/异常）都放行——确保划过弹出可用（用户报告"划过不弹只剩点击"的修正）
-        const hit = hitProbe(pt.x, pt.y)
-        const mainHwnd = m.getNativeWindowHandle().readBigUInt64LE(0).toString()
-        inside = hit === '' || hit === mainHwnd
-      }
+      // 缩进态弹出改由渲染层白条 mouseenter 驱动（C7 用户方案 2026-10-10）：mouseenter=
+      // 系统真实命中分发——鼠标物理碰到白条才触发；被遮挡时主窗收不到鼠标事件=天然不弹；
+      // 判定范围=白条元素边界（12px×160px 精确）。tick 缩进态不再做任何自算判定
+      // （历史几何/原生查询自算在遮挡与贴屏顶场景均不可靠，C6 系列实验结论）
+      inside = false
     } else {
       for (const w of [cluster.windows.quick, cluster.windows.main, cluster.windows.done]) {
         if (safe(w) && sideWindowVisible(w) && contains(w.getBounds(), pt)) {
