@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { launchApp } from './helpers'
 import { createTodoItem } from '../../src/core/models'
 
-/** L1 视觉精修（原型 v3.4-taste）自动化锁定：
+/** L1 视觉精修（原型 v3.4-L1，原名 v3.4-taste）自动化锁定：
  * 令牌对比度 / 时钟等宽 / 圆角统一 6px / 对话框 420px+10px / 投影色调化 /
  * 按压反馈 :active / 缓出曲线 / focus-visible / prefers-reduced-motion。
  * 与原型 v3.4 逐项对应，防止后续回归改回纯黑投影/5px 圆角/旧对比度。 */
