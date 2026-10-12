@@ -383,9 +383,9 @@ async function onComplete(id: string): Promise<void> {
 /* 品牌区：主题色圆角方块勾图标 + 应用名（原型 .tb-left/.tb-icon） */
 .tb-left {
   display: flex;
-  gap: 7px;
+  gap: 8px; /* L2：7→8（4px 栅格） */
   align-items: center;
-  font-size: 12.5px;
+  font-size: 12px; /* L2 字阶 label 12（原 12.5） */
   color: var(--muted, #5d616b);
   pointer-events: none;
 }
@@ -450,7 +450,7 @@ async function onComplete(id: string): Promise<void> {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 10px 14px 24px; /* 底部 24px：避让右下缩放角；顶部 10px（#36 放宽） */
+  padding: 8px 14px 24px; /* L2：顶部统一 8px（4px 栅格，三窗同口径）；底部 24px：避让右下缩放角 */
 }
 
 .clock-inline {
@@ -477,9 +477,10 @@ async function onComplete(id: string): Promise<void> {
 .actions {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  /* 左右端 2px：与下方列表行同边（.scroll 内边距 2px）——按钮边缘和列表边缘对齐（用户 2026-10-10 反馈） */
-  padding: 0 2px 10px;
+  gap: 8px; /* L2：行间距 6→8（4px 栅格） */
+  /* 左右端 2px：与下方列表行同边（.scroll 内边距 2px）——按钮边缘和列表边缘对齐（用户 2026-10-10 反馈）；
+     底部 10→8（L2）：头部→列表间距统一（与侧窗 .panel-head 同口径） */
+  padding: 0 2px 8px;
   flex: none;
 }
 
@@ -512,7 +513,7 @@ async function onComplete(id: string): Promise<void> {
   border-radius: 6px;
   background: var(--btn);
   color: inherit;
-  font-size: 12.5px;
+  font-size: 12px; /* L2 字阶 label 12（原 12.5；容器为 SVG 图标，字号仅归阶梯） */
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -561,7 +562,7 @@ async function onComplete(id: string): Promise<void> {
   border-radius: 6px;
   background: var(--btn);
   color: inherit;
-  font-size: 11.5px;
+  font-size: 11px; /* L2 字阶 caption 11（原 11.5；26px 小按钮口径，与 .b/批量条一致） */
   cursor: pointer;
   display: inline-flex; /* L1.5：带图标按钮（trash+文字）行内居中对齐 */
   align-items: center;
@@ -620,19 +621,19 @@ async function onComplete(id: string): Promise<void> {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 8px; /* L2：7→8（4px 栅格） */
 }
 
 .empty-main {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px; /* L2 字阶 heading 15（原 16 离群） */
   color: var(--muted);
   letter-spacing: 2px;
 }
 
 .empty-sub {
   margin: 0;
-  font-size: 11.5px;
+  font-size: 11px; /* L2 字阶 caption 11（原 11.5） */
   color: var(--faint);
 }
 

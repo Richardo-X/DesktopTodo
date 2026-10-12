@@ -144,7 +144,7 @@ async function onBack(): Promise<void> {
 
 <style scoped>
 .created {
-  font-size: 11.5px;
+  font-size: 11px; /* L2 字阶 caption 11（原 11.5） */
   color: var(--muted);
 }
 

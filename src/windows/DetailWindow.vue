@@ -62,7 +62,7 @@ async function close(): Promise<void> {
 .content {
   margin: 0;
   font-size: 13.5px;
-  line-height: 1.6;
+  line-height: 1.5; /* L2：正文行高统一 1.5（原 1.6） */
   white-space: pre-wrap;
   word-break: break-all;
 }
@@ -75,7 +75,7 @@ async function close(): Promise<void> {
   color: var(--muted);
   background: var(--hover);
   border-radius: 6px;
-  padding: 10px;
+  padding: 12px; /* L2：10→12（4px 栅格） */
 }
 
 .props .late {

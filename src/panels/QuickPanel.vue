@@ -184,7 +184,7 @@ onUnmounted(() => {
 }
 
 .tb-title {
-  font-size: 12.5px;
+  font-size: 12px; /* L2 字阶 label 12（原 12.5） */
   color: var(--muted);
   pointer-events: none;
 }
@@ -206,7 +206,7 @@ onUnmounted(() => {
   justify-content: center;
   cursor: pointer;
   padding: 0;
-  font-size: 13px;
+  font-size: 12px; /* L2：13→label 12（容器为 SVG，字号仅归阶梯） */
 }
 
 .wbtn:hover {
@@ -219,19 +219,19 @@ onUnmounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 2px 14px 24px;
+  padding: 8px 14px 24px; /* L2：顶部 2→8（4px 栅格，三窗同口径）；底部 24px：避让右下缩放角 */
 }
 
 .panel-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px; /* L2：6→8（4px 栅格） */
   padding: 0 2px 8px;
   flex: none;
 }
 
 .panel-title {
-  font-size: 13px;
+  font-size: 15px; /* L2 字阶 heading 15（原 13；层级靠字重+颜色区分） */
   font-weight: 600;
   margin-right: auto;
 }
@@ -243,7 +243,7 @@ onUnmounted(() => {
   border-radius: 6px;
   background: var(--btn);
   color: inherit;
-  font-size: 11.5px;
+  font-size: 11px; /* L2 字阶 caption 11（原 11.5；26px 小按钮口径） */
   cursor: pointer;
   display: inline-flex; /* L1.5：带图标按钮（trash+文字）行内居中对齐 */
   align-items: center;
@@ -268,7 +268,7 @@ onUnmounted(() => {
   border-radius: 6px;
   background: var(--accent);
   color: var(--accent-fg);
-  font-size: 14px;
+  font-size: 12px; /* L2：14→label 12（容器为 SVG，字号仅归阶梯） */
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
@@ -287,7 +287,7 @@ onUnmounted(() => {
 }
 
 .error {
-  margin: 0 0 6px;
+  margin: 0 0 8px; /* L2：6→8（4px 栅格） */
   font-size: 12px;
   color: var(--danger);
 }
@@ -298,7 +298,7 @@ onUnmounted(() => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px; /* L2：6→8（与主窗列表同节奏） */
   padding: 2px;
 }
 
@@ -306,7 +306,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 10px;
+  padding: 11px 12px; /* L2 行归一：9×10→11×12（与主窗待办行同高） */
   border-radius: 8px;
   background: var(--card);
   border: 1px solid var(--card-border);
@@ -383,7 +383,7 @@ onUnmounted(() => {
   border-radius: 6px;
   color: var(--muted);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px; /* L2：13→label 12（容器为 SVG，字号仅归阶梯） */
   line-height: 1;
   background: transparent;
 }
@@ -447,13 +447,14 @@ onUnmounted(() => {
 }
 
 .meta-line {
-  margin: 8px 0 0;
+  /* L2：全宽说明块节奏——2px 对齐补偿（框与列表行同边）+ 8×12 内边距（文左缘与行内文对齐） */
+  margin: 8px 2px 0;
   flex: none;
-  font-size: 11.5px;
+  font-size: 11px; /* L2 字阶 caption 11（原 11.5） */
   color: var(--muted);
   background: var(--hover);
   border-radius: 6px;
-  padding: 7px 10px;
+  padding: 8px 12px;
   line-height: 1.5;
 }
 </style>

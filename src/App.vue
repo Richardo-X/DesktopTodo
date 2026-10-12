@@ -43,6 +43,6 @@ body,
 
 .placeholder {
   color: #5b6472;
-  font-size: calc(var(--fs, 14px) * 14 / 14);
+  font-size: 13.5px; /* L2 字阶 body 13.5（原 calc 14px 离群） */
 }
 </style>

@@ -167,7 +167,7 @@ function fmtDone(iso: string | null): string {
 }
 
 .tb-title {
-  font-size: 12.5px;
+  font-size: 12px; /* L2 字阶 label 12（原 12.5） */
   color: var(--muted);
   pointer-events: none;
 }
@@ -189,7 +189,7 @@ function fmtDone(iso: string | null): string {
   justify-content: center;
   cursor: pointer;
   padding: 0;
-  font-size: 13px;
+  font-size: 12px; /* L2：13→label 12（容器为 SVG，字号仅归阶梯） */
 }
 
 .wbtn:hover {
@@ -202,19 +202,19 @@ function fmtDone(iso: string | null): string {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 2px 14px 24px;
+  padding: 8px 14px 24px; /* L2：顶部 2→8（4px 栅格，三窗同口径）；底部 24px：避让右下缩放角 */
 }
 
 .panel-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px; /* L2：6→8（4px 栅格） */
   padding: 0 2px 8px;
   flex: none;
 }
 
 .panel-title {
-  font-size: 13px;
+  font-size: 15px; /* L2 字阶 heading 15（原 13；层级靠字重+颜色区分） */
   font-weight: 600;
   margin-right: auto;
 }
@@ -227,7 +227,7 @@ function fmtDone(iso: string | null): string {
   border-radius: 6px;
   background: var(--btn);
   color: inherit;
-  font-size: 13px;
+  font-size: 12px; /* L2：13→label 12（容器为 SVG，字号仅归阶梯） */
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -244,7 +244,7 @@ function fmtDone(iso: string | null): string {
 }
 
 .error {
-  margin: 0 0 6px;
+  margin: 0 0 8px; /* L2：6→8（4px 栅格） */
   font-size: 12px;
   color: var(--danger);
 }
@@ -254,7 +254,7 @@ function fmtDone(iso: string | null): string {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px; /* L2：6→8（与主窗列表同节奏） */
   padding: 2px;
 }
 
@@ -270,7 +270,7 @@ function fmtDone(iso: string | null): string {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 10px;
+  padding: 11px 12px; /* L2 行归一：9×10→11×12（与主窗待办行同高） */
   border-radius: 8px;
   background: var(--card);
   border: 1px solid var(--card-border);
@@ -351,7 +351,7 @@ function fmtDone(iso: string | null): string {
   color: var(--faint);
 }
 
-/* 决策#18：空状态 17px、字距 5px、窗口内水平垂直居中 */
+/* 空状态：heading 档（L2：17→15、字距 5px 保留）、窗口内水平垂直居中 */
 .panel-empty {
   flex: 1;
   display: flex;
@@ -363,7 +363,7 @@ function fmtDone(iso: string | null): string {
 }
 
 .panel-empty.empty-big {
-  font-size: 17px;
+  font-size: 15px; /* L2 字阶 heading 15（原 17 离群） */
   color: var(--muted);
   letter-spacing: 5px;
 }
@@ -381,7 +381,7 @@ function fmtDone(iso: string | null): string {
   border-radius: 6px;
   background: var(--btn);
   color: inherit;
-  font-size: 12.5px;
+  font-size: 12px; /* L2 字阶 label 12（原 12.5；30px 主按钮口径） */
   cursor: pointer;
   display: inline-flex; /* L1.5：带图标按钮（clock+文字）居中 */
   align-items: center;

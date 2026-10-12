@@ -172,7 +172,7 @@ async function doExport(): Promise<void> {
 .nav {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px; /* L2：6→8（4px 栅格） */
   flex: none;
 }
 
@@ -183,7 +183,7 @@ async function doExport(): Promise<void> {
   background: var(--field);
   color: var(--text);
   font-family: inherit;
-  font-size: 11.5px;
+  font-size: 11px; /* L2 字阶 caption 11（原 11.5） */
   padding: 0 5px;
   outline: none;
 }
@@ -196,7 +196,7 @@ async function doExport(): Promise<void> {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11.5px;
+  font-size: 11px; /* L2 字阶 caption 11（原 11.5） */
   color: var(--muted);
   flex: none;
 }
@@ -211,8 +211,8 @@ async function doExport(): Promise<void> {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 6px;
+  gap: 8px; /* L2：6→8（与主窗列表同节奏） */
+  padding: 8px; /* L2：6→8（4px 栅格） */
   border: 1px solid var(--card-border);
   border-radius: 8px;
 }
@@ -221,7 +221,7 @@ async function doExport(): Promise<void> {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 11px 12px; /* L2 行归一：8×10→11×12（与主窗待办行同高） */
   border-radius: 8px;
   background: var(--card);
   border: 1px solid var(--card-border);
@@ -247,7 +247,8 @@ async function doExport(): Promise<void> {
 .content {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: 13.5px; /* L2 字阶 body 13.5（原 13；四类行内容同档） */
+  line-height: 1.5; /* L2：正文行高统一 1.5 */
   text-align: left;
 }
 
@@ -317,14 +318,14 @@ async function doExport(): Promise<void> {
 .export {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px; /* L2：6→8（4px 栅格） */
   flex: none;
   padding-top: 8px;
   border-top: 1px solid var(--card-border);
 }
 
 .label {
-  font-size: 11.5px;
+  font-size: 11px; /* L2 字阶 caption 11（原 11.5） */
   color: var(--muted);
 }
 

@@ -43,8 +43,8 @@ const ui = useUiStore()
 
 .message {
   margin: 0 0 14px;
-  font-size: calc(var(--fs, 14px) * 13 / 14);
-  line-height: 1.6;
+  font-size: 12px; /* L2 字阶 label 12（原 calc 13px） */
+  line-height: 1.5; /* L2：正文行高统一 1.5（原 1.6） */
   white-space: pre-line;
 }
 
@@ -59,7 +59,7 @@ const ui = useUiStore()
   height: 30px; /* L1.5 规格统一：按原型 .btn（30px/0 13 内边距/12.5px），原为 padding 撑高的隐含尺寸 */
   padding: 0 13px;
   border-radius: 6px; /* L1：圆角 8→6（对齐原型 .btn） */
-  font-size: 12.5px;
+  font-size: 12px; /* L2 字阶 label 12（原 12.5；30px 主按钮口径） */
   cursor: pointer;
   display: inline-flex;
   align-items: center;

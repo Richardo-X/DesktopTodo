@@ -178,7 +178,7 @@ async function onBack(): Promise<void> {
 .props {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px; /* L2：10→8（4px 栅格） */
 }
 
 .status {
@@ -200,7 +200,7 @@ async function onBack(): Promise<void> {
 }
 
 .created {
-  font-size: 11.5px;
+  font-size: 11px; /* L2 字阶 caption 11（原 11.5） */
   color: var(--muted);
 }
 

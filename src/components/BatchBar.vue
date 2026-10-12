@@ -55,7 +55,7 @@ async function onDelete(): Promise<void> {
   gap: 10px;
   /* 左右端 2px：与上方列表行同边（.scroll 内边距 2px）——批量条边缘和列表边缘对齐 */
   margin: 8px 2px 0;
-  padding: 8px 10px;
+  padding: 8px 12px; /* L2：横向 10→12（文左缘/按钮右缘与行内文对齐） */
   border: 1px solid var(--accent, #0a63b8);
   border-radius: 8px;
   background: var(--hover, rgba(0, 0, 0, 0.05));
@@ -81,7 +81,7 @@ async function onDelete(): Promise<void> {
   border-radius: 6px;
   background: var(--btn, rgba(255, 255, 255, 0.75));
   color: var(--text, #1a1c20);
-  font-size: 11.5px;
+  font-size: 11px; /* L2 字阶 caption 11（原 11.5；26px 小按钮口径） */
   cursor: pointer;
 }
 

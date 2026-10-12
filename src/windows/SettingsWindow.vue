@@ -139,31 +139,31 @@ async function onBack(): Promise<void> {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 6px 0;
+  gap: 12px; /* L2：14→12（4px 栅格） */
+  padding: 8px 0; /* L2：6→8（4px 栅格） */
 }
 
 .form-col {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 6px 0;
+  padding: 8px 0; /* L2：6→8（4px 栅格） */
 }
 
 .form-label {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px; /* L2：3→4（4px 栅格） */
   text-align: left;
 }
 
 .form-label b {
-  font-size: 13px;
+  font-size: 13.5px; /* L2 字阶 body 13.5（原 13；设置项标签同正文档） */
   font-weight: 600;
 }
 
 .form-label span {
-  font-size: 11.5px;
+  font-size: 11px; /* L2 字阶 caption 11（原 11.5） */
   color: var(--muted);
   line-height: 1.5;
 }
@@ -176,7 +176,7 @@ async function onBack(): Promise<void> {
 
 .row {
   display: flex;
-  gap: 6px;
+  gap: 8px; /* L2：6→8（4px 栅格） */
 }
 
 .stepper {
@@ -213,7 +213,7 @@ async function onBack(): Promise<void> {
   border-radius: 6px;
   background: var(--field);
   color: var(--text);
-  font-size: 12.5px;
+  font-size: 12px; /* L2 字阶 label 12（原 12.5） */
 }
 
 .seg {
@@ -227,7 +227,7 @@ async function onBack(): Promise<void> {
   border: none;
   background: var(--btn);
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: 11px; /* L2 字阶 caption 11（原 11.5） */
   padding: 5px 10px;
   cursor: pointer;
   font-family: inherit;
@@ -273,8 +273,8 @@ async function onBack(): Promise<void> {
 }
 
 .note {
-  margin: -2px 0 0;
-  font-size: 11.5px;
+  margin: 0; /* L2：-2px 补偿取消（form-row 底距已统一 8px） */
+  font-size: 11px; /* L2 字阶 caption 11（原 11.5） */
   color: var(--danger);
 }
 </style>

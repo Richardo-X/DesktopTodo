@@ -47,8 +47,8 @@ onMounted(() => {
   border-radius: 8px;
   box-shadow: 0 10px 28px rgba(10, 20, 40, 0.28); /* L1（v3.4）：投影色调化（纯黑→蓝黑） */
   font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
-  font-size: 12.5px;
-  line-height: 1.7;
+  font-size: 12px; /* L2 字阶 label 12（原 12.5） */
+  line-height: 1.5; /* L2：正文行高统一 1.5（原 1.7） */
   word-break: break-all;
   white-space: normal;
   overflow: hidden;
