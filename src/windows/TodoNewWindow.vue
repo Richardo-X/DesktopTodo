@@ -94,13 +94,3 @@ async function onBack(): Promise<void> {
   justify-content: space-between;
 }
 </style>
-
-
-<style scoped>
-/* 输入框长宽等比缩放（用户 2026-10-09）：高度随宽度联动（比例=基准态可视比例），
- * 窗口缩放时不再"只有宽度在变"——仅此窗的输入框，其他窗不受影响 */
-.input {
-  aspect-ratio: 3 / 1;
-  height: auto;
-}
-</style>

@@ -153,7 +153,7 @@ test('主题切换 → 气泡窗样式即时跟随（不再首闪旧主题）', 
 
   // 气泡窗 DOM 主题已即时跟随（无 hovered、无 payload）——切换瞬间同步
   await expect
-    .poll(async () => (await bubblePage.locator('[data-testid="content-bubble"]').getAttribute('class')) ?? '')
+    .poll(async () => (await bubblePage!.locator('[data-testid="content-bubble"]').getAttribute('class')) ?? '')
     .toContain('night')
 
   await h.close()

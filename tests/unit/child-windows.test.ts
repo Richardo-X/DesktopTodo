@@ -5,11 +5,11 @@ const WA = { x: 0, y: 40, width: 1920, height: 1040 }
 
 /** B3（决策#5/#14/#21）+ 二轮反馈（照原型组缩放规则） */
 describe('CHILD_SIZES 基准尺寸与分组', () => {
-  it('7 类基准尺寸（8.2-3 用户定稿：整体 +15%；回收站已移除）', () => {
-    expect(CHILD_SIZES['todo-new']).toEqual({ w: 410, h: 410 })
-    expect(CHILD_SIZES['todo-edit']).toEqual({ w: 460, h: 490 })
-    expect(CHILD_SIZES['template-new']).toEqual({ w: 410, h: 410 })
-    expect(CHILD_SIZES['template-edit']).toEqual({ w: 410, h: 435 })
+  it('7 类基准尺寸（新建/编辑 4 窗统一 3:4=420×560，用户 2026-10-14 裁定；回收站已移除）', () => {
+    expect(CHILD_SIZES['todo-new']).toEqual({ w: 420, h: 560 })
+    expect(CHILD_SIZES['todo-edit']).toEqual({ w: 420, h: 560 })
+    expect(CHILD_SIZES['template-new']).toEqual({ w: 420, h: 560 })
+    expect(CHILD_SIZES['template-edit']).toEqual({ w: 420, h: 560 })
     expect(CHILD_SIZES.detail).toEqual({ w: 415, h: 490 })
     expect(CHILD_SIZES.history).toEqual({ w: 645, h: 620 })
     expect(CHILD_SIZES.settings).toEqual({ w: 460, h: 540 })
@@ -63,13 +63,13 @@ describe('childWindowOptions', () => {
 
   it('B3 组缩放：尺寸 = round(基准 × 组缩放)，屏幕放不下按 -24 钳制（照原型）', () => {
     const o = childWindowOptions('todo-new', WA, 0, 1.2)
-    expect(o.width).toBe(Math.round(410 * 1.2))
-    expect(o.height).toBe(Math.round(410 * 1.2))
+    expect(o.width).toBe(Math.round(420 * 1.2))
+    expect(o.height).toBe(Math.round(560 * 1.2))
 
     const small = { x: 0, y: 0, width: 700, height: 600 }
     const o2 = childWindowOptions('todo-new', small, 0, 2)
-    expect(o2.width).toBe(676) // min(820, 700-24)
-    expect(o2.height).toBe(576) // min(820, 600-24)
+    expect(o2.width).toBe(676) // min(840, 700-24)
+    expect(o2.height).toBe(576) // min(1120, 600-24)
   })
 
   it('B3 组缩放缺省为 1（既有调用兼容；矮屏按 -24 钳制）', () => {

@@ -201,3 +201,63 @@ test('C-2：模态锁定时主窗显示灰色半透明蒙层，关闭后消失',
   expect(await veilBg()).toBeNull()
   await h.close()
 })
+
+/** 二级窗统一 3:4（用户 2026-10-14 裁定）：新建/编辑待办+新建/编辑模板 4 窗基准 420×560；
+ * 输入框（.input）aspect-ratio 3:1（共享 child-window.css，原 TodoNew 单窗规则升为 4 窗共享） */
+test('二级窗统一 3:4：新建/编辑 4 窗 420×560、输入框 3:1 等比', async () => {
+  const h = await launchApp({
+    seed: {
+      todos: [createTodoItem({ content: '待办甲', now: new Date(), id: 't1' })],
+      templates: [createTodoItem({ content: '模板甲', now: new Date(), id: 'tp1' })]
+    }
+  })
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+  await h.quick.waitForSelector('[data-testid="quick-panel"]')
+  await h.main.waitForTimeout(300)
+
+  const boundsOf = (kind: string) =>
+    h.app.evaluate(({ BrowserWindow }, k) => {
+      const w = BrowserWindow.getAllWindows().find((x) => !x.isDestroyed() && x.webContents.getURL().includes(`win=${k}`))
+      return w ? w.getBounds() : null
+    }, kind)
+
+  const cases: Array<{ label: string; open: () => Promise<void>; kind: string }> = [
+    { label: '新建待办', open: () => h.main.click('[data-testid="op-new"]'), kind: 'todo-new' },
+    { label: '新建模板', open: () => h.quick.click('[data-testid="quick-new"]'), kind: 'template-new' },
+    { label: '编辑待办', open: () => h.main.locator('[data-testid="todo-row"]').dblclick(), kind: 'todo-edit' },
+    { label: '编辑模板', open: () => h.quick.locator('[data-testid="tpl-row"]').dblclick(), kind: 'template-edit' }
+  ]
+
+  for (const c of cases) {
+    const wp = h.app.waitForEvent('window')
+    await c.open()
+    const page = await wp
+    await page.waitForSelector('.child-window', { timeout: 10_000 })
+    await page.waitForTimeout(200)
+
+    const b = await boundsOf(c.kind)
+    expect(b, `${c.label} 窗口未找到`).not.toBeNull()
+    // Windows 对无边框窗宽度轴有 +4~5px 的统一膨胀（四窗实测完全一致、高度精确）——
+    // 断言设计值容差 + 宽高比 3:4（统一性是本需求的用户可见要求）
+    expect(Math.abs(b!.width - 420), `${c.label} 宽=${b!.width}`).toBeLessThanOrEqual(6)
+    expect(Math.abs(b!.height - 560), `${c.label} 高=${b!.height}`).toBeLessThanOrEqual(2)
+    expect(Math.abs(b!.width / b!.height - 0.75), `${c.label} 宽高比`).toBeLessThanOrEqual(0.02)
+
+    // 输入框 3:1（rect 含 1px 描边，box-sizing: border-box 下比率恒 3）
+    const ratio = await page.evaluate(() => {
+      const el = document.querySelector('.child-window .input') as HTMLElement | null
+      if (!el) return 0
+      const r = el.getBoundingClientRect()
+      return r.width / r.height
+    })
+    expect(ratio, `${c.label} 输入框宽高比=${ratio.toFixed(2)}`).toBeGreaterThan(2.7)
+    expect(ratio, `${c.label} 输入框宽高比=${ratio.toFixed(2)}`).toBeLessThan(3.3)
+
+    await page.evaluate(() =>
+      (window as unknown as { desktopTodo: { closeSelf(): Promise<void> } }).desktopTodo.closeSelf()
+    ).catch(() => {})
+    await h.main.waitForTimeout(300)
+  }
+
+  await h.close()
+})
