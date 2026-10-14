@@ -85,3 +85,61 @@ test('快捷窗画布恒定：档位变化 getBounds 不动、锚点平移只平
 
   await h.close()
 })
+
+test('快捷窗画布命中切换：卡面内恢复命中、余量区穿透、veil 期间恒穿透（§4-5）', async () => {
+  const h = await launchApp()
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+  await h.quick.waitForSelector('[data-testid="quick-panel"]')
+  await h.main.waitForTimeout(300)
+
+  const st = (): Promise<CanvasState & { quickMouseIgnore: boolean | null }> =>
+    h.main.evaluate(() =>
+      (
+        window as unknown as {
+          desktopTodoTest: { clusterState(): Promise<CanvasState & { quickMouseIgnore: boolean | null }> }
+        }
+      ).desktopTodoTest.clusterState()
+    )
+  const ignoreState = async (): Promise<boolean | null> => (await st()).quickMouseIgnore
+  const setScale = (s: number): Promise<boolean> =>
+    h.main.evaluate(
+      (v) =>
+        (window as unknown as { desktopTodoTest: { clusterScale(s: number): Promise<boolean> } }).desktopTodoTest.clusterScale(v),
+      s
+    )
+
+  // 启动基态：无鼠标活动 → forward 全穿透（showSidePanel 基态）
+  await expect.poll(ignoreState, { timeout: 3_000 }).toBe(true)
+
+  // 光标进卡面（合成事件直达页面，不经 OS 穿透层）→ 命中恢复
+  const vp = await h.quick.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }))
+  await h.quick.mouse.move(vp.w - 20, 20)
+  await expect.poll(ignoreState, { timeout: 3_000 }).toBe(false)
+
+  // 缩到 0.7：卡面右上角对齐，画布左/下露出透明余量
+  await setScale(0.7)
+  await expect
+    .poll(async () => (await st()).mainBounds.width, { timeout: 5_000 })
+    .toBeLessThanOrEqual(Math.round(470 * 0.7) + 1)
+
+  // 光标移到透明余量（左下角；卡面只占右上 310k×640k）→ 穿透
+  await h.quick.mouse.move(8, vp.h - 8)
+  await expect.poll(ignoreState, { timeout: 3_000 }).toBe(true)
+
+  // 回卡面 → 命中
+  await h.quick.mouse.move(vp.w - 20, 20)
+  await expect.poll(ignoreState, { timeout: 3_000 }).toBe(false)
+
+  // veil（二级窗开着）→ 恒穿透：即使光标在卡面上也不恢复命中
+  await h.main.click('[data-testid="tb-settings"]')
+  await expect
+    .poll(async () => h.app.windows().filter((w) => w.url().includes('win=settings')).length, { timeout: 10_000 })
+    .toBe(1)
+  await h.main.waitForSelector('[data-testid="modal-veil"]')
+  await expect.poll(ignoreState, { timeout: 3_000 }).toBe(true)
+  await h.quick.mouse.move(vp.w - 20, 20)
+  await h.quick.mouse.move(vp.w - 21, 21) // 触发 move（veil 下强制穿透）
+  await expect.poll(ignoreState, { timeout: 3_000 }).toBe(true)
+
+  await h.close()
+})

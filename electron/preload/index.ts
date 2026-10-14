@@ -21,6 +21,7 @@ const api = {
   openChild: (params: { kind: ChildKind; id?: string }) => ipcRenderer.invoke(IPC.openChild, params),
   closeSelf: () => ipcRenderer.invoke(IPC.closeSelf),
   resizeSelf: (params: { width: number; height: number }) => ipcRenderer.invoke(IPC.resizeSelf, params),
+  setSelfMouseIgnore: (ignore: boolean, forward: boolean) => ipcRenderer.invoke(IPC.setSelfMouseIgnore, { ignore, forward }),
   setTucked: (tucked: boolean) => ipcRenderer.invoke(IPC.setTucked, tucked),
   onSnapChanged: (cb: (snapped: boolean) => void) => {
     const listener = (_e: unknown, snapped: boolean): void => cb(snapped)

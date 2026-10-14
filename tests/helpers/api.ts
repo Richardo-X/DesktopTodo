@@ -152,6 +152,9 @@ const childCountListeners: Array<(n: number) => void> = []
     resizeSelf: async (params: { width: number; height: number }) => {
       resizeSelfCalls.push(params)
     },
+    setSelfMouseIgnore: async (_ignore: boolean, _forward: boolean) => {
+      /* 组件测试无主进程；命中切换调用被记录于需要时再补 */
+    },
     onWindowMoving: (_cb: (now: number) => void) => () => {},
     clusterResizeFreeze: (frozen: boolean) => {
       clusterResizeFreezeCalls.push(frozen)

@@ -18,6 +18,7 @@ export const IPC = {
   openChild: 'window:open-child',
   closeSelf: 'window:close-self',
   resizeSelf: 'window:resize-self',
+  setSelfMouseIgnore: 'window:set-self-mouse-ignore',
   setTucked: 'window:set-tucked',
   snapChanged: 'app:snap-state',
   windowMoving: 'window:moving',
@@ -80,6 +81,9 @@ export interface DesktopTodoApi {
   closeSelf(): Promise<void>
   /** 子窗口真窗口缩放（决策#7/#24：内容 zoom 与窗口 setBounds 1:1） */
   resizeSelf(params: { width: number; height: number }): Promise<void>
+  /** 快捷窗画布命中切换（画布方案步骤 3）：光标进/出卡面视觉矩形时切换自身鼠标穿透。
+   * 仅快捷簇窗生效；forward=true 时穿透中仍接收 mousemove（hit-test 的活水） */
+  setSelfMouseIgnore(ignore: boolean, forward: boolean): Promise<void>
   /** 贴边缩进状态：主进程按小条/整簇调整窗口高度 */
   setTucked(tucked: boolean): Promise<void>
   onWindowMoving(cb: (now: number) => void): () => void

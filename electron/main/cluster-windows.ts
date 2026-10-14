@@ -244,7 +244,9 @@ export function createClusterWindows(opts: {
     visible: true
   }
   // 创建期尚未首显：常驻窗预设透明+穿透（与后续显隐语义一致），非常驻窗真 hide
+  // 快捷窗画布基态：forward 全穿透（首个 show 前即就位）
   if (!opts.quickVisible) hideSideWindow(quick, 'quick')
+  else applyQuickMouseIgnoreBase(quick)
   if (!opts.doneVisible) hideSideWindow(done, 'done')
 }
 
@@ -310,10 +312,37 @@ function hideSideWindow(w: BrowserWindow, panel: ClusterPanel): void {
   if (!safe(w)) return
   if (isPersistent(panel)) {
     w.setIgnoreMouseEvents(true)
+    if (panel === 'quick') quickMouseIgnore = true
     w.setOpacity(0)
   } else {
     w.hide()
   }
+}
+
+/** 该窗口是否为快捷簇窗（画布命中切换 IPC 的权限门） */
+export function isQuickClusterWindow(w: BrowserWindow): boolean {
+  return !!cluster && safe(cluster.windows.quick) && w === cluster.windows.quick
+}
+
+/** 快捷窗穿透态跟踪（E2E 断言用；Electron 类型无 getIgnoreMouseEvents）。
+ * 一切写入走本函数/显隐路径维护，基态=true（forward 全穿透） */
+let quickMouseIgnore: boolean | null = null
+
+/** 快捷窗穿透基态（显示/创建时）：forward 全穿透——命中切换由渲染层 hit-test 接管 */
+function applyQuickMouseIgnoreBase(w: BrowserWindow): void {
+  w.setIgnoreMouseEvents(true, { forward: true })
+  quickMouseIgnore = true
+}
+
+/** 渲染层 hit-test 切换入口（仅快捷窗；隐藏态不会被调用——forward 关闭收不到 move） */
+export function setQuickMouseIgnore(ignore: boolean): void {
+  if (!cluster || !safe(cluster.windows.quick)) return
+  cluster.windows.quick.setIgnoreMouseEvents(ignore, { forward: true })
+  quickMouseIgnore = ignore
+}
+
+export function quickMouseIgnoreState(): boolean | null {
+  return quickMouseIgnore
 }
 
 /** 显示侧窗：先落位（此时可能顺带显示）再确保可见，几何永远与锚点一致。
@@ -334,7 +363,11 @@ function showSidePanel(panel: ClusterPanel): void {
       if (!w.isVisible()) w.showInactive()
       w.setOpacity(1)
     }
-    w.setIgnoreMouseEvents(false)
+    // 快捷窗画布（步骤 3）：显示基态=forward 全穿透——卡面内/外的命中切换由渲染层
+    // hit-test 接管（首个 mousemove 到达即恢复，静止光标+立即点击的窗口期见方案 §4-5）；
+    // 已完成窗维持直接可点（整窗即卡面）
+    if (panel === 'quick') applyQuickMouseIgnoreBase(w)
+    else w.setIgnoreMouseEvents(false)
     // 应用级聚焦（用户 2026-10-07 裁定）：侧窗与主窗同层出现——透明常驻下
     // isVisible 恒真，原 !isVisible 守卫不再触发，moveTop 无条件执行保住同层语义。
     // 模态锁定期间（二级窗开着）例外：moveTop 会越过二级窗将其盖住（用户 2026-10-09 报告）
@@ -709,7 +742,8 @@ export function clusterDebugState(): Record<string, unknown> | null {
     doneVis: sideWindowVisible(cluster.windows.done),
     doneOpacity: safe(cluster.windows.done) ? cluster.windows.done.getOpacity() : 0,
     quickBounds: cluster.windows.quick.getBounds(),
-    mainBounds: cluster.windows.main.getBounds()
+    mainBounds: cluster.windows.main.getBounds(),
+    quickMouseIgnore: quickMouseIgnoreState()
   }
 }
 
@@ -719,12 +753,6 @@ export function registerClusterIpc(ipcMain: IpcMain): void {
   if (process.env.DTODO_TEST === '1') {
     ipcMain.handle('test:cluster-drag-delta', (_e, p: { dx: number; dy: number }) => clusterDragDeltaBy(p.dx, p.dy))
     ipcMain.handle('test:cluster-state', () => clusterDebugState())
-    // E2E：经真实提交入口（syncClusterBounds）驱动缩放档位——画布恒定性断言用
-    ipcMain.handle('test:cluster-scale', (_e, p: { scale: number }) => {
-      if (!cluster) return false
-      syncClusterBounds({ clusterScale: p.scale, quickVisible: cluster.quickVisible, doneVisible: cluster.doneVisible })
-      return true
-    })
     ipcMain.handle('test:sys-show-window', (_e, cmd: number) => {
       const m = cluster?.windows.main
       if (m && safe(m)) sysShowWindow(m.getNativeWindowHandle(), cmd)

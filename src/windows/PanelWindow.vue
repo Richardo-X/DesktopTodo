@@ -72,6 +72,57 @@ watch(
   }
 )
 
+/** 快捷窗画布命中切换（画布方案步骤 3）：画布比卡面大一圈（预留最大档），卡面外的
+ * 透明余量须穿透（桌面可点/框选），光标进入卡面视觉矩形才恢复命中。
+ * 机制：窗口常驻 forward 全穿透（showSidePanel 基态）→ forward 仍送 mousemove →
+ * 本 hit-test 进/出卡面时经 IPC 切换。已知窗口期（方案 §4-5）：静止光标下"先点后移"
+ * 的第一击可能被吞——真机复现再议兜底。
+ * veil 期间恒穿透（蒙层=一级窗不可操作，穿透语义一致）；quickVisible 翻转时重置记忆
+ * （主进程显隐已重置基态=穿透，防缓存错位吞首击）。 */
+const clusterEl = ref<HTMLElement | null>(null)
+let cardHitInside: boolean | null = null
+
+function setCardHitIgnore(ignore: boolean): void {
+  cardHitInside = !ignore
+  void getApi().setSelfMouseIgnore(ignore, true).catch(() => {})
+}
+
+function onCardHitMove(e: MouseEvent): void {
+  if (!isQuick.value) return
+  if (veilVisible.value || !store.uiState.quickVisible) {
+    if (cardHitInside !== false) setCardHitIgnore(true)
+    return
+  }
+  const el = clusterEl.value
+  if (!el) return
+  const r = el.getBoundingClientRect() // transform 后的视觉矩形（含缩放）
+  const inside =
+    e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom
+  if (inside === cardHitInside) return
+  setCardHitIgnore(!inside)
+}
+
+function onCardHitOut(e: MouseEvent): void {
+  if (!isQuick.value || e.relatedTarget) return
+  if (cardHitInside !== false) setCardHitIgnore(true) // 光标离窗：恢复穿透基态
+}
+
+watch(
+  () => store.uiState.quickVisible,
+  (v) => {
+    if (!isQuick.value) return
+    cardHitInside = null // 基态归主进程显隐管；强制下一次 move 重发真实状态
+    if (!v) cardHitInside = false
+  }
+)
+
+// veil（二级窗开着）=恒穿透：状态变更即时生效（不等下一次 move）——
+// 蒙层期静止光标下的点击也必须落到桌面而非被画布吞掉
+watch(veilVisible, (v) => {
+  if (!isQuick.value || !v) return
+  if (cardHitInside !== false) setCardHitIgnore(true)
+})
+
 /** 缩放呈现 v3.3（用户定稿）：缩放中侧窗内容以底色代替，松手恢复渲染。
  * 【快捷窗例外（画布方案步骤 2，用户裁定）】：画布窗矩形恒定、卡面 transform 不重排——
  * "内容重绘晚于窗框"从根上不存在，冻结已无必要，缩放全程内容可见。
@@ -162,6 +213,11 @@ onMounted(() => {
   window.addEventListener('pointerup', onDocPointerUp)
   window.addEventListener('blur', onWindowBlur)
   window.addEventListener('resize', onWinResize)
+  // 快捷窗画布命中切换（步骤 3）
+  if (isQuick.value) {
+    document.addEventListener('mousemove', onCardHitMove)
+    document.addEventListener('mouseout', onCardHitOut)
+  }
   getApi().onResizeFreeze(onResizeFreeze)
   getApi().onVeil((v) => {
     veilVisible.value = v
@@ -177,6 +233,10 @@ onUnmounted(() => {
   window.removeEventListener('pointerup', onDocPointerUp)
   window.removeEventListener('blur', onWindowBlur)
   window.removeEventListener('resize', onWinResize)
+  if (isQuick.value) {
+    document.removeEventListener('mousemove', onCardHitMove)
+    document.removeEventListener('mouseout', onCardHitOut)
+  }
 })
 </script>
 
@@ -207,6 +267,7 @@ onUnmounted(() => {
     </template>
     <template v-else>
       <div
+        ref="clusterEl"
         class="cluster"
         :class="{ 'cluster-frozen': sideFrozen, 'cluster-quick-card': isQuick }"
         :style="holderStyle"

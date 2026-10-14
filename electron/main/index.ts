@@ -29,6 +29,8 @@ import {
   getMainWindow,
   getAllClusterWindows,
   getClusterAnchor,
+  isQuickClusterWindow,
+  setQuickMouseIgnore,
   raiseClusterAll,
   syncClusterBounds,
   setClusterTucked,
@@ -388,6 +390,17 @@ function registerIpc(): void {
     setClusterTucked(v)
   })
 
+  // 快捷窗画布命中切换（画布方案步骤 3）：仅快捷簇窗可改自身穿透；
+  // forward=true 时穿透中仍接收 mousemove（渲染层 hit-test 的活水）。
+  // 显隐语义协调：hideSideWindow（透明待机）用无 forward 的全穿透，
+  // showSidePanel 重置为 forward 全穿透基态——两侧不打架
+  ipcMain.handle(IPC.setSelfMouseIgnore, (e, p: { ignore: boolean; forward: boolean }) => {
+    const w = BrowserWindow.fromWebContents(e.sender)
+    if (!w || w.isDestroyed()) return
+    if (!isQuickClusterWindow(w)) return
+    setQuickMouseIgnore(p.ignore)
+  })
+
   // 批次 B-5：批量模式跨窗同步——发起窗上报 → 广播全部组件窗口（瞬态状态，不持久化）
   ipcMain.handle(IPC.uiBatchState, (_e, target: 'todos' | 'templates' | 'history' | null) => {
     for (const w of getAllClusterWindows()) {
@@ -411,6 +424,22 @@ function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.flush, () => ctx.flush())
+
+  // E2E（仅测试模式）：驱动缩放档位——完整复刻 IPC.commit 的真实路径
+  // （commitTransient 热路径语义 → 广播 stateUpdated 先行 → syncClusterBounds），
+  // 直调 syncClusterBounds 会跳过 uiState 广播，渲染层收不到新档位（卡面停旧值）
+  if (process.env.DTODO_TEST === '1') {
+    ipcMain.handle('test:cluster-scale', async (_e, p: { scale: number }) => {
+      const cur = ctx.current()
+      await ctx.commitTransient({ ...cur, uiState: { ...cur.uiState, clusterScale: p.scale } }, getClusterAnchor())
+      const latest = ctx.current()
+      for (const w of BrowserWindow.getAllWindows()) {
+        if (!w.isDestroyed()) w.webContents.send(IPC.stateUpdated, latest)
+      }
+      syncClusterBounds(latest.uiState)
+      return true
+    })
+  }
 
   // 方案 A（内容冻结）：缩放手柄按下/松开 → 广播三窗渲染层冻结/解冻内容更新
   ipcMain.handle(IPC.resizeFreeze, (_e, frozen: boolean) => {
