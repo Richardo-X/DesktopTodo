@@ -71,9 +71,18 @@ test('二级窗 ×（closeSelf）仅关自己，应用与组件不受影响', as
     .toBe(0)
 
   // 应用健在 + 组件三窗完好
+  // （窗口关闭后其尸体可能在 getAllWindows 短暂残留：isDestroyed()=false 但 webContents 已毁，
+  //   直接取 URL 会抛 "Object has been destroyed"——URL 读取须逐窗容错）
   const cluster = await h.app.evaluate(({ BrowserWindow }) => {
+    const safeUrl = (w: Electron.BrowserWindow): string => {
+      try {
+        return w.webContents.getURL()
+      } catch {
+        return ''
+      }
+    }
     const wins = ['main', 'quick', 'done'].map((p) =>
-      BrowserWindow.getAllWindows().find((x) => !x.isDestroyed() && x.webContents.getURL().includes(`panel=${p}`))
+      BrowserWindow.getAllWindows().find((x) => !x.isDestroyed() && safeUrl(x).includes(`panel=${p}`))
     )
     return { count: wins.filter(Boolean).length, vis: wins.map((w) => (w ? w.isVisible() : false)) }
   })
