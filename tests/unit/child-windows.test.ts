@@ -7,9 +7,9 @@ const WA = { x: 0, y: 40, width: 1920, height: 1040 }
 describe('CHILD_SIZES 基准尺寸与分组', () => {
   it('7 类基准尺寸（新建/编辑 4 窗统一 3:4=420×560，用户 2026-10-14 裁定；回收站已移除）', () => {
     expect(CHILD_SIZES['todo-new']).toEqual({ w: 420, h: 464 })
-    expect(CHILD_SIZES['todo-edit']).toEqual({ w: 420, h: 464 })
+    expect(CHILD_SIZES['todo-edit']).toEqual({ w: 420, h: 388 })
     expect(CHILD_SIZES['template-new']).toEqual({ w: 420, h: 492 })
-    expect(CHILD_SIZES['template-edit']).toEqual({ w: 420, h: 468 })
+    expect(CHILD_SIZES['template-edit']).toEqual({ w: 420, h: 392 })
     expect(CHILD_SIZES.detail).toEqual({ w: 415, h: 490 })
     expect(CHILD_SIZES.history).toEqual({ w: 645, h: 620 })
     expect(CHILD_SIZES.settings).toEqual({ w: 460, h: 540 })

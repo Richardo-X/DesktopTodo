@@ -216,7 +216,7 @@ test('二级窗 420 宽系：内容适配高度、输入框 4:3、按钮邻计�
   await h.quick.waitForSelector('[data-testid="quick-panel"]')
   await h.main.waitForTimeout(300)
 
-  const EXPECT_H: Record<string, number> = { 'todo-new': 464, 'todo-edit': 464, 'template-new': 492, 'template-edit': 468 }
+  const EXPECT_H: Record<string, number> = { 'todo-new': 464, 'todo-edit': 388, 'template-new': 492, 'template-edit': 392 }
 
   const boundsOf = (kind: string) =>
     h.app.evaluate(({ BrowserWindow }, k) => {
@@ -254,8 +254,10 @@ test('二级窗 420 宽系：内容适配高度、输入框 4:3、按钮邻计�
       const br = btn!.getBoundingClientRect()
       return { ratio: ir.width / ir.height, btnGap: br.left - cr.right }
     })
-    expect(m.ratio, `${c.label} 输入框宽高比=${m.ratio.toFixed(2)}`).toBeGreaterThan(1.25)
-    expect(m.ratio, `${c.label} 输入框宽高比=${m.ratio.toFixed(2)}`).toBeLessThan(1.42)
+    // 新建窗=4:3(1.333)；编辑窗=固定高 254px（4:3 基准收两行，用户 2026-10-15）→ 392/254≈1.54
+    const [lo, hi] = c.kind.endsWith('new') ? [1.25, 1.42] : [1.46, 1.62]
+    expect(m.ratio, `${c.label} 输入框宽高比=${m.ratio.toFixed(2)}`).toBeGreaterThan(lo)
+    expect(m.ratio, `${c.label} 输入框宽高比=${m.ratio.toFixed(2)}`).toBeLessThan(hi)
     // 按钮紧跟计数器右侧：12px 设计间距（Windows 取整 ±2）
     expect(Math.abs(m.btnGap - 12), `${c.label} 按钮与计数器间距=${m.btnGap.toFixed(1)}`).toBeLessThanOrEqual(2)
 

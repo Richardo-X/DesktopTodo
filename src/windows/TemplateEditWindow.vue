@@ -121,11 +121,6 @@ async function onBack(): Promise<void> {
           </svg>
           <span>还原</span>
         </button>
-      </div>
-
-      <p v-if="error" class="error" data-testid="tpl-edit-error">{{ error }}</p>
-
-      <div class="row">
         <span class="spacer" />
         <button class="b danger" data-testid="tpl-edit-delete" @click="onDelete">
           <!-- L1.5 图标统一：原型 = I.trash + 文字 -->
@@ -135,6 +130,8 @@ async function onBack(): Promise<void> {
           <span>删除</span>
         </button>
       </div>
+
+      <p v-if="error" class="error" data-testid="tpl-edit-error">{{ error }}</p>
     </div>
     <div v-else class="missing">模板不存在</div>
 
@@ -156,9 +153,10 @@ async function onBack(): Promise<void> {
   gap: 12px;
 }
 
-.row {
-  display: flex;
-  align-items: center;
+/* 输入框高度：4:3 基准上收两行（用户 2026-10-15；删除键已并入字数行，窗体随之收紧） */
+.child-window .input {
+  aspect-ratio: auto;
+  height: 254px;
 }
 
 .spacer {

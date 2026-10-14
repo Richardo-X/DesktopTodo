@@ -146,11 +146,7 @@ async function onBack(): Promise<void> {
           </svg>
           <span>还原</span>
         </button>
-      </div>
-
-      <p v-if="error" class="error" data-testid="edit-error">{{ error }}</p>
-
-      <div class="row">
+        <span class="spacer" />
         <button class="b" data-testid="edit-to-template" @click="addToTemplate">
           <!-- L1.5 图标统一：原型 = I.bolt + 文字 -->
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -158,7 +154,6 @@ async function onBack(): Promise<void> {
           </svg>
           <span>添加到模板</span>
         </button>
-        <span class="spacer" />
         <button class="b danger" data-testid="edit-delete" @click="onDelete">
           <!-- L1.5 图标统一：原型 = I.trash + 文字 -->
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -167,6 +162,8 @@ async function onBack(): Promise<void> {
           <span>删除</span>
         </button>
       </div>
+
+      <p v-if="error" class="error" data-testid="edit-error">{{ error }}</p>
     </div>
     <div v-else class="missing">事项不存在</div>
 
@@ -212,9 +209,10 @@ async function onBack(): Promise<void> {
   gap: 12px;
 }
 
-.row {
-  display: flex;
-  align-items: center;
+/* 输入框高度：4:3 基准上收两行（用户 2026-10-15；添加到模板/删除已并入字数行，窗体随之收紧） */
+.child-window .input {
+  aspect-ratio: auto;
+  height: 254px;
 }
 
 .spacer {
