@@ -9,6 +9,11 @@ const side = ref<'left' | 'right'>('left')
 const rootEl = ref<HTMLElement | null>(null)
 
 onMounted(() => {
+  // 主题同步（用户 2026-10-14：切换昼夜后首次弹出先闪旧主题）——主窗提交即广播到全部窗口
+  // （含本气泡窗），主题即时跟随，不再依赖显示时 payload 的单点传递（呈现竞态=首闪旧样式）
+  void getApi().onStateUpdated((d) => {
+    theme.value = d.uiState.theme === 'night' ? 'night' : 'day'
+  })
   void getApi().onBubblePayload((p) => {
     text.value = p.text
     theme.value = p.theme

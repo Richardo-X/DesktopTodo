@@ -124,3 +124,37 @@ test('8.2-4：气泡独立窗——待办行左弹、快捷行碰左缘翻右弹
   expect(bb3.x + bb3.width).toBeLessThanOrEqual(mainX2 + tplRowLeft + 2) // 左弹
   await h.close()
 })
+
+/** 主题切换同步气泡窗样式（用户 2026-10-14：切换昼夜后首次弹出先闪旧主题）——
+ * 气泡窗订阅状态广播，主题在切换瞬间即跟随（无需等下一次显示的 payload） */
+test('主题切换 → 气泡窗样式即时跟随（不再首闪旧主题）', async () => {
+  const h = await launchApp({
+    seed: { todos: [createTodoItem({ content: LONG, now: new Date(), id: 't1' })] }
+  })
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+
+  // 先弹一次气泡：创建常驻气泡窗（此后窗口常驻、DOM 常活）
+  await h.main.locator('[data-testid="todo-row"] [data-testid="row-content"]').hover()
+  let bubblePage: Page | null = null
+  await expect
+    .poll(async () => {
+      bubblePage = h.app.windows().find((w) => w.url().includes('win=bubble')) ?? null
+      return bubblePage
+    })
+    .not.toBeNull()
+  await bubblePage!.waitForSelector('[data-testid="content-bubble"]')
+  expect(await bubblePage!.locator('[data-testid="content-bubble"]').getAttribute('class')).toContain('day')
+
+  // 鼠标移出隐藏气泡（窗口常驻、DOM 常活）→ 切夜晚主题
+  await h.main.mouse.move(10, 400)
+  await h.main.waitForTimeout(400)
+  await h.main.click('[data-testid="tb-theme"]')
+  await h.main.waitForTimeout(300)
+
+  // 气泡窗 DOM 主题已即时跟随（无 hovered、无 payload）——切换瞬间同步
+  await expect
+    .poll(async () => (await bubblePage.locator('[data-testid="content-bubble"]').getAttribute('class')) ?? '')
+    .toContain('night')
+
+  await h.close()
+})
