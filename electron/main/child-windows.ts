@@ -2,14 +2,13 @@ import type { ChildKind } from '../../src/ipc/contract'
 
 export type { ChildKind }
 
-/** 二级窗口基准尺寸（DIP；8.2-3 用户定稿：原 v3.1.2 基准整体 +15%；速查 #7：高度 ≤ 半屏、宽度 ≤ 屏宽）。
- * 新建/编辑待办+新建/编辑模板 4 窗统一 3:4（420×560，用户 2026-10-14 裁定，需求文档 §十一.6；
- * 原型 v3.4-L1 同款；详情/历史/设置维持各自尺寸） */
+/** 二级窗口基准尺寸（DIP；宽度统一 420；高度=内容适配——4:3 输入框(294)+各窗行数，4px 栅格取整；
+ * 用户 2026-10-14 晚迭代：输入框 4:3 填满窗体消灭底部空白，原"统一 3:4=560"废弃） */
 export const CHILD_SIZES: Record<ChildKind, { w: number; h: number }> = {
-  'todo-new': { w: 420, h: 560 },
-  'todo-edit': { w: 420, h: 560 },
-  'template-new': { w: 420, h: 560 },
-  'template-edit': { w: 420, h: 560 },
+  'todo-new': { w: 420, h: 464 },
+  'todo-edit': { w: 420, h: 464 },
+  'template-new': { w: 420, h: 492 },
+  'template-edit': { w: 420, h: 468 },
   detail: { w: 415, h: 490 },
   history: { w: 645, h: 620 },
   settings: { w: 460, h: 540 },

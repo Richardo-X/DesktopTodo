@@ -207,7 +207,9 @@ async function onBack(): Promise<void> {
 .meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  /* 按钮=字数统计右邻（用户 2026-10-14）：左对齐 + 12px 间距，不再两端撑开 */
+  justify-content: flex-start;
+  gap: 12px;
 }
 
 .row {

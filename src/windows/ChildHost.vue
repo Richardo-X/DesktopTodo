@@ -26,6 +26,15 @@ onMounted(() => {
 const group = computed(() => GROUP_OF[props.kind] ?? 'todo')
 const scale = computed(() => store.uiState.childScales[group.value] ?? 1)
 
+/** 缩放呈现（用户 2026-10-14：缩放时文字跟着缩放）——根元素固定基准设计尺寸、zoom=组缩放：
+ * 布局恒在基准坐标系（含输入框 4:3），整层等比渲染恰好填满窗口，文字/控件随缩放等大
+ * （旧机制=窗口变、文字 reflow 不变）。角标在本层之外（WPF P10：角标不进缩放内容） */
+const rootStyle = computed(() => ({
+  width: `${CHILD_SIZES[props.kind].w}px`,
+  height: `${CHILD_SIZES[props.kind].h}px`,
+  zoom: String(scale.value)
+}))
+
 function rendererWorkArea(): { x: number; y: number; width: number; height: number } {
   const s = window.screen as unknown as {
     availLeft?: number
@@ -91,15 +100,18 @@ const page = computed(() => {
 </script>
 
 <template>
-  <div
-    v-if="page"
-    :key="kind + (id ?? '')"
-    class="child-root"
-    data-testid="child-root"
-    :data-theme="store.uiState.theme"
-  >
-    <component :is="page" :item-id="id" />
-    <!-- 气泡纯展示不可缩放：不渲染缩放角标（用户报告气泡右下角出现角标） -->
+  <div v-if="page" class="child-host">
+    <div
+      :key="kind + (id ?? '')"
+      class="child-root"
+      :style="rootStyle"
+      data-testid="child-root"
+      :data-theme="store.uiState.theme"
+    >
+      <component :is="page" :item-id="id" />
+    </div>
+    <!-- 缩放角标挂在缩放层之外（WPF P10：角标不进缩放内容，位置/大小恒定）；
+         气泡纯展示不可缩放：不渲染缩放角标（用户报告气泡右下角出现角标） -->
     <span
       v-if="kind !== 'bubble'"
       class="child-grip"
@@ -110,6 +122,12 @@ const page = computed(() => {
 </template>
 
 <style scoped>
+/* 缩放宿主：铺满窗口；缩放角标钉窗口右下（不在缩放坐标系内） */
+.child-host {
+  width: 100%;
+  height: 100%;
+}
+
 /* 缩放角（决策#16：与窗口圆角同弧度的弧线，内缩 2px 不贴边——二轮反馈） */
 .child-grip {
   position: fixed;

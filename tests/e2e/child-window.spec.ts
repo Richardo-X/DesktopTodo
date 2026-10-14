@@ -202,9 +202,10 @@ test('C-2：模态锁定时主窗显示灰色半透明蒙层，关闭后消失',
   await h.close()
 })
 
-/** 二级窗统一 3:4（用户 2026-10-14 裁定）：新建/编辑待办+新建/编辑模板 4 窗基准 420×560；
- * 输入框（.input）aspect-ratio 3:1（共享 child-window.css，原 TodoNew 单窗规则升为 4 窗共享） */
-test('二级窗统一 3:4：新建/编辑 4 窗 420×560、输入框 3:1 等比', async () => {
+/** 二级窗 420 宽系（用户 2026-10-14 晚迭代）：新建/编辑待办+新建/编辑模板 4 窗宽 420、
+ * 高=内容适配（464/464/492/468，4:3 输入框填满窗体消灭底部空白）；输入框 aspect-ratio 4:3；
+ * 字数行=计数器+清空/还原按钮左邻排布（12px 间距）；组缩放时文字跟随（ChildHost zoom） */
+test('二级窗 420 宽系：内容适配高度、输入框 4:3、按钮邻计数器', async () => {
   const h = await launchApp({
     seed: {
       todos: [createTodoItem({ content: '待办甲', now: new Date(), id: 't1' })],
@@ -214,6 +215,8 @@ test('二级窗统一 3:4：新建/编辑 4 窗 420×560、输入框 3:1 等比'
   await h.main.waitForSelector('[data-testid="home-panel"]')
   await h.quick.waitForSelector('[data-testid="quick-panel"]')
   await h.main.waitForTimeout(300)
+
+  const EXPECT_H: Record<string, number> = { 'todo-new': 464, 'todo-edit': 464, 'template-new': 492, 'template-edit': 468 }
 
   const boundsOf = (kind: string) =>
     h.app.evaluate(({ BrowserWindow }, k) => {
@@ -237,21 +240,24 @@ test('二级窗统一 3:4：新建/编辑 4 窗 420×560、输入框 3:1 等比'
 
     const b = await boundsOf(c.kind)
     expect(b, `${c.label} 窗口未找到`).not.toBeNull()
-    // Windows 对无边框窗宽度轴有 +4~5px 的统一膨胀（四窗实测完全一致、高度精确）——
-    // 断言设计值容差 + 宽高比 3:4（统一性是本需求的用户可见要求）
+    // Windows 对无边框窗宽度轴有 +4~5px 统一膨胀（实测在案）——容差断言
     expect(Math.abs(b!.width - 420), `${c.label} 宽=${b!.width}`).toBeLessThanOrEqual(6)
-    expect(Math.abs(b!.height - 560), `${c.label} 高=${b!.height}`).toBeLessThanOrEqual(2)
-    expect(Math.abs(b!.width / b!.height - 0.75), `${c.label} 宽高比`).toBeLessThanOrEqual(0.02)
+    expect(Math.abs(b!.height - EXPECT_H[c.kind]), `${c.label} 高=${b!.height} 期望 ${EXPECT_H[c.kind]}`).toBeLessThanOrEqual(6)
 
-    // 输入框 3:1（rect 含 1px 描边，box-sizing: border-box 下比率恒 3）
-    const ratio = await page.evaluate(() => {
-      const el = document.querySelector('.child-window .input') as HTMLElement | null
-      if (!el) return 0
-      const r = el.getBoundingClientRect()
-      return r.width / r.height
+    // 输入框 4:3（rect 含 1px 描边，box-sizing: border-box 下比率恒 4/3≈1.333）
+    const m = await page.evaluate(() => {
+      const input = document.querySelector('.child-window .input') as HTMLElement | null
+      const count = document.querySelector('.child-window .meta .count') as HTMLElement | null
+      const btn = document.querySelector('.child-window .meta .b') as HTMLElement | null
+      const ir = input!.getBoundingClientRect()
+      const cr = count!.getBoundingClientRect()
+      const br = btn!.getBoundingClientRect()
+      return { ratio: ir.width / ir.height, btnGap: br.left - cr.right }
     })
-    expect(ratio, `${c.label} 输入框宽高比=${ratio.toFixed(2)}`).toBeGreaterThan(2.7)
-    expect(ratio, `${c.label} 输入框宽高比=${ratio.toFixed(2)}`).toBeLessThan(3.3)
+    expect(m.ratio, `${c.label} 输入框宽高比=${m.ratio.toFixed(2)}`).toBeGreaterThan(1.25)
+    expect(m.ratio, `${c.label} 输入框宽高比=${m.ratio.toFixed(2)}`).toBeLessThan(1.42)
+    // 按钮紧跟计数器右侧：12px 设计间距（Windows 取整 ±2）
+    expect(Math.abs(m.btnGap - 12), `${c.label} 按钮与计数器间距=${m.btnGap.toFixed(1)}`).toBeLessThanOrEqual(2)
 
     await page.evaluate(() =>
       (window as unknown as { desktopTodo: { closeSelf(): Promise<void> } }).desktopTodo.closeSelf()
