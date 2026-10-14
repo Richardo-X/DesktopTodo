@@ -167,3 +167,56 @@ test('快捷窗画布命中切换：卡面内恢复命中、余量区穿透、ve
 
   await h.close()
 })
+
+test('快捷窗蒙层罩卡面而非整块画布（用户 2026-10-14 截图报告）', async () => {
+  const h = await launchApp()
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+  await h.quick.waitForSelector('[data-testid="quick-panel"]')
+  await h.main.waitForTimeout(300)
+
+  // 缩到 0.7：画布>卡面，蒙层若挂 stage 级会罩住透明余量（旧缺陷）
+  await h.main.evaluate(
+    (v) =>
+      (window as unknown as { desktopTodoTest: { clusterScale(s: number): Promise<boolean> } }).desktopTodoTest.clusterScale(v),
+    0.7
+  )
+  await expect
+    .poll(
+      async () =>
+        h.quick.evaluate(() => {
+          const m = /matrix\(([-\d.]+)/.exec(
+            getComputedStyle(document.querySelector('[data-testid="cluster-holder"]') as Element).transform
+          )
+          return m ? Number(m[1]) : 0
+        }),
+      { timeout: 5_000 }
+    )
+    .toBeCloseTo(0.7, 2)
+
+  // 开二级窗 → 蒙层出现
+  const wp = h.app.waitForEvent('window')
+  await h.main.click('[data-testid="tb-settings"]')
+  const settings = await wp
+  await settings.waitForSelector('.form-row')
+  await h.quick.waitForSelector('[data-testid="modal-veil"]')
+
+  // 蒙层矩形 ≡ 卡面矩形（transform 后视觉矩形），而非画布矩形
+  const rects = await h.quick.evaluate(() => {
+    const rect = (el: Element) => {
+      const r = el.getBoundingClientRect()
+      return { x: r.x, y: r.y, w: r.width, h: r.height }
+    }
+    const veil = document.querySelector('[data-testid="modal-veil"]') as Element
+    const holder = document.querySelector('[data-testid="cluster-holder"]') as Element
+    return { veil: rect(veil), card: rect(holder), canvas: { w: window.innerWidth, h: window.innerHeight } }
+  })
+  expect(Math.abs(rects.veil.x - rects.card.x)).toBeLessThanOrEqual(0.5)
+  expect(Math.abs(rects.veil.y - rects.card.y)).toBeLessThanOrEqual(0.5)
+  expect(Math.abs(rects.veil.w - rects.card.w)).toBeLessThanOrEqual(0.5)
+  expect(Math.abs(rects.veil.h - rects.card.h)).toBeLessThanOrEqual(0.5)
+  // 缩到 0.7 后卡面显著小于画布——证明蒙层确实跟着卡面而非铺满画布
+  expect(rects.veil.w).toBeLessThan(rects.canvas.w - 20)
+
+  await settings.close().catch(() => {})
+  await h.close()
+})

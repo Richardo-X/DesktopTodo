@@ -237,8 +237,9 @@ onUnmounted(() => {
 
 <template>
   <div class="stage" :data-theme="store.uiState.theme">
-    <!-- 批次 C-2：模态锁定蒙层（三窗统一；示意一级窗口不可操作，纯视觉） -->
-    <div v-if="veilVisible" class="modal-veil" data-testid="modal-veil" />
+    <!-- 批次 C-2：模态锁定蒙层（示意一级窗口不可操作，纯视觉）。
+         快捷窗例外（画布方案）：画布>卡面，stage 级蒙层会罩住透明余量——蒙层挂卡面内 -->
+    <div v-if="veilVisible && !isQuick" class="modal-veil" data-testid="modal-veil" />
     <!-- 待办主窗：缩进态切换为胶囊（形态 B；侧窗由主进程隐藏） -->
     <template v-if="props.panel === 'main'">
       <!-- 用户验收：弹出/缩进同步无呼吸——面板常驻挂载（不销毁 DOM），缩进=透明度翻转
@@ -268,6 +269,8 @@ onUnmounted(() => {
         :style="holderStyle"
         data-testid="cluster-holder"
       >
+        <!-- 快捷窗画布方案：蒙层挂卡面内（随 transform 缩放，恰好罩住可见卡面） -->
+        <div v-if="veilVisible && isQuick" class="modal-veil" data-testid="modal-veil" />
         <QuickPanel v-if="props.panel === 'quick'" data-testid="quick-panel" />
         <DonePanel v-else data-testid="done-panel" />
       </div>
@@ -337,6 +340,7 @@ onUnmounted(() => {
   position: absolute;
   inset: 0;
   background: rgba(20, 20, 25, 0.2);
+  border-radius: 10px; /* 与卡面/窗口圆角一致（快捷窗蒙层挂卡面内随缩放，方角会露出卡外） */
   z-index: 50; /* 高于内容层，低于二级窗口（独立 OS 窗口天然在上） */
   pointer-events: none;
 }
