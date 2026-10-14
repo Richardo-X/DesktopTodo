@@ -213,8 +213,7 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
   })
 
   describe('缩放呈现 v3.3：两侧窗内容底色代替', () => {
-    it('侧窗收到冻结信号 → 内容层隐藏（visibility）；解冻 → 恢复且 zoom 立即重推', async () => {
-      // mountWithStore 挂 quick 面板（PanelWindow 侧窗形态）
+    it('快捷窗（画布方案）：冻结信号不再生效——内容全程可见、无底色期', async () => {
       installTestApi()
       const wrapper = mount(PanelWindow as any, {
         props: { panel: 'quick' },
@@ -223,36 +222,42 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       const api = (window as unknown as { desktopTodo: TestApi }).desktopTodo
       await flushPromises()
 
-      // 冻结：窗壳挂 stage（背景可见+圆角；窗壳挂 zoom 容器曾因容器渲染尺寸
-      // 恒为基准、超出窗口被裁=“只有左上角圆角”畸变，故必须挂 stage 层）
+      // 冻结信号 → 快捷窗不冻结（画布窗矩形恒定、卡面 transform 不重排，
+      // "内容重绘晚于窗框"不存在——用户已否决"内容变底色"路线）
+      api.resizeFreezeListeners[0](true)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.stage').classes()).not.toContain('side-frozen')
+      expect(wrapper.find('.cluster').classes()).not.toContain('cluster-frozen')
+      // 内容层照常渲染（style 仍是画布卡面 transform，无隐藏态）
+      const style = wrapper.find('.cluster').attributes('style') ?? ''
+      expect(style).toContain('transform: scale(1)')
+
+      // 解冻信号同样无作用
+      api.resizeFreezeListeners[0](false)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.stage').classes()).not.toContain('side-frozen')
+      wrapper.unmount()
+    })
+
+    it('已完成窗收到冻结信号 → 内容层隐藏（visibility）；解冻 → 恢复', async () => {
+      installTestApi()
+      const wrapper = mount(PanelWindow as any, {
+        props: { panel: 'done' },
+        global: { plugins: [createPinia()] }
+      })
+      const api = (window as unknown as { desktopTodo: TestApi }).desktopTodo
+      await flushPromises()
+
       api.resizeFreezeListeners[0](true)
       await wrapper.vm.$nextTick()
       expect(wrapper.find('.stage').classes()).toContain('side-frozen')
       const bg = getComputedStyle(wrapper.find('.stage').element as HTMLElement).backgroundColor
       expect(bg).not.toBe('rgba(0, 0, 0, 0)')
       expect(bg).not.toBe('transparent')
-      // 主窗 grip 链路发送的信号由主窗侧验证；此处锁定侧窗响应
 
-      // 解冻：内容恢复。快捷窗画布方案（缩放抖动根治）：窗口恒定 ⇒ 视口反推 zoom 语义失效——
-      // 卡面固定 310×640 + transform scale（缩放值=广播 uiState，resize 事件不再参与）
-      Object.defineProperty(window, 'innerHeight', { value: 512, configurable: true })
-      window.dispatchEvent(new Event('resize'))
-      await wrapper.vm.$nextTick()
       api.resizeFreezeListeners[0](false)
       await wrapper.vm.$nextTick()
       expect(wrapper.find('.stage').classes()).not.toContain('side-frozen')
-      const style = wrapper.find('.cluster').attributes('style') ?? ''
-      expect(style).not.toContain('zoom:')
-      expect(style).toContain('transform: scale(1)')
-      expect(style).toContain('transform-origin: top right')
-      // resize 不改变卡面缩放（画布窗视口恒定，反推已死）
-      Object.defineProperty(window, 'innerHeight', { value: 384, configurable: true })
-      window.dispatchEvent(new Event('resize'))
-      await wrapper.vm.$nextTick()
-      expect((wrapper.find('.cluster').attributes('style') ?? '')).toContain('transform: scale(1)')
-
-      Object.defineProperty(window, 'innerHeight', { value: 640, configurable: true })
-      window.dispatchEvent(new Event('resize'))
       wrapper.unmount()
     })
 

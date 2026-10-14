@@ -72,13 +72,14 @@ watch(
   }
 )
 
-/** 缩放呈现 v3.3（用户定稿）：缩放中两侧窗内容以底色代替（窗壳边框实时缩放），
- * 松手恢复渲染——消灭侧窗"内容重绘晚于窗框"的拖影；待办主窗不参与（保持原样缩放）。
+/** 缩放呈现 v3.3（用户定稿）：缩放中侧窗内容以底色代替，松手恢复渲染。
+ * 【快捷窗例外（画布方案步骤 2，用户裁定）】：画布窗矩形恒定、卡面 transform 不重排——
+ * "内容重绘晚于窗框"从根上不存在，冻结已无必要，缩放全程内容可见。
  * zoom 在隐藏期间照常反推（解冻瞬间即就位，无需重排等待） */
 const sideFrozen = ref(false)
 
 function onResizeFreeze(frozen: boolean): void {
-  if (props.panel === 'main') return
+  if (props.panel !== 'done') return // 主窗不参与；快捷窗画布方案不再冻结
   sideFrozen.value = frozen
   if (!frozen) syncZoomFromViewport()
 }
