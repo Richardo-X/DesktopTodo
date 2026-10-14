@@ -27,3 +27,4 @@ blob-report/
 agent/
 skills-lock.json
 .zcodeignore
+.vitest/
