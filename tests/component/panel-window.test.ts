@@ -212,7 +212,7 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
     })
   })
 
-  describe('缩放呈现 v3.3：两侧窗内容底色代替', () => {
+  describe('内容冻结全面停用（2026-10-14 用户裁定：缩放时显示内容）', () => {
     it('快捷窗（画布方案）：冻结信号不再生效——内容全程可见、无底色期', async () => {
       installTestApi()
       const wrapper = mount(PanelWindow as any, {
@@ -239,7 +239,7 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       wrapper.unmount()
     })
 
-    it('已完成窗收到冻结信号 → 内容层隐藏（visibility）；解冻 → 恢复', async () => {
+    it('已完成窗冻结信号不再生效（2026-10-14 用户裁定：还原"缩放时显示内容"）', async () => {
       installTestApi()
       const wrapper = mount(PanelWindow as any, {
         props: { panel: 'done' },
@@ -250,10 +250,9 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
 
       api.resizeFreezeListeners[0](true)
       await wrapper.vm.$nextTick()
-      expect(wrapper.find('.stage').classes()).toContain('side-frozen')
-      const bg = getComputedStyle(wrapper.find('.stage').element as HTMLElement).backgroundColor
-      expect(bg).not.toBe('rgba(0, 0, 0, 0)')
-      expect(bg).not.toBe('transparent')
+      expect(wrapper.find('.stage').classes()).not.toContain('side-frozen')
+      expect(wrapper.find('.cluster').classes()).not.toContain('cluster-frozen')
+      // 内容层照常渲染（无底色期、无 visibility 隐藏）
 
       api.resizeFreezeListeners[0](false)
       await wrapper.vm.$nextTick()

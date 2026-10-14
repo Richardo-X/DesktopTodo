@@ -123,16 +123,11 @@ watch(veilVisible, (v) => {
   if (cardHitInside !== false) setCardHitIgnore(true)
 })
 
-/** 缩放呈现 v3.3（用户定稿）：缩放中侧窗内容以底色代替，松手恢复渲染。
- * 【快捷窗例外（画布方案步骤 2，用户裁定）】：画布窗矩形恒定、卡面 transform 不重排——
- * "内容重绘晚于窗框"从根上不存在，冻结已无必要，缩放全程内容可见。
- * zoom 在隐藏期间照常反推（解冻瞬间即就位，无需重排等待） */
-const sideFrozen = ref(false)
-
-function onResizeFreeze(frozen: boolean): void {
-  if (props.panel !== 'done') return // 主窗不参与；快捷窗画布方案不再冻结
-  sideFrozen.value = frozen
-  if (!frozen) syncZoomFromViewport()
+/** 内容冻结（缩放呈现 v3.3）已于 2026-10-14 用户裁定全面停用：
+ * 快捷窗=画布方案（内容机制根治，无需冻结）；已完成窗=还原"缩放时显示内容"（用户指示）。
+ * 手柄广播链路保留（主进程广播照发），渲染层不再有任何消费方——保留注册以便将来恢复。 */
+function onResizeFreeze(_frozen: boolean): void {
+  /* 无操作：任何面板不再冻结内容 */
 }
 
 function onWinResize(): void {
@@ -241,7 +236,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="stage" :class="{ 'side-frozen': sideFrozen }" :data-theme="store.uiState.theme">
+  <div class="stage" :data-theme="store.uiState.theme">
     <!-- 批次 C-2：模态锁定蒙层（三窗统一；示意一级窗口不可操作，纯视觉） -->
     <div v-if="veilVisible" class="modal-veil" data-testid="modal-veil" />
     <!-- 待办主窗：缩进态切换为胶囊（形态 B；侧窗由主进程隐藏） -->
@@ -269,7 +264,7 @@ onUnmounted(() => {
       <div
         ref="clusterEl"
         class="cluster"
-        :class="{ 'cluster-frozen': sideFrozen, 'cluster-quick-card': isQuick }"
+        :class="{ 'cluster-quick-card': isQuick }"
         :style="holderStyle"
         data-testid="cluster-holder"
       >
@@ -348,18 +343,7 @@ onUnmounted(() => {
 
 
 /* ===== 面板外观与基准尺寸（原 AppShell :deep 规则迁入；窗口 bounds=面板基准×缩放） ===== */
-/* 缩放呈现 v3.3（用户定稿）：两侧窗冻结=窗壳观感。窗壳挂 stage（尺寸恒等于
- * 窗口，圆角天然落在窗口四角）——挂 zoom 容器时容器渲染尺寸恒为基准、超出
- * 窗口的部分被窗口边界裁切，实测出现"只有左上角圆角、其余三角直角"的畸变。
- * 主窗不参与冻结（onResizeFreeze 对 main 直接返回） */
-.stage.side-frozen {
-  background: var(--win-bg);
-  border-radius: 10px;
-}
-
-.stage.side-frozen .cluster > * {
-  visibility: hidden;
-}
+/* 内容冻结（缩放呈现 v3.3）已全面停用（2026-10-14 用户裁定），.stage.side-frozen 规则随之移除 */
 
 .stage :deep(.panel) {
   background: var(--win-bg);
