@@ -46,13 +46,31 @@ const baseWidth = computed(() => (props.panel === 'main' ? BASE_PANEL.main : BAS
  * 缩放抖动根治（批次 B 验收#2）：侧窗卡片缩放不再等跨进程广播——
  * 窗口 resize 事件与 OS 尺寸变化同帧，从 innerHeight/640 反推缩放（±0.5px 精度），
  * 卡片与窗口边缘同帧到位，缝隙不再先撑大后回缩。store 值作初值与回同步基准。
+ * 【快捷窗例外（画布方案，方案《移植Electron版》§2-步骤1）】：画布窗尺寸恒定，
+ * 视口恒等于上限 ⇒ 反推语义失效——缩放值单一来源=广播的 uiState.clusterScale
+ * （主进程 commit 先广播后 setBounds，手势中每个节流提交都会到达）。
  */
 const zoomValue = ref<number>(window.innerHeight / BASE_PANEL.height)
 
 function syncZoomFromViewport(): void {
+  if (isQuick.value) return // 画布窗视口恒定，反推已死（见上）
   const s = window.innerHeight / BASE_PANEL.height
   if (Number.isFinite(s) && s > 0.1 && s <= 3) zoomValue.value = s
 }
+
+/** 快捷窗卡面缩放值：URL 播种初值（主进程创建时经 query 传入，store 异步加载前防首帧跳变），
+ * 之后随广播 uiState.clusterScale 更新（唯一权威） */
+const isQuick = computed(() => props.panel === 'quick')
+const urlScale = Number(new URLSearchParams(window.location.search).get('scale'))
+const quickScale = ref<number>(
+  Number.isFinite(urlScale) && urlScale > 0.1 && urlScale <= 3 ? urlScale : store.uiState.clusterScale
+)
+watch(
+  () => store.uiState.clusterScale,
+  (v) => {
+    if (isQuick.value && Number.isFinite(v) && v > 0.1 && v <= 3) quickScale.value = v
+  }
+)
 
 /** 缩放呈现 v3.3（用户定稿）：缩放中两侧窗内容以底色代替（窗壳边框实时缩放），
  * 松手恢复渲染——消灭侧窗"内容重绘晚于窗框"的拖影；待办主窗不参与（保持原样缩放）。
@@ -73,8 +91,18 @@ function onWinResize(): void {
 
 const holderZoom = computed(() => zoomValue.value)
 
-/** zoom 容器尺寸=面板基准÷缩放（窗口=基准×缩放，二者 1:1 且可反推） */
+/** zoom 容器尺寸=面板基准÷缩放（窗口=基准×缩放，二者 1:1 且可反推）。
+ * 快捷窗（画布方案）：卡面固定设计尺寸，transform 缩放——不进布局、不重排，
+ * 右上角对齐画布右上角（transform-origin: top right），窗口恒定 ⇒ 卡片右缘=画布右缘恒定 */
 const holderStyle = computed(() => {
+  if (isQuick.value) {
+    return {
+      width: `${baseWidth.value}px`,
+      height: `${BASE_PANEL.height}px`,
+      transform: `scale(${quickScale.value})`,
+      transformOrigin: 'top right'
+    }
+  }
   const s = holderZoom.value
   return {
     zoom: String(s),
@@ -177,7 +205,12 @@ onUnmounted(() => {
       />
     </template>
     <template v-else>
-      <div class="cluster" :class="{ 'cluster-frozen': sideFrozen }" :style="holderStyle" data-testid="cluster-holder">
+      <div
+        class="cluster"
+        :class="{ 'cluster-frozen': sideFrozen, 'cluster-quick-card': isQuick }"
+        :style="holderStyle"
+        data-testid="cluster-holder"
+      >
         <QuickPanel v-if="props.panel === 'quick'" data-testid="quick-panel" />
         <DonePanel v-else data-testid="done-panel" />
       </div>
@@ -290,6 +323,13 @@ onUnmounted(() => {
 .cluster {
   display: flex;
   align-items: flex-start;
+}
+
+/* 快捷窗画布方案：卡面钉画布右上角（窗口=画布，恒定），缩放走 transform 不进布局 */
+.cluster-quick-card {
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 
 /* 缩进态：面板蒙纱隐藏（保挂载、零重排；pointer-events 交还胶囊） */

@@ -233,14 +233,23 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       expect(bg).not.toBe('transparent')
       // 主窗 grip 链路发送的信号由主窗侧验证；此处锁定侧窗响应
 
-      // 解冻：内容恢复 + zoom 按当前窗口重推
+      // 解冻：内容恢复。快捷窗画布方案（缩放抖动根治）：窗口恒定 ⇒ 视口反推 zoom 语义失效——
+      // 卡面固定 310×640 + transform scale（缩放值=广播 uiState，resize 事件不再参与）
       Object.defineProperty(window, 'innerHeight', { value: 512, configurable: true })
       window.dispatchEvent(new Event('resize'))
       await wrapper.vm.$nextTick()
       api.resizeFreezeListeners[0](false)
       await wrapper.vm.$nextTick()
       expect(wrapper.find('.stage').classes()).not.toContain('side-frozen')
-      expect((wrapper.find('.cluster').attributes('style') ?? '')).toContain('zoom: 0.8')
+      const style = wrapper.find('.cluster').attributes('style') ?? ''
+      expect(style).not.toContain('zoom:')
+      expect(style).toContain('transform: scale(1)')
+      expect(style).toContain('transform-origin: top right')
+      // resize 不改变卡面缩放（画布窗视口恒定，反推已死）
+      Object.defineProperty(window, 'innerHeight', { value: 384, configurable: true })
+      window.dispatchEvent(new Event('resize'))
+      await wrapper.vm.$nextTick()
+      expect((wrapper.find('.cluster').attributes('style') ?? '')).toContain('transform: scale(1)')
 
       Object.defineProperty(window, 'innerHeight', { value: 640, configurable: true })
       window.dispatchEvent(new Event('resize'))

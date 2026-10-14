@@ -17,6 +17,8 @@ import {
   clampAnchorForEdges,
   tuckBarBounds,
   effectiveClusterScale,
+  quickCanvasMaxScale,
+  quickCanvasBoundsForAnchor,
   type WinBounds
 } from '../../src/core/utils/cluster-layout'
 import type { WorkArea } from '../../src/core/utils/cluster-layout'
@@ -49,6 +51,23 @@ interface ClusterState {
 }
 
 let cluster: ClusterState | null = null
+
+/** 快捷窗画布 maxScale（缩放抖动根治，方案《技术手册-快捷窗缩放修复-移植Electron版》§2-步骤1）：
+ * 画布=当前工作区可达的最大档。只在工作区/可见性变化时重算（key 比对，缩放手势中绝不重算）；
+ * 画布矩形在摆放时由 (anchor, maxScale) 现算——scale 不是输入，档位变化画布不动。 */
+let quickCanvasMax = 1
+let quickCanvasKey = ''
+function refreshQuickCanvasScale(wa: WorkArea, quickVisible: boolean, doneVisible: boolean): void {
+  const key = `${wa.x},${wa.y},${wa.width},${wa.height}|${quickVisible ? 1 : 0}${doneVisible ? 1 : 0}`
+  if (key === quickCanvasKey) return
+  quickCanvasKey = key
+  quickCanvasMax = quickCanvasMaxScale(wa, quickVisible, doneVisible)
+}
+
+/** 快捷窗画布矩形（所有摆放路径统一用这套矩形——WPF P9 铁律） */
+function quickCanvasBounds(): WinBounds {
+  return quickCanvasBoundsForAnchor(cluster!.anchor, quickCanvasMax)
+}
 let dragTimer: ReturnType<typeof setInterval> | null = null
 let dragStart: { cursor: { x: number; y: number }; anchor: { x: number; y: number } } | null = null
 let lastAppliedAnchor: { x: number; y: number } | null = null
@@ -96,13 +115,21 @@ function webPreferences(): { preload: string; contextIsolation: boolean; nodeInt
   }
 }
 
-function loadPage(w: BrowserWindow, panel: ClusterPanel): void {
+function loadPage(w: BrowserWindow, panel: ClusterPanel, seedScale?: number): void {
+  // 快捷窗画布方案：scale 经 URL 播种为渲染层初值（store 异步加载前的首帧防跳变）；
+  // 之后仍以广播的 uiState.clusterScale 为唯一权威（只播种子，不构成第二信源）
+  const extra: Record<string, string> = {}
+  if (seedScale !== undefined) extra.scale = String(Math.round(seedScale * 10000) / 10000)
   if (process.env.ELECTRON_RENDERER_URL) {
     const u = new URL(process.env.ELECTRON_RENDERER_URL)
-    u.search = new URLSearchParams({ win: 'cluster', panel }).toString()
+    const q = new URLSearchParams({ win: 'cluster', panel })
+    for (const [k, v] of Object.entries(extra)) q.set(k, v)
+    u.search = q.toString()
     void w.loadURL(u.toString())
   } else {
-    void w.loadFile(join(__dirname, '../renderer/index.html'), { query: { win: 'cluster', panel } })
+    void w.loadFile(join(__dirname, '../renderer/index.html'), {
+      query: { win: 'cluster', panel, ...extra }
+    })
   }
 }
 
@@ -114,7 +141,7 @@ function shouldShowPanel(panel: ClusterPanel): boolean {
   return cluster.visible && visibleFlag && !cluster.tucked
 }
 
-function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): BrowserWindow {
+function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean, seedScale?: number): BrowserWindow {
   const w = new BrowserWindow({
     x: bounds.x,
     y: bounds.y,
@@ -181,7 +208,7 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean): B
       detectSnap()
     })
   }
-  loadPage(w, panel)
+  loadPage(w, panel, seedScale)
   return w
 }
 
@@ -193,9 +220,17 @@ export function createClusterWindows(opts: {
   doneVisible: boolean
   topMost: boolean
 }): void {
+  // 画布 maxScale 首算（锚点所在屏工作区；之后仅工作区/可见性变化时重算）
+  quickCanvasKey = ''
+  refreshQuickCanvasScale(
+    screen.getDisplayNearestPoint(opts.anchor).workArea,
+    opts.quickVisible,
+    opts.doneVisible
+  )
   const b = threeWindowBoundsForAnchor(opts.anchor, opts.scale, opts.quickVisible, opts.doneVisible)
   const main = makeWindow('main', b.main, opts.topMost)
-  const quick = makeWindow('quick', b.quick ?? b.main, opts.topMost)
+  // 快捷窗=固定画布窗（尺寸恒定；缩放档位变化不改变本矩形）
+  const quick = makeWindow('quick', quickCanvasBoundsForAnchor(opts.anchor, quickCanvasMax), opts.topMost, opts.scale)
   const done = makeWindow('done', b.done ?? b.main, opts.topMost)
   cluster = {
     windows: { quick, main, done },
@@ -288,8 +323,8 @@ function showSidePanel(panel: ClusterPanel): void {
   if (!cluster) return
   const w = panel === 'quick' ? cluster.windows.quick : cluster.windows.done
   if (!safe(w)) return
-  const b = threeWindowBoundsForAnchor(cluster.anchor, cluster.scale, cluster.quickVisible, cluster.doneVisible)
-  const bb = panel === 'quick' ? b.quick : b.done
+  // 快捷窗=画布矩形（恒定）；已完成窗=锚点推导矩形（机制不变）
+  const bb = panel === 'quick' ? quickCanvasBounds() : threeWindowBoundsForAnchor(cluster.anchor, cluster.scale, cluster.quickVisible, cluster.doneVisible).done
   if (!bb) return
   pendingBounds.delete(w.id)
   w.setBounds(bb)
@@ -338,10 +373,11 @@ export function applyClusterBounds(placeAll = false): void {
   // 隐藏窗跳过 setBounds：Windows 上对隐藏窗口 setBounds 会将其显示（用户实测点击隐藏又弹回）；
   // 几何登记到 pendingBounds，showSidePanel 显示时先落位。
   // 落位顺序 done→main→quick：用户最敏感的快捷窗最后落位（缝隙错帧最后闭合）
+  // 快捷窗=画布矩形（恒定，右缘钉主窗左缘−4）：缩放档位变化时本矩形完全不动
   for (const [w, bb] of [
     [done, b.done ?? b.main],
     [main, b.main],
-    [quick, b.quick ?? b.main]
+    [quick, quickCanvasBounds()]
   ] as const) {
     if (!safe(w)) continue
     if (!needPlaceAll && !w.isVisible()) pendingBounds.set(w.id, bb)
@@ -380,6 +416,8 @@ export function syncClusterBounds(ui: {
     ? screen.getDisplayMatching(mainBounds).workArea
     : screen.getPrimaryDisplay().workArea
   cluster.scale = effectiveClusterScale(ui.clusterScale, wa, ui.quickVisible, ui.doneVisible)
+  // 可见性切换改变宽度上限 → 画布 maxScale 重算（key 比对；缩放提交时 key 不变=廉价空转）
+  refreshQuickCanvasScale(wa, ui.quickVisible, ui.doneVisible)
   cluster.quickVisible = ui.quickVisible
   cluster.doneVisible = ui.doneVisible
   const { quick, done } = cluster.windows
@@ -490,6 +528,8 @@ function applyAnchor(anchor: { x: number; y: number }): void {
   const wa: WorkArea = mainBounds
     ? screen.getDisplayMatching(mainBounds).workArea
     : screen.getPrimaryDisplay().workArea
+  // 跨屏拖动=工作区变化 → 画布 maxScale 重算（key 比对，同屏拖动为廉价空转）
+  refreshQuickCanvasScale(wa, cluster.quickVisible, cluster.doneVisible)
   // #31/#32：拖动钳制——左右不阻挡、主窗≥90px；按主窗所在屏工作区
   cluster.anchor = clampAnchorForEdges(anchor, Math.round(470 * cluster.scale), wa)
   lastAppliedAnchor = null
@@ -679,6 +719,12 @@ export function registerClusterIpc(ipcMain: IpcMain): void {
   if (process.env.DTODO_TEST === '1') {
     ipcMain.handle('test:cluster-drag-delta', (_e, p: { dx: number; dy: number }) => clusterDragDeltaBy(p.dx, p.dy))
     ipcMain.handle('test:cluster-state', () => clusterDebugState())
+    // E2E：经真实提交入口（syncClusterBounds）驱动缩放档位——画布恒定性断言用
+    ipcMain.handle('test:cluster-scale', (_e, p: { scale: number }) => {
+      if (!cluster) return false
+      syncClusterBounds({ clusterScale: p.scale, quickVisible: cluster.quickVisible, doneVisible: cluster.doneVisible })
+      return true
+    })
     ipcMain.handle('test:sys-show-window', (_e, cmd: number) => {
       const m = cluster?.windows.main
       if (m && safe(m)) sysShowWindow(m.getNativeWindowHandle(), cmd)

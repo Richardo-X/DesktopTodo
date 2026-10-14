@@ -86,6 +86,7 @@ if (process.env.DTODO_TEST === '1') {
     forceSettle: (days: number) => ipcRenderer.invoke('test:force-settle', days),
     clusterDragDelta: (dx: number, dy: number) => ipcRenderer.invoke('test:cluster-drag-delta', { dx, dy }),
     clusterState: () => ipcRenderer.invoke('test:cluster-state'),
+    clusterScale: (scale: number) => ipcRenderer.invoke('test:cluster-scale', { scale }),
     dragState: () => ipcRenderer.invoke('test:drag-state'),
     sysShowWindow: (cmd: number) => ipcRenderer.invoke('test:sys-show-window', cmd),
     sysWmClose: (panel: string) => ipcRenderer.invoke('test:sys-wm-close', panel),
