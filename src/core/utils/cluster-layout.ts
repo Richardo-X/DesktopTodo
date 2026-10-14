@@ -1,4 +1,4 @@
-import { MIN_SCALE, TUCK_BAR_WIDTH, TUCK_BAR_HEIGHT } from '../constants'
+import { MIN_SCALE, HALF_HEIGHT_MAX_RATIO, TUCK_BAR_WIDTH, TUCK_BAR_HEIGHT } from '../constants'
 import { clampClusterScale } from './scale'
 import type { Area as WorkArea } from './scale'
 
@@ -87,6 +87,31 @@ export function effectiveClusterScale(
   doneVisible = true
 ): number {
   return clampClusterScale(stored, { width: visibleClusterWidth(quickVisible, doneVisible), height: BASE_PANEL.height }, wa)
+}
+
+/**
+ * 簇缩放上限（快捷窗画布用，方案《技术手册-快捷窗缩放修复-移植Electron版》§2-步骤1）：
+ * 与 clampClusterScale 同公式，只取上限——画布尺寸=当前工作区可达的最大档。
+ */
+export function clusterScaleUpperBound(base: Bounds, wa: WorkArea): number {
+  const maxByHeight = (wa.height * HALF_HEIGHT_MAX_RATIO) / base.height
+  const maxByWidth = wa.width / base.width
+  return Math.max(MIN_SCALE, Math.min(maxByHeight, maxByWidth))
+}
+
+/** 快捷窗画布 maxScale：与手势钳制同基准（可见簇宽+簇高）；可见性/工作区变化时重算 */
+export function quickCanvasMaxScale(wa: WorkArea, quickVisible: boolean, doneVisible: boolean): number {
+  return clusterScaleUpperBound({ width: visibleClusterWidth(quickVisible, doneVisible), height: BASE_PANEL.height }, wa)
+}
+
+/**
+ * 快捷窗画布矩形（缩放抖动根治核心）：窗口尺寸恒定=最大档画布，右缘钉待办左缘 − GAP、
+ * 上缘钉锚点。只依赖 (anchor, maxScale)——缩放值不是输入：缩放档位变化时画布矩形完全不动。
+ */
+export function quickCanvasBoundsForAnchor(anchor: { x: number; y: number }, maxScale: number): WinBounds {
+  const width = Math.round(BASE_PANEL.quick * maxScale)
+  const height = Math.round(BASE_PANEL.height * maxScale)
+  return { x: anchor.x - width - BASE_GAP, y: anchor.y, width, height }
 }
 
 /**

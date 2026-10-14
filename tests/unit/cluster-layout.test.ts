@@ -13,7 +13,9 @@ import {
   windowBoundsForAnchor,
   anchorForWindowX,
   threeWindowBoundsForAnchor,
-  clampAnchorForEdges
+  clampAnchorForEdges,
+  quickCanvasBoundsForAnchor,
+  quickCanvasMaxScale
 } from '../../src/core/utils/cluster-layout'
 import { MIN_SCALE } from '../../src/core/constants'
 
@@ -288,5 +290,58 @@ describe('clampAnchorForEdges 拖动边界钳制（批次 B-3，#31/#32/#33）',
     const clamped = clampAnchorForEdges({ x: -3000, y: -100 }, mainW, off)
     expect(clamped.x).toBe(off.x + 90 - mainW)
     expect(clamped.y).toBe(off.y)
+  })
+})
+
+/** 快捷窗画布（缩放抖动根治，方案《技术手册-快捷窗缩放修复-移植Electron版》§2-步骤1）：
+ * 窗口矩形恒定=最大档画布；缩放值不是画布的输入——档位变化画布不动。 */
+describe('quickCanvasBoundsForAnchor 固定画布', () => {
+  it('尺寸=round(310×maxScale)×round(640×maxScale)，右缘钉锚点−4、上缘钉锚点', () => {
+    const b = quickCanvasBoundsForAnchor({ x: 1000, y: 100 }, 1.0)
+    expect(b).toEqual({ x: 1000 - 310 - 4, y: 100, width: 310, height: 640 })
+    const b2 = quickCanvasBoundsForAnchor({ x: 1000, y: 100 }, 1.25)
+    expect(b2.width).toBe(Math.round(310 * 1.25))
+    expect(b2.height).toBe(Math.round(640 * 1.25))
+    expect(b2.x).toBe(1000 - b2.width - 4)
+    expect(b2.y).toBe(100)
+  })
+
+  it('画布只依赖 (anchor, maxScale)：同锚点同上限下任意 scale 语义不动（函数无 scale 入参）', () => {
+    const a = { x: 500, y: 200 }
+    expect(quickCanvasBoundsForAnchor(a, 1.1)).toEqual(quickCanvasBoundsForAnchor(a, 1.1))
+  })
+
+  it('画布容纳任意可达档的卡面（右上角对齐语义：0.7~maxScale 全档不溢出）', () => {
+    const maxScale = quickCanvasMaxScale(WA, true, true)
+    const canvas = quickCanvasBoundsForAnchor({ x: 800, y: 100 }, maxScale)
+    for (let k = 0.7; k <= maxScale + 1e-9; k += 0.05) {
+      const cardW = 310 * Math.min(k, maxScale)
+      const cardH = 640 * Math.min(k, maxScale)
+      expect(cardW).toBeLessThanOrEqual(canvas.width + 1e-9)
+      expect(cardH).toBeLessThanOrEqual(canvas.height + 1e-9)
+    }
+  })
+
+  it('画布尺寸取整：宽高均为整数', () => {
+    const b = quickCanvasBoundsForAnchor({ x: 0, y: 0 }, 1.13)
+    expect(Number.isInteger(b.width)).toBe(true)
+    expect(Number.isInteger(b.height)).toBe(true)
+  })
+})
+
+describe('quickCanvasMaxScale 画布上限', () => {
+  it('与 effectiveClusterScale(+∞) 一致（同公式同基准的同上层）', () => {
+    expect(quickCanvasMaxScale(WA, true, true)).toBeCloseTo(effectiveClusterScale(Infinity, WA, true, true), 12)
+    expect(quickCanvasMaxScale(WA, true, false)).toBeCloseTo(effectiveClusterScale(Infinity, WA, true, false), 12)
+  })
+
+  it('高度半屏钳制：1080 屏工作区高 1040 → 上限 = 520/640', () => {
+    expect(quickCanvasMaxScale(WA, true, true)).toBeCloseTo(520 / 640, 12)
+  })
+
+  it('可见性收窄 → 宽度上限放宽（上限只增不减）', () => {
+    const all = quickCanvasMaxScale(WA, true, true)
+    const doneHidden = quickCanvasMaxScale(WA, true, false)
+    expect(doneHidden).toBeGreaterThanOrEqual(all)
   })
 })
