@@ -5,9 +5,9 @@ export type { ChildKind }
 /** 二级窗口基准尺寸（DIP；宽度统一 420；高度=内容适配——4:3 输入框(294)+各窗行数，4px 栅格取整；
  * 用户 2026-10-14 晚迭代：输入框 4:3 填满窗体消灭底部空白，原"统一 3:4=560"废弃） */
 export const CHILD_SIZES: Record<ChildKind, { w: number; h: number }> = {
-  'todo-new': { w: 420, h: 464 },
+  'todo-new': { w: 420, h: 400 },
   'todo-edit': { w: 420, h: 388 },
-  'template-new': { w: 420, h: 492 },
+  'template-new': { w: 420, h: 428 },
   'template-edit': { w: 420, h: 392 },
   detail: { w: 415, h: 490 },
   history: { w: 645, h: 620 },

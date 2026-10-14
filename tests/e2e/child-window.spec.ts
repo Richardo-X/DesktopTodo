@@ -151,27 +151,25 @@ test('托盘隐藏同步隐藏全部子窗口，单实例唤起同步恢复', as
   await h.close()
 })
 
-/** 8.2-6：表单类子窗口底部提交按钮右对齐（.footer justify-content:flex-end，B3 样式精简时丢失） */
-test('表单类子窗口提交按钮右对齐', async () => {
+/** 8.2-6 迭代（用户 2026-10-15）：提交按钮并入字数行——行尾右对齐（与编辑窗删除键同款），footer 移除 */
+test('新建窗提交按钮=字数行行尾右对齐（footer 已移除）', async () => {
   const h = await launchApp()
   const sp = h.app.waitForEvent('window')
   await h.main.click('[data-testid="op-new"]')
   const child = await sp
   await child.waitForSelector('[data-testid="new-input"]')
 
-  const jc = await child.evaluate(
-    () => getComputedStyle(document.querySelector('.child-window .footer') as Element).justifyContent
-  )
-  expect(jc).toBe('flex-end')
-
-  // 提交按钮贴右侧：按钮右缘与 footer 内容右缘对齐（留 footer 内边距）
-  const gap = await child.evaluate(() => {
-    const footer = document.querySelector('.child-window .footer') as Element
+  const m = await child.evaluate(() => {
+    const meta = document.querySelector('.child-window .meta') as Element
     const btn = document.querySelector('[data-testid="new-submit"]') as Element
-    return Math.round(footer.getBoundingClientRect().right - btn.getBoundingClientRect().right)
+    const metaBox = meta.getBoundingClientRect()
+    const btnBox = btn.getBoundingClientRect()
+    return { noFooter: !document.querySelector('.child-window .footer'), rightGap: metaBox.right - btnBox.right }
   })
-  expect(gap).toBeGreaterThanOrEqual(0)
-  expect(gap).toBeLessThanOrEqual(20) // 仅 footer 内边距量级，非贴左
+  expect(m.noFooter).toBe(true)
+  // 提交按钮贴行尾：按钮右缘与 meta 行内容右缘对齐（body 内边距量级）
+  expect(m.rightGap).toBeGreaterThanOrEqual(-1)
+  expect(m.rightGap).toBeLessThanOrEqual(20)
   await h.close()
 })
 
@@ -216,7 +214,7 @@ test('二级窗 420 宽系：内容适配高度、输入框 4:3、按钮邻计�
   await h.quick.waitForSelector('[data-testid="quick-panel"]')
   await h.main.waitForTimeout(300)
 
-  const EXPECT_H: Record<string, number> = { 'todo-new': 464, 'todo-edit': 388, 'template-new': 492, 'template-edit': 392 }
+  const EXPECT_H: Record<string, number> = { 'todo-new': 400, 'todo-edit': 388, 'template-new': 428, 'template-edit': 392 }
 
   const boundsOf = (kind: string) =>
     h.app.evaluate(({ BrowserWindow }, k) => {

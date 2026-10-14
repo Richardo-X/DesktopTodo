@@ -75,13 +75,11 @@ async function onBack(): Promise<void> {
       <div class="meta">
         <span class="count" data-testid="new-count" :class="{ danger }">{{ count }}/{{ MAX_CONTENT_LENGTH }}</span>
         <button class="b" data-testid="new-clear" @click="clearInput">清空</button>
+        <span class="spacer" />
+        <button class="primary" data-testid="new-submit" :disabled="!canSubmit" @click="submit">新建事项</button>
       </div>
       <p v-if="error" class="error" data-testid="new-error">{{ error }}</p>
     </div>
-
-    <footer class="footer">
-      <button class="primary" data-testid="new-submit" :disabled="!canSubmit" @click="submit">新建事项</button>
-    </footer>
 
     <ConfirmDialog />
   </div>
@@ -91,8 +89,12 @@ async function onBack(): Promise<void> {
 .meta {
   display: flex;
   align-items: center;
-  /* 按钮=字数统计右邻（用户 2026-10-14）：左对齐 + 12px 间距，不再两端撑开 */
+  /* 清空=字数统计右邻（用户 2026-10-14）、新建事项=行尾右对齐（用户 2026-10-15，与编辑窗删除键同款） */
   justify-content: flex-start;
   gap: 12px;
+}
+
+.spacer {
+  flex: 1;
 }
 </style>
