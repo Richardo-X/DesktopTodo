@@ -50,8 +50,18 @@ test('批量跨窗同步（B-5）：快捷窗进批量 → 待办窗/已完成�
   // 快捷窗自身面板不冻结
   await expect(h.quick.locator('[data-testid="quick-panel"]')).not.toHaveClass(/frozen/)
 
+  // 冻结面板透明度 0.7（用户 2026-10-15：0.45 太淡看不清内容；窗内小控件仍 0.45）
+  const frozenOpacity = await h.main.evaluate(
+    () => getComputedStyle(document.querySelector('[data-testid="home-panel"]') as Element).opacity
+  )
+  expect(frozenOpacity).toBe('0.7')
+
   // 待办窗行点击不参与选择（冻结不可点 + 状态集不污染）
   await h.quick.click('[data-testid="batch-cancel"]')
   await expect(h.main.locator('[data-testid="home-panel"]')).not.toHaveClass(/frozen/, { timeout: 5000 })
   await expect(h.done.locator('[data-testid="done-panel"]')).not.toHaveClass(/frozen/, { timeout: 5000 })
+  const restoredOpacity = await h.main.evaluate(
+    () => getComputedStyle(document.querySelector('[data-testid="home-panel"]') as Element).opacity
+  )
+  expect(restoredOpacity).toBe('1')
 })
