@@ -41,8 +41,9 @@ async function onDelete(): Promise<void> {
 <template>
   <div class="batch-bar" data-testid="batch-bar">
     <span class="count" data-testid="batch-count">已选 {{ ui.selectedIds.length }} 项</span>
-    <button class="b" data-testid="batch-select-all" @click="onToggleSelectAll">{{ allSelected ? '取消' : '全选' }}</button>
+    <!-- 返回/全选顺序对调（用户 2026-10-15：返回在前、全选居中间） -->
     <button class="b" data-testid="batch-cancel" @click="ui.exitBatch()">返回</button>
+    <button class="b" data-testid="batch-select-all" @click="onToggleSelectAll">{{ allSelected ? '取消' : '全选' }}</button>
     <button class="b danger" data-testid="batch-delete" :disabled="ui.selectedIds.length === 0" @click="onDelete">删除所选</button>
   </div>
 </template>

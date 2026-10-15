@@ -193,3 +193,26 @@ test('验收6：退出重启后事项与界面状态恢复', async () => {
   await expect(h2.main.locator('.stage')).toHaveAttribute('data-theme', 'night')
   await h2.close()
 })
+
+/** 批量条按钮顺序（用户 2026-10-15：返回与全选对调）——返回 → 全选 → 删除所选（四窗共用组件） */
+test('批量条按钮顺序：返回 → 全选 → 删除所选', async () => {
+  const h = await launchApp({
+    seed: { todos: [createTodoItem({ content: '待办甲', now: new Date(), id: 't1' })] }
+  })
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+  await h.main.click('[data-testid="op-batch"]')
+  await h.main.waitForSelector('[data-testid="batch-bar"]')
+
+  const xs = await h.main.evaluate(() => {
+    const x = (sel: string): number => (document.querySelector(sel) as HTMLElement).getBoundingClientRect().left
+    return {
+      cancel: x('[data-testid="batch-cancel"]'),
+      all: x('[data-testid="batch-select-all"]'),
+      del: x('[data-testid="batch-delete"]')
+    }
+  })
+  expect(xs.cancel, `返回(${xs.cancel}) 应在 全选(${xs.all}) 左侧`).toBeLessThan(xs.all)
+  expect(xs.all, `全选(${xs.all}) 应在 删除所选(${xs.del}) 左侧`).toBeLessThan(xs.del)
+
+  await h.close()
+})
