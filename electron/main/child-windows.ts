@@ -9,7 +9,7 @@ export const CHILD_SIZES: Record<ChildKind, { w: number; h: number }> = {
   'todo-edit': { w: 420, h: 388 },
   'template-new': { w: 420, h: 428 },
   'template-edit': { w: 420, h: 392 },
-  detail: { w: 415, h: 490 },
+  detail: { w: 415, h: 245 }, /* 详情窗高度减半（用户 2026-10-15：内容少看着太空）；长文本走 body 滚动 */
   history: { w: 645, h: 620 },
   settings: { w: 460, h: 540 },
   // 四轮：气泡独立小窗口（非用户子窗口，不经 openChild 打开；仅为类型完备）
