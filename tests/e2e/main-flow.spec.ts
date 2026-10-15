@@ -213,12 +213,15 @@ test('批量中返回按钮：位于批量删除左侧同排、8px 间隔；批�
       backLeftOfBatch: back.left < batch.left,
       gap: batch.left - back.right,
       centerDelta: Math.abs((back.top + back.bottom) / 2 - (batch.top + batch.bottom) / 2),
+      innerW: window.innerWidth,
       barHasBack: !!document.querySelector('[data-testid="batch-bar"] [data-testid="batch-cancel"]'),
       allLeftOfDel: all.left < del.left
     }
   })
   expect(m.backLeftOfBatch, '返回应在批量删除左侧').toBe(true)
-  expect(Math.abs(m.gap - 8), `返回与批量删除间隔=${m.gap.toFixed(1)}（应 8px）`).toBeLessThanOrEqual(2)
+  // 8px 为设计间距，随窗口 zoom 等比渲染（zoom=视口宽/基准宽，主窗缩放同款反推）
+  const zoomK = m.innerW / 420
+  expect(Math.abs(m.gap - 8 * zoomK), `返回与批量删除间隔=${m.gap.toFixed(1)}（应 ${ (8 * zoomK).toFixed(1) }=@zoom0.7~1.6）`).toBeLessThanOrEqual(2)
   expect(m.centerDelta, `返回与批量删除中线差=${m.centerDelta.toFixed(1)}`).toBeLessThanOrEqual(1)
   expect(m.barHasBack, '返回不应再在底部批量条内').toBe(false)
   expect(m.allLeftOfDel, '批量条内 全选 应在 删除所选 左侧').toBe(true)
