@@ -214,8 +214,11 @@ test('快捷窗蒙层罩卡面而非整块画布（用户 2026-10-14 截图报�
   expect(Math.abs(rects.veil.y - rects.card.y)).toBeLessThanOrEqual(0.5)
   expect(Math.abs(rects.veil.w - rects.card.w)).toBeLessThanOrEqual(0.5)
   expect(Math.abs(rects.veil.h - rects.card.h)).toBeLessThanOrEqual(0.5)
-  // 缩到 0.7 后卡面显著小于画布——证明蒙层确实跟着卡面而非铺满画布
-  expect(rects.veil.w).toBeLessThan(rects.canvas.w - 20)
+  // 缩到 0.7 后卡面应显著小于画布——证明蒙层跟着卡面而非铺满画布；
+  // CI 小屏 cap≈0.70 时卡面≈画布（差 <20px），该佐证跳过（矩形相等断言已锁核心语义）
+  if (rects.canvas.w - rects.card.w >= 20) {
+    expect(rects.veil.w).toBeLessThan(rects.canvas.w - 20)
+  }
 
   await settings.close().catch(() => {})
   await h.close()
