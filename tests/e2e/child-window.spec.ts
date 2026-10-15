@@ -250,14 +250,16 @@ test('二级窗 420 宽系：内容适配高度、输入框 4:3、按钮邻计�
       const ir = input!.getBoundingClientRect()
       const cr = count!.getBoundingClientRect()
       const br = btn!.getBoundingClientRect()
-      return { ratio: ir.width / ir.height, btnGap: br.left - cr.right }
+      return { ratio: ir.width / ir.height, btnGap: br.left - cr.right, countW: cr.width }
     })
     // 新建窗=4:3(1.333)；编辑窗=固定高 254px（4:3 基准收两行，用户 2026-10-15）→ 392/254≈1.54
     const [lo, hi] = c.kind.endsWith('new') ? [1.25, 1.42] : [1.46, 1.62]
     expect(m.ratio, `${c.label} 输入框宽高比=${m.ratio.toFixed(2)}`).toBeGreaterThan(lo)
     expect(m.ratio, `${c.label} 输入框宽高比=${m.ratio.toFixed(2)}`).toBeLessThan(hi)
-    // 按钮紧跟计数器右侧：12px 设计间距（Windows 取整 ±2）
+    // 按钮紧跟计数器右侧：12px 设计间距（Windows 取整 ±2）；计数器固定宽 52px——
+    // 字数增减按钮位置钉死不随位数左右移动（用户 2026-10-15）
     expect(Math.abs(m.btnGap - 12), `${c.label} 按钮与计数器间距=${m.btnGap.toFixed(1)}`).toBeLessThanOrEqual(2)
+    expect(Math.abs(m.countW - 52), `${c.label} 计数器宽=${m.countW}`).toBeLessThanOrEqual(1)
 
     // 缩放角标：贴卡片右下内角（设计值内缩 2px）、主题灰、随缩放等比（弧度/尺寸与卡片圆角同心）
     const grip = await page.evaluate(() => {

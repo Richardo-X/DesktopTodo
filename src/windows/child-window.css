@@ -265,6 +265,10 @@
 .child-window .count {
   font-size: 11px;
   color: var(--faint);
+  /* 固定宽（按最长态"300/300"预留）：字数增减时计数器盒宽不变，
+     右侧清空/还原按钮位置钉死不随数字位数左右移动（用户 2026-10-15） */
+  width: 52px;
+  flex: none;
 }
 
 .child-window .count.danger {
