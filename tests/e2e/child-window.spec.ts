@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { spawn } from 'node:child_process'
 import { resolve } from 'node:path'
-import { launchApp } from './helpers'
+import { launchApp, dateKeyOffset } from './helpers'
 import { createTodoItem } from '../../src/core/models'
 
 const ELECTRON_EXE = resolve('node_modules/electron/dist/electron.exe')
@@ -339,6 +339,46 @@ test('详情窗 415×245：关闭钮右缘 ≡ 属性灰框右缘（无滚动条
   })
   expect(Math.abs(m.propsRight - m.btnRight), `灰框右缘=${m.propsRight} 按钮右缘=${m.btnRight}`).toBeLessThanOrEqual(1)
   expect(m.gutter, `body 滚动条挤压=${m.gutter}px`).toBe(0)
+
+  await h.close()
+})
+
+/** 四类列表行统一禁文字选择（用户 2026-10-15：已完成行长按误选、双击开详情被选；
+ * DonePanel 原为四类行唯一漏网处） */
+test('四类列表行 user-select: none 一致（已完成行长按/双击不再选字）', async () => {
+  const h = await launchApp({
+    seed: {
+      todos: [createTodoItem({ content: '待办甲', now: new Date(), id: 't1' })],
+      templates: [createTodoItem({ content: '模板甲', now: new Date(), id: 'tp1' })],
+      completed: [
+        { ...createTodoItem({ content: '已完成甲', now: new Date(), id: 'd1' }), completedAt: new Date().toISOString() }
+      ],
+      archive: {
+        [dateKeyOffset(-1)]: [
+          { ...createTodoItem({ content: '存档甲', now: new Date(), id: 'a1' }), completedAt: new Date().toISOString() }
+        ]
+      }
+    }
+  })
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+  await h.quick.waitForSelector('[data-testid="quick-panel"]')
+  await h.done.waitForSelector('[data-testid="done-row"]')
+  await h.main.waitForTimeout(300)
+
+  const us = (page: typeof h.main, sel: string) =>
+    page.evaluate((s) => getComputedStyle(document.querySelector(s) as Element).userSelect, sel)
+
+  // 主窗待办行 / 模板行 / 已完成行（三窗）
+  expect(await us(h.main, '[data-testid="todo-row"]'), '主窗待办行').toBe('none')
+  expect(await us(h.quick, '[data-testid="tpl-row"]'), '模板行').toBe('none')
+  expect(await us(h.done, '[data-testid="done-row"]'), '已完成行').toBe('none')
+
+  // 历史行（开窗）
+  const wp = h.app.waitForEvent('window')
+  await h.done.click('[data-testid="done-history"]')
+  const hist = await wp
+  await hist.waitForSelector('[data-testid="hist-row"]')
+  expect(await us(hist as never, '[data-testid="hist-row"]'), '历史行').toBe('none')
 
   await h.close()
 })

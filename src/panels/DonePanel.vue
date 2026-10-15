@@ -275,6 +275,9 @@ function fmtDone(iso: string | null): string {
   background: var(--card);
   border: 1px solid var(--card-border);
   cursor: default;
+  /* 禁文字选择（用户 2026-10-15）：长按拖动常误选内容、双击开详情时也被选中；
+     与主窗待办行/模板行/历史行一致（四类行唯一漏网处） */
+  user-select: none;
   /* L1（v3.4）：行 hover 过渡同主窗待办行 */
   transition:
     transform 0.15s var(--ease-out),
