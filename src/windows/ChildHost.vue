@@ -100,7 +100,7 @@ const page = computed(() => {
 </script>
 
 <template>
-  <div v-if="page" class="child-host">
+  <div v-if="page" class="child-host" :data-theme="store.uiState.theme">
     <div
       :key="kind + (id ?? '')"
       class="child-root"
@@ -111,10 +111,13 @@ const page = computed(() => {
       <component :is="page" :item-id="id" />
     </div>
     <!-- 缩放角标挂在缩放层之外（WPF P10：角标不进缩放内容，位置/大小恒定）；
+         主题变量定义在宿主层（角标在 .child-root 外取不到令牌）；left 锚卡片内角
+         （Windows 对无边框窗宽度轴 +4~5px 膨胀，right 锚会落到卡外透明条上）；
          气泡纯展示不可缩放：不渲染缩放角标（用户报告气泡右下角出现角标） -->
     <span
       v-if="kind !== 'bubble'"
       class="child-grip"
+      :style="{ left: `${CHILD_SIZES[kind].w - 18}px`, right: 'auto' }"
       title="拖动缩放（同组窗口共享大小设置）"
       @pointerdown.stop.prevent="onGripDown"
     />
@@ -122,10 +125,18 @@ const page = computed(() => {
 </template>
 
 <style scoped>
-/* 缩放宿主：铺满窗口；缩放角标钉窗口右下（不在缩放坐标系内） */
+/* 缩放宿主：铺满窗口；角标主题令牌（在 .child-root 外的元素取不到 child-window.css 的令牌） */
 .child-host {
   width: 100%;
   height: 100%;
+}
+
+.child-host[data-theme='day'] {
+  --muted: #5d616b;
+}
+
+.child-host[data-theme='night'] {
+  --muted: #abafb8;
 }
 
 /* 缩放角（决策#16：与窗口圆角同弧度的弧线，内缩 2px 不贴边——二轮反馈） */
