@@ -86,5 +86,15 @@ async function close(): Promise<void> {
 .footer .b {
   margin-left: auto;
 }
+
+/* 隐藏 body 原生滚动条（用户 2026-10-15：关闭钮与灰框右缘垂直对齐）——
+ * 滚动条会挤压 props 盒宽 ~9px 致其右缘与 footer 按钮右缘错开；滚轮滚动保留 */
+.child-window .body {
+  scrollbar-width: none;
+}
+
+.child-window .body::-webkit-scrollbar {
+  display: none;
+}
 </style>
 
