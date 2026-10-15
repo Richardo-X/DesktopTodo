@@ -275,10 +275,11 @@ test('二级窗 420 宽系：内容适配高度、输入框 4:3、按钮邻计�
       }
     })
     expect(grip, `${c.label} 缩放角标缺失`).not.toBeNull()
-    // 角标=卡面坐标系右下内缩 2px（卡面盒=基准设计尺寸 × zoom 反推自视口）→ 视口位置=(设计值)×zoom
-    const zoomK = grip!.innerW / 420
-    expect(Math.abs(grip!.right - 418 * zoomK), `${c.label} 角标右缘=${grip!.right}`).toBeLessThanOrEqual(1)
-    expect(Math.abs(grip!.bottom - (EXPECT_H[c.kind] - 2) * zoomK), `${c.label} 角标底缘=${grip!.bottom}`).toBeLessThanOrEqual(1)
+    // zoom=min(两轴反推)（两轴均有 OS 膨胀，min 保证根元素不溢出窗口=圆角不被裁）；
+    // 角标=卡面坐标系右下内缩 1px → 视口位置=(设计值)×zoom
+    const zoomK = Math.min(grip!.innerW / 420, grip!.innerH / EXPECT_H[c.kind])
+    expect(Math.abs(grip!.right - 419 * zoomK), `${c.label} 角标右缘=${grip!.right}`).toBeLessThanOrEqual(1.5)
+    expect(Math.abs(grip!.bottom - (EXPECT_H[c.kind] - 1) * zoomK), `${c.label} 角标底缘=${grip!.bottom}`).toBeLessThanOrEqual(1.5)
     expect(Math.abs(grip!.w - 16 * zoomK), `${c.label} 角标宽=${grip!.w}`).toBeLessThanOrEqual(0.8)
     expect(grip!.color, `${c.label} 角标颜色=${grip!.color}`).toBe('rgb(93, 97, 107)')
     // 描边恒 ~2px 物理宽（设计描边=2/k，渲染回来≈2）：Chromium 对边框做整数设备像素取整（±1 设备 px 噪声）

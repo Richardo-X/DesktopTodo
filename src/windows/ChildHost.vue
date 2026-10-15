@@ -32,7 +32,10 @@ const group = computed(() => GROUP_OF[props.kind] ?? 'todo')
 const base = CHILD_SIZES[props.kind]
 const zoomValue = ref(window.innerWidth / base.w)
 function syncZoomFromViewport(): void {
-  const k = window.innerWidth / base.w
+  // 取两轴较小值：Windows 对无边框窗宽度轴有 +4~5px 膨胀（高度精确）——按宽度反推会令
+  // 根元素高出窗口、底部圆角被裁平（用户 2026-10-15："圆角有棱角"）；min 保证两轴都不溢出，
+  // 膨胀轴留一条透明带（不可见）
+  const k = Math.min(window.innerWidth / base.w, window.innerHeight / base.h)
   if (Number.isFinite(k) && k > 0.1 && k <= 3) zoomValue.value = k
 }
 const rootStyle = computed(() => ({
@@ -98,7 +101,12 @@ function onGripUp(): void {
   window.removeEventListener('pointerup', onGripUp)
 }
 
-onMounted(() => window.addEventListener('resize', syncZoomFromViewport))
+onMounted(() => {
+  // 初始同步必须显式做一次：窗口的创建期 resize 事件先于本页监听器挂载，
+  // 不补这一次，zoom 会停留在 setup 时的宽度反推值（高度轴溢出=底部圆角被裁）
+  syncZoomFromViewport()
+  window.addEventListener('resize', syncZoomFromViewport)
+})
 onUnmounted(() => window.removeEventListener('resize', syncZoomFromViewport))
 
 const page = computed(() => {
@@ -159,8 +167,9 @@ const page = computed(() => {
  * absolute（非 fixed）：锚 .child-root 卡面盒，任意组缩放下恒贴卡片右下内角 */
 .child-grip {
   position: absolute;
-  right: 2px;
-  bottom: 2px;
+  /* 内缩 1px（用户 2026-10-15 口径）；弧度 9px=卡片圆角 10−1 严格同心 */
+  right: 1px;
+  bottom: 1px;
   width: 16px;
   height: 16px;
   cursor: nwse-resize;
@@ -177,7 +186,7 @@ const page = computed(() => {
      位置/弧度/尺寸仍为设计值×k 与卡片圆角同心 */
   border-right: var(--grip-stroke, 2px) solid var(--muted);
   border-bottom: var(--grip-stroke, 2px) solid var(--muted);
-  border-bottom-right-radius: 8px; /* 与窗口 10px 圆角同心（内缩 2px） */
+  border-bottom-right-radius: 9px; /* 与卡片圆角 10 同心（内缩 1px，用户 2026-10-15） */
 }
 
 .child-grip:hover {
