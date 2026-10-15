@@ -4,7 +4,10 @@
  * ============================================================ */
 
 .child-root {
-  width: 100vw; /* 无 zoom：视口=窗口内容尺寸，精确相等 */
+  /* 尺寸由 ChildHost 内联覆盖为基准设计值（420×464 等）+ zoom=组缩放（文字跟随缩放）；
+     relative：缩放角标（absolute）锚定本盒右下 */
+  position: relative;
+  width: 100vw;
   height: 100vh;
   overflow: hidden;
   font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC', sans-serif;

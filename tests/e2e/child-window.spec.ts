@@ -259,6 +259,24 @@ test('二级窗 420 宽系：内容适配高度、输入框 4:3、按钮邻计�
     // 按钮紧跟计数器右侧：12px 设计间距（Windows 取整 ±2）
     expect(Math.abs(m.btnGap - 12), `${c.label} 按钮与计数器间距=${m.btnGap.toFixed(1)}`).toBeLessThanOrEqual(2)
 
+    // 缩放角标：贴卡片右下内角（设计值内缩 2px）、主题灰、恒 16px（组缩放经反向 zoom 抵消）
+    const grip = await page.evaluate(() => {
+      const g = document.querySelector('.child-grip') as HTMLElement | null
+      if (!g) return null
+      const r = g.getBoundingClientRect()
+      return {
+        right: r.right,
+        bottom: r.bottom,
+        w: r.width,
+        color: getComputedStyle(g, '::before').borderRightColor
+      }
+    })
+    expect(grip, `${c.label} 缩放角标缺失`).not.toBeNull()
+    expect(Math.abs(grip!.right - 418), `${c.label} 角标右缘=${grip!.right}`).toBeLessThanOrEqual(1)
+    expect(Math.abs(grip!.bottom - (EXPECT_H[c.kind] - 2)), `${c.label} 角标底缘=${grip!.bottom}`).toBeLessThanOrEqual(1)
+    expect(Math.abs(grip!.w - 16), `${c.label} 角标宽=${grip!.w}`).toBeLessThanOrEqual(0.5)
+    expect(grip!.color, `${c.label} 角标颜色=${grip!.color}`).toBe('rgb(93, 97, 107)')
+
     await page.evaluate(() =>
       (window as unknown as { desktopTodo: { closeSelf(): Promise<void> } }).desktopTodo.closeSelf()
     ).catch(() => {})
