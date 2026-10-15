@@ -41,7 +41,9 @@ describe('T33 历史记录窗口', () => {
   it('批量进行中：翻页/日期/导出区冻结，仅批量行与批量条可操作（8.2-7 全禁）', async () => {
     const { wrapper } = await mountWithStore(HistoryWindow, seed())
     await wrapper.find('[data-testid="hist-batch"]').trigger('click')
-    expect(wrapper.find('[data-testid="hist-nav"]').classes()).toContain('frozen')
+    // 冻结改为逐控件（返回按钮需保持可点）——翻页控件冻结、返回不冻结
+    expect(wrapper.find('[data-testid="hist-prev"]').classes()).toContain('frozen')
+    expect(wrapper.find('[data-testid="batch-cancel"]').classes()).not.toContain('frozen')
     expect(wrapper.find('[data-testid="hist-export-zone"]').classes()).toContain('frozen')
     expect(wrapper.find('[data-testid="batch-bar"]').classes()).not.toContain('frozen')
   })

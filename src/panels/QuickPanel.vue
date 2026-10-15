@@ -105,6 +105,15 @@ onUnmounted(() => {
       <div class="panel-head">
         <span class="panel-title" data-testid="quick-title">{{ title }}</span>
         <!-- 四轮3：自身批量进行中头部两按钮冻结（批量条「取消」可退出） -->
+        <!-- 批量中「返回」=「批量删除」左邻同排（用户 2026-10-15：水平对齐、8px 间隔） -->
+        <button
+          v-if="ui.batchMode && ui.batchTarget === 'templates'"
+          class="btn sm"
+          data-testid="batch-cancel"
+          @click="ui.exitBatch()"
+        >
+          返回
+        </button>
         <button class="btn sm" data-testid="quick-batch" :class="{ frozen: ui.batchMode }" @click="enterBatch">
           <!-- L1.5 图标统一：批量删除（原型 = I.trash + 文字） -->
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">

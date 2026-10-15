@@ -194,8 +194,8 @@ test('验收6：退出重启后事项与界面状态恢复', async () => {
   await h2.close()
 })
 
-/** 批量条按钮顺序（用户 2026-10-15：返回与全选对调）——返回 → 全选 → 删除所选（四窗共用组件） */
-test('批量条按钮顺序：返回 → 全选 → 删除所选', async () => {
+/** 批量中「返回」=「批量删除」左邻同排（用户 2026-10-15：水平对齐、8px 间隔；返回已从底部批量条迁出） */
+test('批量中返回按钮：位于批量删除左侧同排、8px 间隔；批量条仅 全选/删除所选', async () => {
   const h = await launchApp({
     seed: { todos: [createTodoItem({ content: '待办甲', now: new Date(), id: 't1' })] }
   })
@@ -203,16 +203,30 @@ test('批量条按钮顺序：返回 → 全选 → 删除所选', async () => {
   await h.main.click('[data-testid="op-batch"]')
   await h.main.waitForSelector('[data-testid="batch-bar"]')
 
-  const xs = await h.main.evaluate(() => {
-    const x = (sel: string): number => (document.querySelector(sel) as HTMLElement).getBoundingClientRect().left
+  const m = await h.main.evaluate(() => {
+    const box = (sel: string) => (document.querySelector(sel) as HTMLElement).getBoundingClientRect()
+    const back = box('[data-testid="batch-cancel"]')
+    const batch = box('[data-testid="op-batch"]')
+    const all = box('[data-testid="batch-select-all"]')
+    const del = box('[data-testid="batch-delete"]')
     return {
-      cancel: x('[data-testid="batch-cancel"]'),
-      all: x('[data-testid="batch-select-all"]'),
-      del: x('[data-testid="batch-delete"]')
+      backLeftOfBatch: back.left < batch.left,
+      gap: batch.left - back.right,
+      centerDelta: Math.abs((back.top + back.bottom) / 2 - (batch.top + batch.bottom) / 2),
+      barHasBack: !!document.querySelector('[data-testid="batch-bar"] [data-testid="batch-cancel"]'),
+      allLeftOfDel: all.left < del.left
     }
   })
-  expect(xs.cancel, `返回(${xs.cancel}) 应在 全选(${xs.all}) 左侧`).toBeLessThan(xs.all)
-  expect(xs.all, `全选(${xs.all}) 应在 删除所选(${xs.del}) 左侧`).toBeLessThan(xs.del)
+  expect(m.backLeftOfBatch, '返回应在批量删除左侧').toBe(true)
+  expect(Math.abs(m.gap - 8), `返回与批量删除间隔=${m.gap.toFixed(1)}（应 8px）`).toBeLessThanOrEqual(2)
+  expect(m.centerDelta, `返回与批量删除中线差=${m.centerDelta.toFixed(1)}`).toBeLessThanOrEqual(1)
+  expect(m.barHasBack, '返回不应再在底部批量条内').toBe(false)
+  expect(m.allLeftOfDel, '批量条内 全选 应在 删除所选 左侧').toBe(true)
+
+  // 返回可点、退出批量后消失（回到入口态）
+  await h.main.click('[data-testid="batch-cancel"]')
+  await expect(h.main.locator('[data-testid="batch-bar"]')).toHaveCount(0)
+  expect(await h.main.locator('[data-testid="batch-cancel"]').count()).toBe(0)
 
   await h.close()
 })

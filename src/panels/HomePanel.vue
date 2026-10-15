@@ -309,6 +309,15 @@ async function onComplete(id: string): Promise<void> {
         </div>
         <div class="row-bottom">
           <span class="cap-chip" data-testid="op-count">{{ countText }}</span>
+          <!-- 批量中「返回」=「批量删除」左邻同排（用户 2026-10-15：水平对齐、8px 间隔） -->
+          <button
+            v-if="ui.batchMode && ui.batchTarget === 'todos'"
+            class="btn sm"
+            data-testid="batch-cancel"
+            @click="ui.exitBatch()"
+          >
+            返回
+          </button>
           <button class="btn sm" data-testid="op-batch" :class="{ frozen: ui.batchMode }" @click="ui.enterBatch('todos')">
             <!-- L1.5 图标统一：批量删除（原型 .a-batch = I.trash + 文字） -->
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">

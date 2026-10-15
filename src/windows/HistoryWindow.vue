@@ -90,21 +90,25 @@ async function doExport(): Promise<void> {
     </header>
 
     <div class="body">
-      <div class="nav" data-testid="hist-nav" :class="{ frozen: ui.batchMode }">
-        <button class="b" data-testid="hist-prev" @click="prevDay">前一天</button>
+      <!-- 批量中：翻页/日期控件逐项冻结（返回按钮需保持可点=唯一退出通道） -->
+      <div class="nav" data-testid="hist-nav">
+        <button class="b" :class="{ frozen: ui.batchMode }" data-testid="hist-prev" @click="prevDay">前一天</button>
         <input
           type="date"
           class="date"
+          :class="{ frozen: ui.batchMode }"
           data-testid="hist-date-input"
           :value="currentDate"
           :min="earliest"
           :max="todayKey"
           @change="onDateInput"
         />
-        <button class="b" data-testid="hist-next" :disabled="isToday" @click="nextDay">后一天</button>
-        <button class="b" data-testid="hist-today" :disabled="isToday" @click="currentDate = todayKey">回到今天</button>
+        <button class="b" :class="{ frozen: ui.batchMode }" data-testid="hist-next" :disabled="isToday" @click="nextDay">后一天</button>
+        <button class="b" :class="{ frozen: ui.batchMode }" data-testid="hist-today" :disabled="isToday" @click="currentDate = todayKey">回到今天</button>
         <span class="spacer" />
-        <button v-if="!ui.batchMode" class="b" data-testid="hist-batch" @click="enterBatch">批量删除</button>
+        <!-- 批量中「返回」=「批量删除」左邻同排（用户 2026-10-15：水平对齐、8px 间隔） -->
+        <button v-if="ui.batchMode" class="b" data-testid="batch-cancel" @click="ui.exitBatch()">返回</button>
+        <button class="b" :class="{ frozen: ui.batchMode }" data-testid="hist-batch" @click="enterBatch">批量删除</button>
       </div>
 
       <div class="meta">
