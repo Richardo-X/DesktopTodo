@@ -295,3 +295,50 @@ test('二级窗 420 宽系：内容适配高度、输入框 4:3、按钮邻计�
 
   await h.close()
 })
+
+/** 详情窗（双击已完成事项）：高度减半 415×245（用户 2026-10-15）+ 关闭钮与灰框右缘垂直对齐 */
+test('详情窗 415×245：关闭钮右缘 ≡ 属性灰框右缘（无滚动条挤压）', async () => {
+  const h = await launchApp({
+    seed: {
+      completed: [
+        {
+          ...createTodoItem({ content: '整理桌面文件并清理下载文件夹', now: new Date(), id: 'd1' }),
+          completedAt: new Date().toISOString()
+        }
+      ]
+    }
+  })
+  await h.done.waitForSelector('[data-testid="done-row"]')
+  await h.main.waitForTimeout(300)
+
+  const wp = h.app.waitForEvent('window')
+  await h.done.locator('[data-testid="done-row"]').dblclick()
+  const page = await wp
+  await page.waitForSelector('[data-testid="detail-content"]')
+  await page.waitForTimeout(300)
+
+  // 尺寸：415×245（宽度轴 OS 膨胀 ±6 容差）
+  const b = await h.app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find((x) => !x.isDestroyed() && x.webContents.getURL().includes('win=detail'))
+    return w ? w.getBounds() : null
+  })
+  expect(b, '详情窗未找到').not.toBeNull()
+  expect(Math.abs(b!.width - 415)).toBeLessThanOrEqual(6)
+  expect(Math.abs(b!.height - 245)).toBeLessThanOrEqual(6)
+
+  // 右缘对齐：灰框（.props）右缘 ≡ 关闭钮右缘（±1px）；body 无原生滚动条挤压
+  const m = await page.evaluate(() => {
+    const props = document.querySelector('.props') as HTMLElement
+    const btn = document.querySelector('.footer .b') as HTMLElement
+    const body = document.querySelector('.body') as HTMLElement
+    return {
+      propsRight: props.getBoundingClientRect().right,
+      btnRight: btn.getBoundingClientRect().right,
+      gutter: body.offsetWidth - body.clientWidth
+    }
+  })
+  expect(Math.abs(m.propsRight - m.btnRight), `灰框右缘=${m.propsRight} 按钮右缘=${m.btnRight}`).toBeLessThanOrEqual(1)
+  expect(m.gutter, `body 滚动条挤压=${m.gutter}px`).toBe(0)
+
+  await h.close()
+})
