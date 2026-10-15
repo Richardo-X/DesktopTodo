@@ -38,7 +38,9 @@ function syncZoomFromViewport(): void {
 const rootStyle = computed(() => ({
   width: `${base.w}px`,
   height: `${base.h}px`,
-  zoom: String(zoomValue.value)
+  zoom: String(zoomValue.value),
+  // 角标描边恒 2px 物理宽（用户 2026-10-15：线粗不随缩放变）——设计描边=2px÷k，渲染回来 =2px
+  '--grip-stroke': `calc(2px / ${zoomValue.value})`
 }))
 
 function rendererWorkArea(): { x: number; y: number; width: number; height: number } {
@@ -171,8 +173,10 @@ const page = computed(() => {
   content: '';
   position: absolute;
   inset: 0;
-  border-right: 2px solid var(--muted);
-  border-bottom: 2px solid var(--muted);
+  /* 描边=var(--grip-stroke)（2px÷k）：缩放层内渲染恒 2px 物理宽（线粗不随缩放变）；
+     位置/弧度/尺寸仍为设计值×k 与卡片圆角同心 */
+  border-right: var(--grip-stroke, 2px) solid var(--muted);
+  border-bottom: var(--grip-stroke, 2px) solid var(--muted);
   border-bottom-right-radius: 8px; /* 与窗口 10px 圆角同心（内缩 2px） */
 }
 

@@ -259,7 +259,7 @@ test('二级窗 420 宽系：内容适配高度、输入框 4:3、按钮邻计�
     // 按钮紧跟计数器右侧：12px 设计间距（Windows 取整 ±2）
     expect(Math.abs(m.btnGap - 12), `${c.label} 按钮与计数器间距=${m.btnGap.toFixed(1)}`).toBeLessThanOrEqual(2)
 
-    // 缩放角标：贴卡片右下内角（设计值内缩 2px）、主题灰、恒 16px（组缩放经反向 zoom 抵消）
+    // 缩放角标：贴卡片右下内角（设计值内缩 2px）、主题灰、随缩放等比（弧度/尺寸与卡片圆角同心）
     const grip = await page.evaluate(() => {
       const g = document.querySelector('.child-grip') as HTMLElement | null
       if (!g) return null
@@ -270,7 +270,8 @@ test('二级窗 420 宽系：内容适配高度、输入框 4:3、按钮邻计�
         w: r.width,
         innerW: window.innerWidth,
         innerH: window.innerHeight,
-        color: getComputedStyle(g, '::before').borderRightColor
+        color: getComputedStyle(g, '::before').borderRightColor,
+        stroke: Number.parseFloat(getComputedStyle(g, '::before').borderRightWidth)
       }
     })
     expect(grip, `${c.label} 缩放角标缺失`).not.toBeNull()
@@ -280,6 +281,8 @@ test('二级窗 420 宽系：内容适配高度、输入框 4:3、按钮邻计�
     expect(Math.abs(grip!.bottom - (EXPECT_H[c.kind] - 2) * zoomK), `${c.label} 角标底缘=${grip!.bottom}`).toBeLessThanOrEqual(1)
     expect(Math.abs(grip!.w - 16 * zoomK), `${c.label} 角标宽=${grip!.w}`).toBeLessThanOrEqual(0.8)
     expect(grip!.color, `${c.label} 角标颜色=${grip!.color}`).toBe('rgb(93, 97, 107)')
+    // 描边恒 ~2px 物理宽（设计描边=2/k，渲染回来≈2）：Chromium 对边框做整数设备像素取整（±1 设备 px 噪声）
+    expect(Math.abs(grip!.stroke * zoomK - 2), `${c.label} 描边物理宽=${(grip!.stroke * zoomK).toFixed(2)}`).toBeLessThanOrEqual(0.5)
 
     await page.evaluate(() =>
       (window as unknown as { desktopTodo: { closeSelf(): Promise<void> } }).desktopTodo.closeSelf()
