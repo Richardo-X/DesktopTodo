@@ -268,12 +268,16 @@ test('二级窗 420 宽系：内容适配高度、输入框 4:3、按钮邻计�
         right: r.right,
         bottom: r.bottom,
         w: r.width,
+        innerW: window.innerWidth,
+        innerH: window.innerHeight,
         color: getComputedStyle(g, '::before').borderRightColor
       }
     })
     expect(grip, `${c.label} 缩放角标缺失`).not.toBeNull()
-    expect(Math.abs(grip!.right - 418), `${c.label} 角标右缘=${grip!.right}`).toBeLessThanOrEqual(1)
-    expect(Math.abs(grip!.bottom - (EXPECT_H[c.kind] - 2)), `${c.label} 角标底缘=${grip!.bottom}`).toBeLessThanOrEqual(1)
+    // 角标=卡面坐标系右下内缩 2px（卡面盒=基准设计尺寸 × zoom 反推自视口）→ 视口位置=(设计值)×zoom
+    const zoomK = grip!.innerW / 420
+    expect(Math.abs(grip!.right - 418 * zoomK), `${c.label} 角标右缘=${grip!.right}`).toBeLessThanOrEqual(1)
+    expect(Math.abs(grip!.bottom - (EXPECT_H[c.kind] - 2) * zoomK), `${c.label} 角标底缘=${grip!.bottom}`).toBeLessThanOrEqual(1)
     expect(Math.abs(grip!.w - 16), `${c.label} 角标宽=${grip!.w}`).toBeLessThanOrEqual(0.5)
     expect(grip!.color, `${c.label} 角标颜色=${grip!.color}`).toBe('rgb(93, 97, 107)')
 

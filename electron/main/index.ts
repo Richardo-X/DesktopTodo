@@ -218,6 +218,8 @@ function quitNow(): void {
   app.quit()
 }
 
+let childScaleTransientUntil = 0
+
 const childWindows = new Set<BrowserWindow>()
 
 /** 二级窗"意图关闭"标记：×/← 按钮（closeSelf IPC）关闭前置位——
@@ -372,9 +374,12 @@ function registerIpc(): void {
   })
 
   // 决策#7/#24：子窗口缩放=真窗口尺寸变化；Windows 限制：resizable=false 时 setSize 缩小不生效 → 临时解除
+  // 手感迭代（2026-10-15）：resizeSelf 即子窗缩放热路径标志——随后 150ms 内的提交走免落盘通道
+  //（对齐主窗缩放 isClusterDragging 语义；每次落盘的 I/O 尖峰=拖拽"卡一下"）
   ipcMain.handle(IPC.resizeSelf, (e, p: { width: number; height: number }) => {
     const w = BrowserWindow.fromWebContents(e.sender)
     if (!w || w.isDestroyed()) return
+    childScaleTransientUntil = Date.now() + 150
     const wa = screen.getPrimaryDisplay().workArea
     const width = Math.min(Math.round(p.width), wa.width - 24)
     const height = Math.max(120, Math.min(Math.round(p.height), wa.height - 24))
@@ -412,7 +417,7 @@ function registerIpc(): void {
   ipcMain.handle(IPC.commit, async (_e, data: Awaited<ReturnType<AppContext['boot']>>) => {
     const anchor = getClusterAnchor()
     // 缩放拖动热路径免落盘（I/O 尖峰=三窗 setBounds 不规则到达=缝隙抖动）；拖动结束由 onGripUp 正式提交
-    if (isClusterDragging()) await ctx.commitTransient(data, anchor)
+    if (isClusterDragging() || Date.now() < childScaleTransientUntil) await ctx.commitTransient(data, anchor)
     else await ctx.commit(data, anchor)
     // 广播先行（批次 B 验收#2）：侧窗卡片缩放重绘与 OS 窗口尺寸变化同帧到位——
     // 若先 setBounds 后广播，侧窗卡片会滞后窗口边缘 1~2 帧（缩放时表现为缝隙挤压抖动）

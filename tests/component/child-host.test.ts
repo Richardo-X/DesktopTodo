@@ -44,12 +44,14 @@ describe('ChildHost', () => {
     expect(wrapper.find('[data-testid="child-root"]').attributes('data-font')).toBeUndefined()
   })
 
-  it('缩放呈现（用户 2026-10-14：缩放时文字跟着缩放）——根元素=基准尺寸+zoom=组缩放（反转 B3"不再 zoom"旧决策）', async () => {
-    const { wrapper, store } = await mountWithStore(ChildHost, seedWithTodo(), { kind: 'settings' })
-    await store.setChildScale('settings', 1.2)
+  it('缩放呈现（用户 2026-10-14 文字跟随；2026-10-15 手感迭代）——zoom=视口反推（resize 同帧单通道，store 仅持久化）', async () => {
+    const { wrapper } = await mountWithStore(ChildHost, seedWithTodo(), { kind: 'settings' })
+    // 视口=基准×1.2（460×1.2=552）→ zoom 反推 1.2（与窗口 resize 同帧，不经 store 广播）
+    Object.defineProperty(window, 'innerWidth', { value: 552, configurable: true })
+    window.dispatchEvent(new Event('resize'))
+    await wrapper.vm.$nextTick()
     const root = wrapper.find('[data-testid="child-root"]')
     const style = String(root.attributes('style'))
-    // 根=基准设计尺寸（460×540）+ zoom 跟随组缩放 → 文字/控件随缩放等大
     expect(style).toContain('width: 460px')
     expect(style).toContain('height: 540px')
     expect(style).toContain('zoom: 1.2')

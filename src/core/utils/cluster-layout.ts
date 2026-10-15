@@ -115,15 +115,13 @@ export function quickCanvasBoundsForAnchor(anchor: { x: number; y: number }, max
 }
 
 /**
- * 二级窗口组缩放钳制（照原型 setGroupScale 一模一样的规则，第二轮反馈裁定）：
- * - 上限 = min(1.6, (屏宽-24)/基准宽, (屏高-24)/基准高)——屏幕放不下即停
- * - 下限 0.7；步进 0.05（round(v×20)/20）
- * - 内容流式 reflow，无 zoom（文字尺寸不随窗口缩放）
+ * 二级窗口组缩放钳制（下限 0.7；上限 = min(1.6, (屏宽-24)/基准宽, (屏高-24)/基准高)）。
+ * 【2026-10-15 迭代：移除原型 0.05 步进量化】——量化=拖拽中每 0.05 一跳（"突然变大/变小"手感），
+ * 与主窗缩放量化回退（v1.0.1 实测一卡一卡更差）同理；缩放值连续平滑。
  */
 export function clampChildGroupScale(v: number, baseWidth: number, baseHeight: number, wa: WorkArea): number {
   const cap = Math.min(1.6, (wa.width - 24) / baseWidth, (wa.height - 24) / baseHeight)
-  if (v > cap) v = cap
-  return Math.round(Math.max(MIN_SCALE, v) * 20) / 20
+  return Math.max(MIN_SCALE, Math.min(cap, v))
 }
 
 /** 缩进胶囊窗口 bounds（三轮8.2-1）：宽=胶囊、水平居中于原簇、y 不变（贴顶）。

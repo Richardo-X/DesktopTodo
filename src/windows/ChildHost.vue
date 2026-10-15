@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useAppStore } from '../stores/app'
 import { CHILD_SIZES, GROUP_OF } from '../../electron/main/child-windows'
 import { clampChildGroupScale } from '../core/utils/cluster-layout'
@@ -24,15 +24,21 @@ onMounted(() => {
 
 /** 缩放分组：单一来源 electron/main/child-windows（B3） */
 const group = computed(() => GROUP_OF[props.kind] ?? 'todo')
-const scale = computed(() => store.uiState.childScales[group.value] ?? 1)
 
-/** 缩放呈现（用户 2026-10-14：缩放时文字跟着缩放）——根元素固定基准设计尺寸、zoom=组缩放：
- * 布局恒在基准坐标系（含输入框 4:3），整层等比渲染恰好填满窗口，文字/控件随缩放等大
- * （旧机制=窗口变、文字 reflow 不变）。角标在本层之外（WPF P10：角标不进缩放内容） */
+/** 缩放呈现（用户 2026-10-14 文字跟随；2026-10-15 手感迭代）——zoom 从视口反推（单一通道，
+ * 主窗"缩放抖动根治"同款模式）：resizeSelf 改窗口 → resize 事件同帧重算 zoom，文字与窗框
+ * 永远同帧（消灭 store 广播 vs 窗口 resize 双通道错帧=忽大忽小）；视口含 OS 宽度膨胀，
+ * 反推值恰好让内容铺满窗口。store 值仅作持久化，不再驱动视觉 */
+const base = CHILD_SIZES[props.kind]
+const zoomValue = ref(window.innerWidth / base.w)
+function syncZoomFromViewport(): void {
+  const k = window.innerWidth / base.w
+  if (Number.isFinite(k) && k > 0.1 && k <= 3) zoomValue.value = k
+}
 const rootStyle = computed(() => ({
-  width: `${CHILD_SIZES[props.kind].w}px`,
-  height: `${CHILD_SIZES[props.kind].h}px`,
-  zoom: String(scale.value)
+  width: `${base.w}px`,
+  height: `${base.h}px`,
+  zoom: String(zoomValue.value)
 }))
 
 function rendererWorkArea(): { x: number; y: number; width: number; height: number } {
@@ -50,30 +56,48 @@ function rendererWorkArea(): { x: number; y: number; width: number; height: numb
   }
 }
 
-let gripStart: { x: number; scale: number } | null = null
+let gripStart: { x: number; y: number; scale: number } | null = null
+let lastScaleSentAt = 0
+let pendingScale: number | null = null
 
 function onGripDown(e: PointerEvent): void {
-  gripStart = { x: e.clientX, scale: scale.value }
+  gripStart = { x: e.clientX, y: e.clientY, scale: zoomValue.value }
+  lastScaleSentAt = 0
+  pendingScale = null
   window.addEventListener('pointermove', onGripMove)
   window.addEventListener('pointerup', onGripUp)
 }
 
 function onGripMove(e: PointerEvent): void {
   if (gripStart === null) return
-  // 照原型 bindGroupResize/setGroupScale：比例缩放；上限 1.6/屏幕-24/下限 0.7/步进 0.05
-  const base = CHILD_SIZES[props.kind]
-  const next = clampChildGroupScale(gripStart.scale + (e.clientX - gripStart.x) / 500, base.w, base.h, rendererWorkArea())
-  if (next === scale.value) return
-  void store.setChildScale(group.value, next)
-  // 真窗口尺寸变化 = 基准 × 组缩放（内容流式 reflow，无 zoom）
-  void getApi().resizeSelf({ width: Math.round(base.w * next), height: Math.round(base.h * next) })
+  // 任意角度可缩放（用户 2026-10-15）：垂直位移按窗高/宽比折算为等效水平位移；
+  // 灵敏度保持原口径（水平 500px = 档位 +1.0）；钳制连续无量化（量化=0.05 一跳的手感已去除）
+  const dxEff = e.clientX - gripStart.x + (e.clientY - gripStart.y) * (base.h / base.w)
+  const next = clampChildGroupScale(gripStart.scale + dxEff / 500, base.w, base.h, rendererWorkArea())
+  pendingScale = next
+  // 30ms 节流（对齐主窗缩放手势）；resizeSelf 先行：视觉走 resize 同帧通道，
+  // 且主进程据此窗口把紧随的提交走免落盘通道（热路径不做 I/O）
+  const now = performance.now()
+  if (now - lastScaleSentAt >= 30) {
+    lastScaleSentAt = now
+    void getApi().resizeSelf({ width: Math.round(base.w * next), height: Math.round(base.h * next) })
+    void store.setChildScale(group.value, next)
+  }
 }
 
 function onGripUp(): void {
+  if (pendingScale !== null) {
+    // 终值正式落盘（拖拽期间走的免落盘通道不持久化）
+    void store.setChildScale(group.value, pendingScale).then(() => getApi().flush())
+  }
+  pendingScale = null
   gripStart = null
   window.removeEventListener('pointermove', onGripMove)
   window.removeEventListener('pointerup', onGripUp)
 }
+
+onMounted(() => window.addEventListener('resize', syncZoomFromViewport))
+onUnmounted(() => window.removeEventListener('resize', syncZoomFromViewport))
 
 const page = computed(() => {
   switch (props.kind) {
@@ -115,7 +139,7 @@ const page = computed(() => {
       <span
         v-if="kind !== 'bubble'"
         class="child-grip"
-        :style="{ zoom: String(1 / scale) }"
+        :style="{ zoom: String(1 / zoomValue) }"
         title="拖动缩放（同组窗口共享大小设置）"
         @pointerdown.stop.prevent="onGripDown"
       />

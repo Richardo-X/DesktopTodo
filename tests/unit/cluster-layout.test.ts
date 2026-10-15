@@ -79,7 +79,7 @@ describe('effectiveClusterScale 初始/有效缩放（决策#23）', () => {
  * 上限 = min(1.6, (屏宽-24)/基准宽, (屏高-24)/基准高)；下限 0.7；步进 0.05。
  * 内容流式 reflow，无 zoom。
  */
-describe('clampChildGroupScale 原型组缩放规则', () => {
+describe('clampChildGroupScale 组缩放钳制（连续平滑）', () => {
   it('范围内原值返回', () => {
     const wa = { x: 0, y: 0, width: 1920, height: 1040 }
     expect(clampChildGroupScale(1.1, 400, 430, wa)).toBe(1.1)
@@ -90,13 +90,13 @@ describe('clampChildGroupScale 原型组缩放规则', () => {
     expect(clampChildGroupScale(1.8, 400, 430, big)).toBe(1.6)
   })
 
-  it('屏幕放不下时按 (屏-24)/基准 钳制（1.6 硬上限优先，随后 0.05 步进归整）', () => {
-    // (1040-24)/430 = 2.362 > 1.6 → 1.6 硬上限生效 → 步进 1.6
+  it('屏幕放不下时按 (屏-24)/基准 钳制（1.6 硬上限优先）', () => {
+    // (1040-24)/430 = 2.362 > 1.6 → 1.6 硬上限生效
     const wa = { x: 0, y: 0, width: 1000, height: 1040 }
     expect(clampChildGroupScale(2.5, 400, 430, wa)).toBe(1.6)
-    // 更小屏幕：(560-24)/400 = 1.34 < 1.6 → 按屏幕钳制；步进 1.153→1.15
+    // 更小屏幕：min((560-24)/400=1.34, (520-24)/430=1.153) < 1.6 → 按屏幕钳制（连续值，无步进）
     const small = { x: 0, y: 0, width: 560, height: 520 }
-    expect(clampChildGroupScale(2.5, 400, 430, small)).toBe(1.15)
+    expect(clampChildGroupScale(2.5, 400, 430, small)).toBeCloseTo(1.1535, 3)
   })
 
   it('下限 0.7 兜底', () => {
@@ -104,9 +104,9 @@ describe('clampChildGroupScale 原型组缩放规则', () => {
     expect(clampChildGroupScale(0.2, 400, 430, wa)).toBe(0.7)
   })
 
-  it('步进 0.05（原型 round(v*20)/20）', () => {
+  it('连续平滑（2026-10-15 移除 0.05 步进量化：量化=拖拽中一跳一跳的手感）', () => {
     const wa = { x: 0, y: 0, width: 1920, height: 1040 }
-    expect(clampChildGroupScale(1.132, 400, 430, wa)).toBe(1.15)
+    expect(clampChildGroupScale(1.132, 400, 430, wa)).toBe(1.132)
   })
 })
 
