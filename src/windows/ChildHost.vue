@@ -133,13 +133,12 @@ const page = computed(() => {
       :data-theme="store.uiState.theme"
     >
       <component :is="page" :item-id="id" />
-      <!-- 缩放角标在卡面坐标系内（absolute+relative 锚卡片右下，随缩放恒贴角）；
-           自身 zoom=1/k 反向抵消 → 大小恒 16px（WPF P10：角标不随内容缩放）；
-           气泡纯展示不可缩放：不渲染缩放角标（用户报告气泡右下角出现角标） -->
+      <!-- 缩放角标完全活在卡面坐标系（无反向 zoom）：内缩 2、弧度 8、尺寸 16 全为设计值随缩放走，
+           与卡片圆角（10×k）在每个档位严格同心（10k−2k=8k）→ 相对位置/弧度恒定（用户 2026-10-15）。
+           同层渲染不存在 P10 滞后（zoom 同帧重绘）；气泡纯展示不可缩放：不渲染角标 -->
       <span
         v-if="kind !== 'bubble'"
         class="child-grip"
-        :style="{ zoom: String(1 / zoomValue) }"
         title="拖动缩放（同组窗口共享大小设置）"
         @pointerdown.stop.prevent="onGripDown"
       />

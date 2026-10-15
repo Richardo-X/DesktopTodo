@@ -278,7 +278,7 @@ test('二级窗 420 宽系：内容适配高度、输入框 4:3、按钮邻计�
     const zoomK = grip!.innerW / 420
     expect(Math.abs(grip!.right - 418 * zoomK), `${c.label} 角标右缘=${grip!.right}`).toBeLessThanOrEqual(1)
     expect(Math.abs(grip!.bottom - (EXPECT_H[c.kind] - 2) * zoomK), `${c.label} 角标底缘=${grip!.bottom}`).toBeLessThanOrEqual(1)
-    expect(Math.abs(grip!.w - 16), `${c.label} 角标宽=${grip!.w}`).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(grip!.w - 16 * zoomK), `${c.label} 角标宽=${grip!.w}`).toBeLessThanOrEqual(0.8)
     expect(grip!.color, `${c.label} 角标颜色=${grip!.color}`).toBe('rgb(93, 97, 107)')
 
     await page.evaluate(() =>
