@@ -88,19 +88,12 @@ export function setModalChildOpen(open: boolean): void {
   if (open) autoExpandUntil = 0 // 取消计时：二级窗开着期间不自动缩回
 }
 
-/** 缩进锁定镜像（2026-10-17 P1）：渲染层状态机的 locked 门在缩进兜底处同样必须生效。
+/** 缩进锁定镜像（2026-10-17 P1/P2）：锁定态下"停留 3 秒会话"不武装、锁定时清除挂起会话。
  * 由 uiState 提交路径同步（commit 时读 uiState.tuckLock；启动时随引导传入） */
 let tuckLocked = false
 export function setTuckLocked(on: boolean): void {
   tuckLocked = on
   if (on) autoExpandUntil = 0 // 锁定时清除挂起会话：锁定=贴边保持弹出，无"停留后缩回"语义
-}
-
-/** 批量中镜像（2026-10-17 P1）：批量中渲染层吞掉缩进 tick，兜底不得单方面缩进。
- * 由 uiBatchState 广播点同步（该状态不经 uiState 持久化） */
-let batchActive = false
-export function setBatchActive(on: boolean): void {
-  batchActive = on
 }
 
 /** E2E fake 光标（CI 虚拟鼠标不移动系统光标，GetCursorScreenPoint 不可判定） */
@@ -836,19 +829,18 @@ export function startTuckCursorPoll(): void {
       if (!over) {
         sendToMain(IPC.cursorInside, false)
         lastInside = false
-        // 负载兜底：渲染层 400ms 缩进链在高负载下可能延迟——900ms 仍未收尾时主进程强制收尾。
-        // P1（2026-10-17 用户报告修复）：门槛必须与渲染层全员对齐——原注释"无二级窗=渲染层门
-        // 必然放行"不成立：缩进锁定/批量中/拖动中/未吸附都会让渲染层拒缩，单方面直调=主进程
-        // 已缩进而渲染层仍认为展开（状态分裂：白条悬停不弹、语义错乱）。任一门槛成立即放弃兜底，
-        // 缩进决策回归渲染层状态机（其门真实放行的正常情形，兜底照旧收尾）
-        setTimeout(() => {
-          if (!cluster || cluster.tucked || modalChildOpen) return
-          if (tuckLocked || batchActive || isClusterDragging() || !cluster.snapped) return
-          const mw = cluster.windows.main
-          if (safe(mw) && mw.isVisible() && mw.getBounds().width > 200) {
-            setClusterTucked(true)
-          }
-        }, 900)
+        // 负载兜底（P3，2026-10-17 用户裁定）：渲染层 400ms 缩进链在高负载下可能延迟——
+        // 900/1800ms 仍未收尾时**只再喊两声**（重发同一"光标离开"信号），缩进的执行权始终
+        // 只在渲染层状态机（单一权威：锁定/批量/拖动/缩放/未吸附等门由它统一判定）。
+        // 主进程不再"动手收"：直调 setClusterTucked(true) 会绕过渲染层不可见门 →
+        // 主进程已缩进而渲染层认为展开（状态分裂：白条悬停不弹），2026-10-17 用户报告实锤。
+        // 守卫：仅在"渲染层当前认知仍为光标在外"时再喊（弹出/回窗后 poll 已改记 true，自动停喊）
+        const nudge = (): void => {
+          if (!cluster || cluster.tucked || lastInside !== false) return
+          sendToMain(IPC.cursorInside, false)
+        }
+        setTimeout(nudge, 900)
+        setTimeout(nudge, 1800)
         return
       }
     }

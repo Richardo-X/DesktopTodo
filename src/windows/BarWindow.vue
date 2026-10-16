@@ -8,7 +8,8 @@ import { getApi } from '../services/api'
  * 缩进白条独立窗（2026-10-17 §11.K 步1）：白条从"主窗内元素"搬进独立小窗。
  * 窗口=热区（160×6 请求；系统最小窗高钳制出的余高由主进程挂到屏幕上方，屏内可见区=热区本身），
  * 白条元素钉客户端底缘=屏幕可见条。命中=元素 mouseenter（系统真实命中——被遮挡天然不弹），
- * 经主进程中继到主窗渲染层状态机（等效原主窗内白条元素 mouseenter）；点击为附加弹出途径。
+ * 经主进程中继到主窗渲染层状态机（等效原主窗内白条元素 mouseenter）。
+ * 2026-10-17 用户裁定：点击弹出途径移除（白条只认"碰"）。
  * 主题经 store.init 读 uiState.theme，并随 stateUpdated 广播实时跟随。
  */
 const store = useAppStore()
@@ -27,9 +28,8 @@ onMounted(() => {
     <div
       class="tuck-bar"
       :style="{ height: TUCK_BAR_HEIGHT + 'px', width: TUCK_BAR_WIDTH + 'px' }"
-      title="鼠标移入弹出组件（点击亦可）"
+      title="鼠标移入弹出组件"
       @mouseenter="onHit"
-      @click="onHit"
     />
   </div>
 </template>
