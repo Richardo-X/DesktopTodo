@@ -70,6 +70,26 @@ test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活�
   const before = await mainBounds()
   expect(before.w).toBeGreaterThan(160)
 
+  // ⓪ 先真实吸附到工作区顶（缩进语义=贴边才缩进；本用例后段依赖"离开后自动缩回"，
+  //    必须处于吸附态——2026-10-17 P1 修复后兜底不再为未吸附态代劳）
+  const wa = await h.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea)
+  await h.main.evaluate(
+    (pt) =>
+      (window as unknown as { desktopTodoTest?: { setFakeCursor(p: { x: number; y: number } | null): Promise<void> } })
+        .desktopTodoTest!.setFakeCursor(pt),
+    { x: before.x + 100, y: before.y + 200 }
+  )
+  await h.main.evaluate(
+    (dy) =>
+      (
+        window as unknown as { desktopTodoTest: { clusterDragDelta(dx: number, dy: number): Promise<void> } }
+      ).desktopTodoTest.clusterDragDelta(0, dy),
+    wa.y - before.y
+  )
+  await expect
+    .poll(async () => (await mainBounds()).y, { timeout: 5_000 })
+    .toBeLessThanOrEqual(wa.y + 1)
+
   // ① 缩进：待办窗收胶囊、侧窗隐藏
   await setTucked(true)
   await expect
@@ -464,4 +484,69 @@ test('用户验收#1：胶囊与待办窗上缘中心对齐（不算侧窗）', 
   await expect.poll(isExpanded, { timeout: 5_000 }).toBe(true)
   const restored = await mainBounds()
   expect(Math.abs(restored.w - before.w)).toBeLessThanOrEqual(3)
+})
+
+/** 缩进锁定 × 托盘恢复（用户 2026-10-17 报告："锁定后托盘隐藏→显示，原位置出现 3 秒然后缩进边缘"）：
+ * 回归防护=跨过整条兜底链（3 秒会话窗口 + 900ms 主进程兜底窗口）后，锁定态必须保持展开、白条不亮。
+ * 缺陷根因：900ms 负载兜底绕过渲染层 locked 门单方面缩进 → 状态分裂（白条悬停不弹）。
+ * 修复=P1 兜底门槛全员对齐（锁定/批量/拖动/未吸附）+ P2 锁定时不武装 3 秒会话。 */
+test('缩进锁定：托盘隐藏→显示后保持展开不缩进（跨 3 秒会话+900ms 兜底窗口）', async () => {
+  const mainBounds = async (): Promise<W> => {
+    const b = await winByPanel('main')
+    expect(b).toBeTruthy()
+    return b as W
+  }
+  const setFakeCursor = (pt: { x: number; y: number } | null): Promise<void> =>
+    h.main.evaluate(
+      (p) =>
+        (
+          window as unknown as { desktopTodoTest?: { setFakeCursor(p: { x: number; y: number } | null): Promise<void> } }
+        ).desktopTodoTest!.setFakeCursor(p),
+      pt
+    )
+  const setVis = (v: boolean): Promise<void> =>
+    h.main.evaluate(
+      (val) =>
+        (window as unknown as { desktopTodo: { setVisibility(v: boolean): Promise<void> } }).desktopTodo.setVisibility(
+          val
+        ),
+      v
+    )
+
+  // ① 开缩进锁定（真实 UI 路径）
+  await h.main.click('[data-testid="tb-tucklock"]')
+  await h.main.waitForTimeout(300)
+
+  // ② 吸附到工作区顶（真实吸附路径；fake 光标先放组件内避免拖动竞态）
+  const wa = await h.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea)
+  const before = await mainBounds()
+  await setFakeCursor({ x: before.x + 100, y: before.y + 200 })
+  await h.main.evaluate(
+    (dy) =>
+      (
+        window as unknown as { desktopTodoTest: { clusterDragDelta(dx: number, dy: number): Promise<void> } }
+      ).desktopTodoTest.clusterDragDelta(0, dy),
+    wa.y - before.y
+  )
+  await h.main.waitForTimeout(500)
+  const ref = await mainBounds() // 吸附后的几何基准（y 已=工作区顶）
+  // 光标移出组件（锁定态下的真实判定路径：主进程轮询会持续发 inside=false）
+  await setFakeCursor({ x: 60, y: 1400 })
+
+  // ③ 托盘隐藏 → 显示（触发"3 秒停留会话"武装路径 + 其到期后的 900ms 兜底窗口）
+  await setVis(false)
+  await setVis(true)
+  await h.main.waitForTimeout(5200) // 跨过 3s 会话 + 900ms 兜底 + 余量
+
+  // ④ 锁定态必须保持展开：主窗回亮、白条不亮、几何未变
+  expect(await isExpanded()).toBe(true)
+  const after = await mainBounds()
+  expect(Math.abs(after.x - ref.x)).toBeLessThanOrEqual(2)
+  expect(Math.abs(after.y - ref.y)).toBeLessThanOrEqual(2)
+  expect(Math.abs(after.w - ref.w)).toBeLessThanOrEqual(2)
+
+  // ⑤ 关锁 → 鼠标仍在外 → 自动缩进恢复（门解除后行为正常）
+  await h.main.click('[data-testid="tb-tucklock"]')
+  await expect.poll(isTucked, { timeout: 5_000 }).toBe(true)
+  await setFakeCursor(null)
 })
