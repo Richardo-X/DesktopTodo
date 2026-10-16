@@ -39,6 +39,7 @@ import {
   applyTopMostToCluster,
   repositionClusterToDisplays,
   registerClusterIpc,
+  relayBarHit,
   startTuckCursorPoll
 } from './cluster-windows'
 import { anchorForWindowX, visibleClusterBounds, clampAnchorForEdges } from '../../src/core/utils/cluster-layout'
@@ -394,6 +395,9 @@ function registerIpc(): void {
     if (v && childWindows.size > 0) return
     setClusterTucked(v)
   })
+
+  // 步1：白条独立窗命中 → 转交主窗渲染层状态机（等效原白条元素 mouseenter；仅白条窗可上报）
+  ipcMain.on(IPC.barHit, (e) => relayBarHit(e.sender))
 
   // 快捷窗画布命中切换（画布方案步骤 3）：仅快捷簇窗可改自身穿透；
   // forward=true 时穿透中仍接收 mousemove（渲染层 hit-test 的活水）。

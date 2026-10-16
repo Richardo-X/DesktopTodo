@@ -11,7 +11,7 @@ import {
   screenPixelAt,
   sysShowWindow
 } from './win32'
-import { SNAP_THRESHOLD } from '../../src/core/constants'
+import { SNAP_THRESHOLD, TUCK_BAR_WIDTH, TUCK_BAR_HEIGHT } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
   clampAnchorForEdges,
@@ -40,7 +40,7 @@ export type ClusterPanel = 'quick' | 'main' | 'done'
 export const CLUSTER_DRAG_INTERVAL_MS = 8
 
 interface ClusterState {
-  windows: { quick: BrowserWindow; main: BrowserWindow; done: BrowserWindow }
+  windows: { quick: BrowserWindow; main: BrowserWindow; done: BrowserWindow; bar: BrowserWindow }
   anchor: { x: number; y: number }
   scale: number
   quickVisible: boolean
@@ -213,7 +213,106 @@ function makeWindow(panel: ClusterPanel, bounds: WinBounds, topMost: boolean, se
   return w
 }
 
-/** 创建三窗（三窗常驻；侧窗按可见性 show/hide） */
+/** 白条窗页面加载（缩进改造步1：白条=独立第 4 窗） */
+function loadBarPage(w: BrowserWindow): void {
+  if (process.env.ELECTRON_RENDERER_URL) {
+    const u = new URL(process.env.ELECTRON_RENDERER_URL)
+    u.search = new URLSearchParams({ win: 'bar' }).toString()
+    void w.loadURL(u.toString())
+  } else {
+    void w.loadFile(join(__dirname, '../renderer/index.html'), { query: { win: 'bar' } })
+  }
+}
+
+/** 白条独立窗（2026-10-17 §11.K 步1）：160×热区、贴工作区顶、水平=主窗上缘中心（用户裁定保持现状口径）。
+ * 常驻透明（不 hide，防 show/hide 表面重建闪动）：缩进态=亮起+可命中（元素 mouseenter 真实命中，
+ * 被遮挡天然不弹）；展开态=透明度 0+穿鼠标 */
+function makeBarWindow(topMost: boolean): BrowserWindow {
+  const w = new BrowserWindow({
+    x: -32000,
+    y: -32000,
+    width: TUCK_BAR_WIDTH,
+    height: TUCK_BAR_HEIGHT,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    thickFrame: false,
+    skipTaskbar: true,
+    minimizable: false,
+    resizable: false,
+    movable: false,
+    hasShadow: false,
+    show: false,
+    webPreferences: webPreferences()
+  })
+  disableDwmTransitions(w.getNativeWindowHandle())
+  w.on('ready-to-show', () => {
+    // 落位（此时可能已被 applyBarBounds 请求过；重申保证首帧位置正确）→ 透明待机基态
+    applyBarBounds()
+    w.showInactive()
+    hideBarWindow()
+    if (topMost) applyClusterTopMost(w, true)
+    else w.setSkipTaskbar(true)
+    w.on('focus', () => raiseClusterAll())
+    w.on('close', () => requestAppQuit())
+    makeToolWindow(w.getNativeWindowHandle())
+  })
+  loadBarPage(w)
+  return w
+}
+
+/** 白条窗摆放：水平=主窗上缘中心（现状口径，用户 2026-10-17 裁定）；系统最小窗高（实测 ~37-40，随 DPI）
+ * 钳制多出的部分整体挂到屏幕上方（屏外不可命中）——屏内可见区=热区本身（同 v1.1.5 主窗校正） */
+function applyBarBounds(): void {
+  if (!cluster) return
+  const bar = cluster.windows.bar
+  if (!safe(bar)) return
+  const cap = tuckBarBounds({ x: cluster.anchor.x, y: cluster.anchor.y }, Math.round(470 * cluster.scale))
+  const targetBottom = cap.y + cap.height
+  bar.setBounds(cap)
+  for (let i = 0; i < 3; i++) {
+    const cb = bar.getContentBounds()
+    const delta = targetBottom - (cb.y + cb.height)
+    if (Math.abs(delta) < 1) break
+    const b = bar.getBounds()
+    bar.setBounds({ x: b.x, y: b.y + delta, width: cap.width, height: cap.height })
+  }
+}
+
+/** 缩进态：白条亮起并可命中（真实命中=元素 mouseenter；被遮挡天然不弹） */
+function showBarWindow(): void {
+  if (!cluster || !cluster.visible) return
+  const bar = cluster.windows.bar
+  if (!safe(bar)) return
+  applyBarBounds()
+  if (!bar.isVisible()) bar.showInactive()
+  bar.setOpacity(1)
+  bar.setIgnoreMouseEvents(false)
+  if (!modalChildOpen) bar.moveTop()
+}
+
+/** 非缩进态/托盘隐藏：白条透明待机 + 穿鼠标（不 hide） */
+function hideBarWindow(): void {
+  const bar = cluster?.windows.bar
+  if (!safe(bar)) return
+  bar.setIgnoreMouseEvents(true)
+  bar.setOpacity(0)
+}
+
+/** 主窗缩进态=透明待机（与侧窗同款，2026-10-17 步1）：不 hide（防表面重建闪动）、穿鼠标、几何不动 */
+function veilMainWindow(veiled: boolean): void {
+  const main = cluster?.windows.main
+  if (!safe(main)) return
+  if (veiled) {
+    main.setIgnoreMouseEvents(true)
+    main.setOpacity(0)
+  } else {
+    main.setOpacity(1)
+    main.setIgnoreMouseEvents(false)
+  }
+}
+
+/** 创建三窗+白条窗（三窗+白条常驻；侧窗按可见性 show/hide、白条按缩进态亮/隐） */
 export function createClusterWindows(opts: {
   anchor: { x: number; y: number }
   scale: number
@@ -233,8 +332,9 @@ export function createClusterWindows(opts: {
   // 快捷窗=固定画布窗（尺寸恒定；缩放档位变化不改变本矩形）
   const quick = makeWindow('quick', quickCanvasBoundsForAnchor(opts.anchor, quickCanvasMax), opts.topMost, opts.scale)
   const done = makeWindow('done', b.done ?? b.main, opts.topMost)
+  const bar = makeBarWindow(opts.topMost)
   cluster = {
-    windows: { quick, main, done },
+    windows: { quick, main, done, bar },
     anchor: opts.anchor,
     scale: opts.scale,
     quickVisible: opts.quickVisible,
@@ -268,7 +368,7 @@ export function getMainWindow(): BrowserWindow | null {
 
 export function getAllClusterWindows(): BrowserWindow[] {
   if (!cluster) return []
-  return [cluster.windows.quick, cluster.windows.main, cluster.windows.done].filter(safe)
+  return [cluster.windows.quick, cluster.windows.main, cluster.windows.done, cluster.windows.bar].filter(safe)
 }
 
 export function getClusterAnchor(): { x: number; y: number } | null {
@@ -389,24 +489,9 @@ export function applyClusterBounds(placeAll = false): void {
   if (!cluster) return
   if (lastAppliedAnchor && lastAppliedAnchor.x === cluster.anchor.x && lastAppliedAnchor.y === cluster.anchor.y) return
   if (cluster.tucked) {
-    // 用户验收定稿：胶囊与待办窗口上边缘中心对齐（不算侧窗）——锚点=待办左上角。
-    // 2026-10-16（用户裁定）：热区减半（12→6）；缩进期间白条以外的屏内区域不得吞鼠标——
-    // OS 窗先按胶囊请求，再按客户端实测校正：系统最小窗高（实测 ~37-40，随 DPI）与
-    // 首摆尺寸展开（+4~5px）多出的部分整体挂到屏幕上方（屏外不可命中），屏内可见区=热区本身。
-    // 校正（≤3 次）至客户端底边=锚点+热区高，对钳制/展开/取整三种偏差自愈
-    const main = cluster.windows.main
-    if (safe(main)) {
-      const cap = tuckBarBounds({ x: cluster.anchor.x, y: cluster.anchor.y }, Math.round(470 * cluster.scale))
-      const targetBottom = cap.y + cap.height
-      main.setBounds(cap)
-      for (let i = 0; i < 3; i++) {
-        const cb = main.getContentBounds()
-        const delta = targetBottom - (cb.y + cb.height)
-        if (Math.abs(delta) < 1) break
-        const b = main.getBounds()
-        main.setBounds({ x: b.x, y: b.y + delta, width: cap.width, height: cap.height })
-      }
-    }
+    // 缩进态（2026-10-17 §11.K 步1：白条=独立窗，主窗改为透明待机不再收胶囊、几何不动）。
+    // 白条水平=主窗上缘中心（现状口径，用户裁定）；摆放含系统最小窗高钳制的余高挂屏上校正
+    applyBarBounds()
     lastAppliedAnchor = { x: cluster.anchor.x, y: cluster.anchor.y }
     return
   }
@@ -483,7 +568,8 @@ export function syncClusterBounds(ui: {
 }
 
 /** 缩进切换（渲染层状态机经 IPC setTucked）。
- * 弹出（v=false）：先落位并显示侧窗，最后主窗从胶囊展开——三窗呈现同步（用户验收#4） */
+ * 步1（2026-10-17）：缩进=侧窗透明待机 + 主窗透明待机 + 白条独立窗亮起（主窗不再收胶囊）；
+ * 弹出=白条收 + 主窗回亮 + 侧窗先落位显示（三窗呈现同步，用户验收#4 语义保留） */
 export function setClusterTucked(v: boolean): void {
   if (!cluster) return
   cluster.tucked = v
@@ -494,14 +580,18 @@ export function setClusterTucked(v: boolean): void {
   if (v) autoExpandUntil = 0 // 重新缩进同样清除挂起会话（防跨状态闪退）
   const { quick, done, main } = cluster.windows
   if (v) {
-    // 缩进：先藏侧窗，主窗收胶囊
+    // 缩进：先藏侧窗，主窗透明待机，白条亮起
     if (safe(quick)) hideSideWindow(quick, 'quick')
     if (safe(done)) hideSideWindow(done, 'done')
+    veilMainWindow(true)
     lastAppliedAnchor = null
     applyClusterBounds()
+    showBarWindow()
     return
   }
-  // 弹出：侧窗先落位显示（带完整内容），主窗最后从胶囊展开
+  // 弹出：白条先收，主窗回亮，侧窗最后落位显示（带完整内容）
+  hideBarWindow()
+  veilMainWindow(false)
   if (safe(quick) && cluster.quickVisible && cluster.visible) showSidePanel('quick')
   if (safe(done) && cluster.doneVisible && cluster.visible) showSidePanel('done')
   lastAppliedAnchor = null
@@ -646,6 +736,13 @@ export function showCluster(): void {
       if (cluster.doneVisible) showSidePanel('done')
       else hideSideWindow(done, 'done')
     }
+    // 步1：白条窗随整体显隐唤醒（基态=透明待机；隐真 hide 过则先 showInactive 再隐，
+    // 防下次缩进亮起时表面重建闪动）
+    const bar = cluster.windows.bar
+    if (safe(bar)) {
+      if (!bar.isVisible()) bar.showInactive()
+      hideBarWindow()
+    }
   }
   applyTopMostToCluster(cluster.topMost)
 }
@@ -759,8 +856,20 @@ export function clusterDebugState(): Record<string, unknown> | null {
     doneOpacity: safe(cluster.windows.done) ? cluster.windows.done.getOpacity() : 0,
     quickBounds: cluster.windows.quick.getBounds(),
     mainBounds: cluster.windows.main.getBounds(),
-    quickMouseIgnore: quickMouseIgnoreState()
+    quickMouseIgnore: quickMouseIgnoreState(),
+    // 步1：主窗透明待机与白条窗（E2E 缩进信号/几何断言）
+    mainOpacity: safe(cluster.windows.main) ? cluster.windows.main.getOpacity() : 1,
+    barVis: sideWindowVisible(cluster.windows.bar),
+    barOpacity: safe(cluster.windows.bar) ? cluster.windows.bar.getOpacity() : 0,
+    barBounds: safe(cluster.windows.bar) ? cluster.windows.bar.getBounds() : null
   }
+}
+
+/** 步1：白条命中 → 转交主窗渲染层状态机（等效原主窗内白条元素 mouseenter） */
+export function relayBarHit(sender: unknown): void {
+  if (!cluster || !safe(cluster.windows.bar)) return
+  if (sender !== cluster.windows.bar.webContents) return // 仅白条窗可上报（越权忽略）
+  sendToMain(IPC.barHit)
 }
 
 export function registerClusterIpc(ipcMain: IpcMain): void {
@@ -794,8 +903,13 @@ export function registerClusterIpc(ipcMain: IpcMain): void {
             }
           : null
       return cluster
-        ? { quick: read(cluster.windows.quick), main: read(cluster.windows.main), done: read(cluster.windows.done) }
-        : { quick: null, main: null, done: null }
+        ? {
+            quick: read(cluster.windows.quick),
+            main: read(cluster.windows.main),
+            done: read(cluster.windows.done),
+            bar: read(cluster.windows.bar)
+          }
+        : { quick: null, main: null, done: null, bar: null }
     })
     ipcMain.handle('test:exstyle', (_e, panel: string) => {
       const w = panel === 'quick' ? cluster?.windows.quick : panel === 'done' ? cluster?.windows.done : cluster?.windows.main

@@ -3,9 +3,11 @@ import { createPinia } from 'pinia'
 import './styles/global.css'
 import PanelWindow from './windows/PanelWindow.vue'
 import ChildHost from './windows/ChildHost.vue'
+import BarWindow from './windows/BarWindow.vue'
 import type { ChildKind } from './ipc/contract'
 
 // 入口路由：?win=cluster&panel=X = 三窗分离的组件窗口（批次 B-1）；
+// ?win=bar = 缩进白条独立窗（2026-10-17 §11.K 步1）；
 // ?win=<child-kind> = 二级窗口；?win=bubble = 悬浮气泡
 const params = new URLSearchParams(window.location.search)
 const win = params.get('win')
@@ -16,6 +18,7 @@ const clusterPanel = (params.get('panel') ?? 'main') as 'quick' | 'main' | 'done
 const RootApp = defineComponent({
   setup() {
     if (win === 'cluster') return () => h(PanelWindow, { panel: clusterPanel })
+    if (win === 'bar') return () => h(BarWindow)
     return () => (kind ? h(ChildHost, { kind, id }) : h('div'))
   }
 })

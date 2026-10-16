@@ -76,6 +76,14 @@ const api = {
     const listener = (_e: unknown, n: number): void => cb(n)
     ipcRenderer.on(IPC.childCount, listener)
     return () => ipcRenderer.removeListener(IPC.childCount, listener)
+  },
+  /** 缩进改造步1：白条独立窗命中上报（白条窗） */
+  barHit: () => ipcRenderer.send(IPC.barHit),
+  /** 缩进改造步1：白条命中接收（主窗；主进程转交） */
+  onBarHit: (cb: () => void) => {
+    const listener = (): void => cb()
+    ipcRenderer.on(IPC.barHit, listener)
+    return () => ipcRenderer.removeListener(IPC.barHit, listener)
   }
 }
 

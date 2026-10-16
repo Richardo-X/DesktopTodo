@@ -36,7 +36,9 @@ export const IPC = {
   clusterDragStart: 'spike:drag-start',
   clusterDragEnd: 'spike:drag-end',
   uiBatchState: 'ui:batch-state',
-  childCount: 'app:child-count'
+  childCount: 'app:child-count',
+  /** 缩进改造步1：白条独立窗命中（白条窗渲染层 → 主进程 → 转交主窗渲染层状态机） */
+  barHit: 'bar:hit'
 } as const
 
 /** 子窗口种类（PRD §2.1；B1.5：回收站窗口已移除） */
@@ -110,4 +112,8 @@ export interface DesktopTodoApi {
   onBatchState(cb: (target: 'todos' | 'templates' | 'history' | null) => void): () => void
   /** 批次 B 验收修复（问题5）：子窗口数量跨窗广播——任一窗打开/关闭二级窗都同步三窗状态机 */
   onChildCount(cb: (n: number) => void): () => void
+  /** 缩进改造步1：白条独立窗上报命中（白条窗调用；主进程转交主窗渲染层） */
+  barHit(): void
+  /** 缩进改造步1：主窗渲染层接收白条命中（由主进程转交；等效原白条元素 mouseenter） */
+  onBarHit(cb: () => void): () => void
 }

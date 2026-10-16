@@ -2,7 +2,6 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
-import { TUCK_BAR_HEIGHT, TUCK_BAR_WIDTH } from '../core/constants'
 import { BASE_PANEL } from '../core/utils/cluster-layout'
 import { getApi } from '../services/api'
 import HomePanel from '../panels/HomePanel.vue'
@@ -14,7 +13,10 @@ import { cancelBubble } from '../components/content-bubble'
 /**
  * 三窗分离架构（v1.1.0 批次 B-1）：每个 OS 窗口的渲染根。
  * 一个窗口 = stage（设计令牌+主题）+ zoom 容器（尺寸=基准÷缩放，zoom×尺寸=真窗口，决策#7）+
- * 对应面板。缩进胶囊仅存在于待办主窗（形态 B：侧窗由主进程整体隐藏）。
+ * 对应面板。
+ * 缩进（2026-10-17 §11.K 步1）：白条已搬进独立小窗（src/windows/BarWindow.vue）——
+ * 本窗缩进态=主进程整体透明待机，渲染层切 .cluster-veiled；白条命中经主进程中继回来
+ * （onBarHit → 状态机 mouse-enter，等效原白条元素 mouseenter）。
  * 标题栏手写拖动：document 捕获段监听 .titlebar 命中（排除按钮区）→ 主进程光标轮询整体拖动；
  * 三个面板组件的模板无需感知窗口化（仅移除 app-region CSS）。
  */
@@ -22,14 +24,11 @@ const props = defineProps<{ panel: 'quick' | 'main' | 'done' }>()
 
 const store = useAppStore()
 const ui = useUiStore()
-/** 白条弹出驱动（C7 用户方案 2026-10-10）：mouseenter = 系统真实命中——鼠标物理碰到白条
- * （主窗白条元素）才触发；被其他窗口遮挡时主窗收不到鼠标事件=天然不弹（无需任何遮挡检测）；
- * 判定范围=白条元素边界（垂直 12px/水平 160px 精确，无窗口透明区误差）。
- * 点击作为附加途径保留（CDP/特殊场景）。 */
-function onTuckBarEnter(): void {
-  ui.dispatchTuck({ type: 'mouse-enter', now: Date.now() })
-}
-function onTuckBarClick(): void {
+/** 白条弹出驱动（C7 用户方案 2026-10-10；2026-10-17 步1：白条搬进独立窗）：
+ * mouseenter = 系统真实命中——鼠标物理碰到白条本体才触发，被其他窗口遮挡时天然不弹
+ * （无需任何遮挡检测）；判定范围=白条元素边界（热区 6px×160px 精确）。
+ * 白条窗经主进程中继 onBarHit 回调到本窗状态机；点击为附加途径（白条窗内处理）。 */
+function onBarHit(): void {
   ui.dispatchTuck({ type: 'mouse-enter', now: Date.now() })
 }
 
@@ -220,6 +219,10 @@ onMounted(() => {
     // 悬停中的气泡会滞留——veil 开启即隐藏
     if (v) cancelBubble()
   })
+  // 步1：白条独立窗命中经主进程中继回本窗状态机（仅主窗接线；白条=组件的把手，状态机宿主=主窗）
+  if (props.panel === 'main') {
+    getApi().onBarHit(onBarHit)
+  }
   syncZoomFromViewport()
 })
 
@@ -240,7 +243,7 @@ onUnmounted(() => {
     <!-- 批次 C-2：模态锁定蒙层（示意一级窗口不可操作，纯视觉）。
          快捷窗例外（画布方案）：画布>卡面，stage 级蒙层会罩住透明余量——蒙层挂卡面内 -->
     <div v-if="veilVisible && !isQuick" class="modal-veil" data-testid="modal-veil" />
-    <!-- 待办主窗：缩进态切换为胶囊（形态 B；侧窗由主进程隐藏） -->
+    <!-- 待办主窗：缩进态=主进程整体透明待机（白条已搬进独立窗，见 BarWindow.vue） -->
     <template v-if="props.panel === 'main'">
       <!-- 用户验收：弹出/缩进同步无呼吸——面板常驻挂载（不销毁 DOM），缩进=透明度翻转
            （display 切换会重排重建=慢半拍；opacity 翻转=合成器直完成） -->
@@ -252,14 +255,6 @@ onUnmounted(() => {
       >
         <HomePanel />
       </div>
-      <div
-        v-show="domTucked"
-        class="tuck-bar"
-        :style="{ height: TUCK_BAR_HEIGHT + 'px', width: TUCK_BAR_WIDTH + 'px' }"
-        title="鼠标移入弹出组件（点击亦可）"
-        @mouseenter="onTuckBarEnter"
-        @click="onTuckBarClick"
-      />
     </template>
     <template v-else>
       <div
@@ -382,43 +377,9 @@ onUnmounted(() => {
   right: 0;
 }
 
-/* 缩进态：面板蒙纱隐藏（保挂载、零重排；pointer-events 交还胶囊） */
+/* 缩进态：面板蒙纱隐藏（保挂载、零重排；窗口整体透明度由主进程置 0=真正的透明待机） */
 .cluster-veiled {
   opacity: 0;
   pointer-events: none;
-}
-
-/* ===== 缩进胶囊（160×6 热区=缩进态屏内可见区，内含 3px 可见条；悬停弹出=mouseenter） ===== */
-.tuck-bar {
-  /* 绝对定位脱文档流：胶囊态 zoom 容器恒 640px 高占位（常驻挂载+zoom 恒等式），
-     文档流白条会被挤到 y≈643——窗口只剩 38px 高，白条在可视区外（真机"白条消失"真因）。
-     2026-10-16：钉视口底缘（不钉顶）——缩进态 OS 窗被系统最小窗高撑高，多出的部分
-     由主进程挂到屏幕上方（屏外不可命中），屏内可见区=窗口底部热区本身 */
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  margin: 0 auto;
-  border-radius: 99px;
-  cursor: pointer;
-}
-
-.tuck-bar::after {
-  content: '';
-  display: block;
-  height: 3px; /* 厚度=热区一半（2026-10-16 用户裁定减半，原 6px） */
-  margin-top: 1.5px; /* 热区内垂直居中（与减半前 12px 热区/3px 边距等比） */
-  border-radius: 99px;
-  background: var(--tuck-bar-bg, rgba(255, 255, 255, 0.55));
-  transition: background 0.15s;
-}
-
-.tuck-bar:hover::after {
-  background: var(--tuck-bar-hover, rgba(255, 255, 255, 0.85));
-}
-
-.stage[data-theme='night'] .tuck-bar {
-  --tuck-bar-bg: rgba(255, 255, 255, 0.28);
-  --tuck-bar-hover: rgba(255, 255, 255, 0.5);
 }
 </style>
