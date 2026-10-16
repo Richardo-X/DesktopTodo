@@ -115,6 +115,16 @@ watch(
   }
 )
 
+/** 命中记忆失效重置（2026-10-17 用户报告修复）：主进程在显隐/缩进切换时会自行重置快捷窗的
+ * 穿透基态（hideSideWindow=全穿透、showSidePanel=forward 基态）——渲染层记忆若与新基态不符
+ * （典型：光标快速离开窗口未产生"离开卡面"的最后一帧 move → 记忆停在"命中"，缩进弹出后
+ * 所有卡面内 move 都因"记忆=命中"被短路 → 卡面持续穿透不可交互，需开关面板才恢复）。
+ * 主进程每次重置基态时发本通知 → 清空记忆，下一次真实 move 重新断言。 */
+getApi().onQuickHitReset(() => {
+  if (!isQuick.value) return
+  cardHitInside = null
+})
+
 // veil（二级窗开着）=恒穿透：状态变更即时生效（不等下一次 move）——
 // 蒙层期静止光标下的点击也必须落到桌面而非被画布吞掉
 watch(veilVisible, (v) => {

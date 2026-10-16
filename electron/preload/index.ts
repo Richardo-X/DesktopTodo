@@ -84,6 +84,12 @@ const api = {
     const listener = (): void => cb()
     ipcRenderer.on(IPC.barHit, listener)
     return () => ipcRenderer.removeListener(IPC.barHit, listener)
+  },
+  /** 快捷窗命中记忆失效（主进程重置穿透基态时下发） */
+  onQuickHitReset: (cb: () => void) => {
+    const listener = (): void => cb()
+    ipcRenderer.on(IPC.quickHitReset, listener)
+    return () => ipcRenderer.removeListener(IPC.quickHitReset, listener)
   }
 }
 

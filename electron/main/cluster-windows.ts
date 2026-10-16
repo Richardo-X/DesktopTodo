@@ -422,7 +422,10 @@ function hideSideWindow(w: BrowserWindow, panel: ClusterPanel): void {
   if (!safe(w)) return
   if (isPersistent(panel)) {
     w.setIgnoreMouseEvents(true)
-    if (panel === 'quick') quickMouseIgnore = true
+    if (panel === 'quick') {
+      quickMouseIgnore = true
+      notifyQuickHitReset(w) // 隐藏=基态重置：渲染层命中记忆同步失效
+    }
     w.setOpacity(0)
   } else {
     w.hide()
@@ -438,10 +441,19 @@ export function isQuickClusterWindow(w: BrowserWindow): boolean {
  * 一切写入走本函数/显隐路径维护，基态=true（forward 全穿透） */
 let quickMouseIgnore: boolean | null = null
 
-/** 快捷窗穿透基态（显示/创建时）：forward 全穿透——命中切换由渲染层 hit-test 接管 */
+/** 快捷窗穿透基态（显示/创建时）：forward 全穿透——命中切换由渲染层 hit-test 接管。
+ * 每次重置基态都通知渲染层清空命中记忆（否则"记忆=命中"会短路后续卡面内 move，
+ * 卡面持续穿透不可交互——2026-10-17 用户报告，v1.1.2 画布命中引入的旧缺陷） */
 function applyQuickMouseIgnoreBase(w: BrowserWindow): void {
   w.setIgnoreMouseEvents(true, { forward: true })
   quickMouseIgnore = true
+  notifyQuickHitReset(w)
+}
+
+/** 命中记忆失效通知（渲染层清空 cardHitInside，待下一次 move 重新断言真实状态） */
+function notifyQuickHitReset(w: BrowserWindow | null | undefined): void {
+  if (!safe(w)) return
+  w.webContents.send(IPC.quickHitReset)
 }
 
 /** 渲染层 hit-test 切换入口（仅快捷窗；隐藏态不会被调用——forward 关闭收不到 move） */

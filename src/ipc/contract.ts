@@ -38,7 +38,9 @@ export const IPC = {
   uiBatchState: 'ui:batch-state',
   childCount: 'app:child-count',
   /** 缩进改造步1：白条独立窗命中（白条窗渲染层 → 主进程 → 转交主窗渲染层状态机） */
-  barHit: 'bar:hit'
+  barHit: 'bar:hit',
+  /** 快捷窗命中记忆失效通知（主进程重置穿透基态时下发；渲染层清空 hit-test 记忆） */
+  quickHitReset: 'window:quick-hit-reset'
 } as const
 
 /** 子窗口种类（PRD §2.1；B1.5：回收站窗口已移除） */
@@ -116,4 +118,6 @@ export interface DesktopTodoApi {
   barHit(): void
   /** 缩进改造步1：主窗渲染层接收白条命中（由主进程转交；等效原白条元素 mouseenter） */
   onBarHit(cb: () => void): () => void
+  /** 快捷窗命中记忆失效（主进程重置穿透基态：隐藏/显示/缩进切换）——渲染层清空记忆待下次 move 重断言 */
+  onQuickHitReset(cb: () => void): () => void
 }
