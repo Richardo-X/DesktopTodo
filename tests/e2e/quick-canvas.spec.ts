@@ -35,11 +35,12 @@ test('快捷窗画布恒定：档位变化 getBounds 不动、锚点平移只平
       s
     )
 
-  // 主窗宽=round(470×k)±1（Windows 取整；双向容差防单侧提前放行）；快捷窗矩形断言保持严格恒等
+  // 主窗宽=round(470×k)+OS 边框余量（Windows 取整/DWM 边框；高 DPI 实测 +2——175% 机器上
+  // 首摆展开使 ±1 容差不够，双向容差防单侧提前放行）；快捷窗矩形断言保持严格恒等
   const mainWNear = (s: number) =>
     expect
       .poll(async () => (await st()).mainBounds.width, { timeout: 5_000 })
-      .toBeLessThanOrEqual(Math.round(470 * s) + 1)
+      .toBeLessThanOrEqual(Math.round(470 * s) + 2)
 
   // 基准档 A=上限、B=0.7（下限）。CI 虚拟屏高度小 → cap 可能低至 ≈0.703，
   // 两档宽度差 <10px——此时跳过"宽度差"佐证（画布恒定核心断言不受影响）
@@ -56,7 +57,8 @@ test('快捷窗画布恒定：档位变化 getBounds 不动、锚点平移只平
     .poll(async () => (await st()).mainBounds.width, { timeout: 5_000 })
     .toBeGreaterThanOrEqual(Math.round(470 * sB) - 1)
   const atB = await st()
-  expect(Math.abs(atB.mainBounds.width - Math.round(470 * sB))).toBeLessThanOrEqual(1)
+  // ±OS 边框余量（高 DPI 实测 +2，见 mainWNear）
+  expect(Math.abs(atB.mainBounds.width - Math.round(470 * sB))).toBeLessThanOrEqual(2)
   if (tiersDiscriminable) expect(atB.mainBounds.width).toBeLessThan(base.mainBounds.width - 10)
   expect(atB.quickBounds).toEqual(base.quickBounds)
 
@@ -125,7 +127,7 @@ test('快捷窗画布命中切换：卡面内恢复命中、余量区穿透、ve
   await setScale(0.7)
   await expect
     .poll(async () => (await st()).mainBounds.width, { timeout: 5_000 })
-    .toBeLessThanOrEqual(Math.round(470 * 0.7) + 1)
+    .toBeLessThanOrEqual(Math.round(470 * 0.7) + 2) // +OS 边框余量（高 DPI 实测 +2，见 mainWNear）
   await expect
     .poll(
       async () =>

@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, type AppHandle } from './helpers'
-import { threeWindowBoundsForAnchor } from '../../src/core/utils/cluster-layout'
+import {
+  threeWindowBoundsForAnchor,
+  quickCanvasBoundsForAnchor,
+  quickCanvasMaxScale
+} from '../../src/core/utils/cluster-layout'
 
 /**
  * 三窗架构 E2E（批次 B-1，替代 spike spec）：
@@ -47,7 +51,7 @@ test('三窗：恰好三个组件窗口（无多余窗口），三窗页面均�
   }
 })
 
-test('三窗：逐窗 bounds 符合纯函数（锚点=待办左上角、缝隙恰好 2px、三窗等高）', async () => {
+test('三窗：逐窗 bounds 符合纯函数（锚点=待办左上角、缝隙恰好 2px、主/已完成等高）', async () => {
   const b = await clusterBounds()
   expect(b.main).toBeTruthy()
   expect(b.quick).toBeTruthy()
@@ -57,17 +61,21 @@ test('三窗：逐窗 bounds 符合纯函数（锚点=待办左上角、缝隙�
   const expected = threeWindowBoundsForAnchor({ x: b.main!.x, y: b.main!.y }, scale, true, true)
   const near = (actual: number, want: number, tol = 3): void =>
     expect(Math.abs(actual - want)).toBeLessThanOrEqual(tol)
-  near(b.quick!.x, expected.quick!.x)
-  near(b.quick!.width, expected.quick!.width)
-  near(b.quick!.height, expected.quick!.height)
   near(b.done!.x, expected.done!.x)
   near(b.done!.width, expected.done!.width)
-  expect(b.quick!.y).toBe(b.main!.y)
   expect(b.done!.y).toBe(b.main!.y)
-  // 相对几何核心不变量：缝隙恰好 2px（OS 调整容差 ±2）、三窗等高
+  // 快捷窗=v1.1.2 起的固定画布窗：矩形=当前工作区可达上限档画布（非当档卡面）——
+  // 右缘钉主窗左缘−缝隙、上缘钉锚点。上限≈当档时（CI 虚拟屏）画布与卡面重合，
+  // 高上限屏（175% 竖屏实测）才可分辨；断言直接对画布纯函数，两种环境通用
+  const wa = await h.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea)
+  const canvas = quickCanvasBoundsForAnchor({ x: b.main!.x, y: b.main!.y }, quickCanvasMaxScale(wa, true, true))
+  near(b.quick!.x, canvas.x)
+  near(b.quick!.width, canvas.width)
+  near(b.quick!.height, canvas.height)
+  expect(b.quick!.y).toBe(b.main!.y)
+  // 相对几何核心不变量：缝隙恰好 2px（OS 调整容差 ±2）、主/已完成等高
   near(b.quick!.x + b.quick!.width + 2, b.main!.x, 2)
   near(b.main!.x + b.main!.width + 2, b.done!.x, 2)
-  expect(b.quick!.height).toBe(b.main!.height)
   expect(b.done!.height).toBe(b.main!.height)
 })
 
