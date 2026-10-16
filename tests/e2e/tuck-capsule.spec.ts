@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, type AppHandle } from './helpers'
+import { TUCK_BAR_HEIGHT } from '../../src/core/constants'
 
 /** 三轮8.2-1 + 三窗形态 B（批次 B-1）：缩进=侧窗整窗隐藏 + 待办窗收缩为胶囊
- * （宽 160、水平居中于原簇、贴顶；高度受系统最小值钳制 ≤60）；弹出还原原位——
- * 缩进对 x 的改动不得污染位置记忆 */
-test('缩进时待办窗收窄为胶囊、侧窗隐藏，弹出还原且位置不漂移', async () => {
+ * （宽 160、水平居中于原簇、贴顶）；弹出还原原位——缩进对 x 的改动不得污染位置记忆。
+ * 2026-10-16（用户裁定）：热区减半（12→6）；系统最小窗高钳制（~37-40，随 DPI）与首摆
+ * 展开多出的部分整体挂屏幕上方——屏内可见区=热区本身（白条以外的区域不吞鼠标、不弹） */
+test('缩进时待办窗收为胶囊：屏内可见区=贴顶热区（余高挂屏外），侧窗隐藏、弹出还原不漂移', async () => {
   const h: AppHandle = await launchApp()
   await h.main.waitForSelector('[data-testid="home-panel"]')
 
@@ -28,6 +30,17 @@ test('缩进时待办窗收窄为胶囊、侧窗隐藏，弹出还原且位置�
     throw new Error('main window bounds unavailable')
   }
 
+  /** 客户端区（渲染页）bounds——可见区判定的权威来源（窗口 rect 含不可见边框 ±1px） */
+  const contentBounds = async (): Promise<{ x: number; y: number; w: number; h: number } | null> =>
+    h.app.evaluate(({ BrowserWindow }) => {
+      const w = BrowserWindow.getAllWindows().find(
+        (x) => !x.isDestroyed() && x.webContents.getURL().includes('panel=main')
+      )
+      if (!w) return null
+      const b = w.getContentBounds()
+      return { x: b.x, y: b.y, w: b.width, h: b.height }
+    })
+
   const before = await mainBounds()
   expect(before.w).toBeGreaterThan(160)
 
@@ -43,10 +56,11 @@ test('缩进时待办窗收窄为胶囊、侧窗隐藏，弹出还原且位置�
   await expect
     .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 })
     .toBeLessThanOrEqual(1) // OS DPI 取整容差
-  // Windows 系统最小高度约 39px 钳制（setMinimumSize 不豁免）；可见胶囊仍为热区顶部 6px
-  const tucked = await mainBounds()
-  expect(tucked.h).toBeGreaterThanOrEqual(12)
-  expect(tucked.h).toBeLessThanOrEqual(60)
+  // 屏内可见区=热区：客户端（渲染页）底边=锚点(主窗原左上角)+热区高；系统最小窗高撑出的余高在锚点上方
+  const cb = await contentBounds()
+  expect(cb).not.toBeNull()
+  expect(Math.abs(cb!.y + cb!.h - (before.y + TUCK_BAR_HEIGHT))).toBeLessThanOrEqual(1)
+  expect(cb!.y).toBeLessThanOrEqual(before.y) // 余高挂锚点上方：屏内可见区只剩热区（白条以外不吞鼠标）
   // 侧窗整窗隐藏（形态 B）
   const quickVis = (await winByPanel('quick'))?.vis
   const doneVis = (await winByPanel('done'))?.vis
@@ -67,8 +81,10 @@ test('缩进时待办窗收窄为胶囊、侧窗隐藏，弹出还原且位置�
 })
 
 /** 真机"白条消失"回归（两段缺陷：①domTucked 间接层直接 IPC 不翻转→走渲染层状态机路径
- * ②文档流白条被常驻 640px zoom 容器挤出 38px 胶囊窗→rect.y 必须≈0） */
-test('白条在胶囊态显示于窗口顶部可视区内（渲染层状态机路径）', async () => {
+ * ②文档流白条被常驻 640px zoom 容器挤出胶囊窗可视区）。
+ * 2026-10-16 新几何：白条元素=屏内可见区（钉客户端底缘；系统最小窗高撑出的余高由主进程
+ * 挂锚点上方）——本用例同时守住"元素在可视区内"与"屏幕坐标=锚点往下热区"两条 */
+test('白条在胶囊态显示于窗口底部热区（渲染层状态机路径）', async () => {
   const h: AppHandle = await launchApp()
   await h.main.waitForSelector('[data-testid="home-panel"]')
 
@@ -80,6 +96,11 @@ test('白条在胶囊态显示于窗口顶部可视区内（渲染层状态机�
       },
       [channel, val] as [string, unknown]
     )
+
+  const beforeY = await h.app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find((x) => !x.isDestroyed() && x.webContents.getURL().includes('panel=main'))
+    return w?.getBounds().y ?? 0
+  })
 
   // 吸附（snap-state=true=主进程 detectSnap 翻转时发的同一信号）→ 光标离开（轮询同通道）
   await sendMain('app:snap-state', true)
@@ -101,11 +122,22 @@ test('白条在胶囊态显示于窗口顶部可视区内（渲染层状态机�
     const el = document.querySelector('.tuck-bar') as HTMLElement | null
     if (!el) return null
     const r = el.getBoundingClientRect()
-    return { display: getComputedStyle(el).display, y: Math.round(r.y), w: Math.round(r.width) }
+    return {
+      display: getComputedStyle(el).display,
+      y: Math.round(r.y),
+      h: Math.round(r.height),
+      w: Math.round(r.width),
+      screenY: window.screenY,
+      innerH: window.innerHeight,
+      // 可见条（::after）=热区一半：2026-10-16 用户裁定厚度减半（原 6px）
+      pillH: getComputedStyle(el, '::after').height
+    }
   })
   expect(bar?.display).toBe('block')
-  expect(bar!.y).toBeLessThanOrEqual(2) // 窗口顶部可视区内（挤出窗外的缺陷抓不住=白条消失）
   expect(Math.abs(bar!.w - 160)).toBeLessThanOrEqual(2) // OS DPI 取整容差
+  expect(bar!.pillH).toBe('3px') // 厚度减半定稿（热区 6px 的一半）
+  expect(Math.abs(bar!.y + bar!.h - bar!.innerH)).toBeLessThanOrEqual(1) // 元素钉客户端底缘（在可视区内）
+  expect(Math.abs(bar!.screenY + bar!.y - beforeY)).toBeLessThanOrEqual(2) // 屏幕坐标=锚点往下热区（贴顶语义）
 
   // 弹出（光标回到胶囊内=轮询 enter 同通道）
   await sendMain('app:cursor-inside', true)

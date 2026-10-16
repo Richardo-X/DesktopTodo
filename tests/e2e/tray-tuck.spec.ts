@@ -370,7 +370,9 @@ test('C7 白条 mouseenter 驱动弹出：真实鼠标事件划过白条→弹�
   await h.main.waitForTimeout(500)
   await setFake({ x: capIn.x + 600, y: capIn.y + 400 })
   await expect.poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 8_000 }).toBeLessThanOrEqual(1)
-  await h.main.mouse.move(capIn.x - (await mainBounds()).x, 25) // 页面坐标：白条带（12px）下方透明区
+  // 页面坐标：热区（页底 6px）以外的页面区——2026-10-16 后该区=挂锚点上方的屏外余量
+  // （原"白条下方死区"）；落在非白条区不得误弹
+  await h.main.mouse.move(capIn.x - (await mainBounds()).x, 25)
   await h.main.waitForTimeout(800)
   expect((await mainBounds()).w).toBeLessThanOrEqual(162)
 

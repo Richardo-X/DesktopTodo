@@ -110,12 +110,12 @@ describe('clampChildGroupScale 组缩放钳制（连续平滑）', () => {
   })
 })
 
-/** 三轮8.2-1：缩进胶囊窗口 bounds——在原簇水平中心、贴顶、160×12 热区 */
+/** 三轮8.2-1：缩进胶囊窗口 bounds——在原簇水平中心、贴顶、160×热区（2026-10-16 热区减半为 6px） */
 describe('tuckBarBounds', () => {
   it('缩进时窗口收窄为胶囊：水平居中于原簇，y 不变（贴顶）', () => {
     const b = tuckBarBounds({ x: 500, y: 0 }, 1098)
     expect(b.width).toBe(160)
-    expect(b.height).toBe(12)
+    expect(b.height).toBe(6)
     expect(b.x).toBe(500 + Math.round((1098 - 160) / 2)) // 971
     expect(b.y).toBe(0)
   })

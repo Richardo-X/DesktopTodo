@@ -43,9 +43,9 @@ describe('clampClusterScale', () => {
     expect(clampClusterScale(0.8, BASE, WA)).toBe(0.8)
   })
 
-  it('常数（三轮8.2-1 定稿）：吸附阈值 0px（顶边真正触碰屏幕边缘才吸附）、胶囊热区 12px、回缩延时 400ms、胶囊宽 160px、移动空闲 500ms', () => {
+  it('常数（三轮8.2-1 定稿+2026-10-16 减半）：吸附阈值 0px（顶边真正触碰屏幕边缘才吸附）、胶囊热区 6px、回缩延时 400ms、胶囊宽 160px、移动空闲 500ms', () => {
     expect(SNAP_THRESHOLD).toBe(0)
-    expect(TUCK_BAR_HEIGHT).toBe(12)
+    expect(TUCK_BAR_HEIGHT).toBe(6)
     expect(TUCK_DELAY_MS).toBe(400)
     expect(TUCK_BAR_WIDTH).toBe(160)
     expect(TUCK_MOVE_IDLE_MS).toBe(500)
