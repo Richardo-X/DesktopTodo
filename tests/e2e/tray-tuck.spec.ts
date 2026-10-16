@@ -545,8 +545,14 @@ test('缩进锁定：托盘隐藏→显示后保持展开不缩进（跨 3 秒�
   expect(Math.abs(after.y - ref.y)).toBeLessThanOrEqual(2)
   expect(Math.abs(after.w - ref.w)).toBeLessThanOrEqual(2)
 
-  // ⑤ 关锁 → 鼠标仍在外 → 自动缩进恢复（门解除后行为正常）
+  // ⑤ 关锁 → 自动缩进恢复（门解除后行为正常）——走"确定性两段式"（fake 光标 组件内→外，
+  // 触发一次全新的离开信号；直接依赖既有 inside=false 会撞上渲染层"指针活动守卫"
+  // lastPointerInsideAt——真机真光标若停在 E2E 窗口上会持续刷新它，属环境敏感路径）
   await h.main.click('[data-testid="tb-tucklock"]')
-  await expect.poll(isTucked, { timeout: 5_000 }).toBe(true)
+  await h.main.waitForTimeout(300)
+  await setFakeCursor({ x: ref.x + 100, y: ref.y + 200 })
+  await h.main.waitForTimeout(500)
+  await setFakeCursor({ x: 60, y: 1400 })
+  await expect.poll(isTucked, { timeout: 6_000 }).toBe(true)
   await setFakeCursor(null)
 })

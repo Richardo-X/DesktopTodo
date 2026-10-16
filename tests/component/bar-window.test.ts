@@ -22,12 +22,13 @@ describe('BarWindow 白条独立窗', () => {
     expect(wrapper.find('.stage').attributes('data-theme')).toBe('day')
   })
 
-  it('mouseenter 与 click 均上报 barHit（命中链：白条窗→主进程→主窗状态机）', async () => {
+  it('mouseenter 上报 barHit（命中链：白条窗→主进程→主窗状态机）；点击不参与弹出', async () => {
     const { wrapper, api } = await mountWithStore(BarWindow as never)
     const bar = wrapper.find('.tuck-bar')
     await bar.trigger('mouseenter')
     expect(api.barHitCalls.length).toBe(1)
+    // 2026-10-17 用户裁定：点击弹出途径移除
     await bar.trigger('click')
-    expect(api.barHitCalls.length).toBe(2)
+    expect(api.barHitCalls.length).toBe(1)
   })
 })
