@@ -292,9 +292,9 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       await wrapper.vm.$nextTick()
       expect(ui.tuck.tucked).toBe(true)
 
-      const bar = wrapper.find('.tuck-bar')
-      expect(bar.isVisible()).toBe(true) // v-show 语义：DOM 常驻，缩进态才可见
+      // 步1（2026-10-17）：白条已搬进独立窗（BarWindow.vue）——本窗缩进态=蒙纱 + 主进程整窗透明待机
       expect(wrapper.find('.cluster-veiled').exists()).toBe(true)
+      expect(wrapper.find('.tuck-bar').exists()).toBe(false)
 
       api.cursorInsideListeners[0](true)
       await wrapper.vm.$nextTick()
@@ -344,19 +344,17 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       expect(ui.tuck.tucked).toBe(true)
     })
 
-    it('三轮8.2-1：胶囊只在缩进态出现；弹出后面板恢复', async () => {
+    it('三轮8.2-1（步1 形态）：蒙纱只在缩进态出现；弹出后面板恢复；白条不在本窗', async () => {
       const { wrapper } = await mountMain()
       const ui = useUiStore()
-      // happy-dom 对 v-show 的可见性判定用内联样式断言（isVisible 不可靠）
-      expect(wrapper.find('.tuck-bar').attributes('style') ?? '').toContain('display: none')
       expect(wrapper.find('.cluster-veiled').exists()).toBe(false)
+      expect(wrapper.find('.tuck-bar').exists()).toBe(false) // 白条=独立窗
 
       ui.dispatchTuck({ type: 'snap' })
       ui.dispatchTuck({ type: 'mouse-leave', now: Date.now() })
       ui.dispatchTuck({ type: 'tick', now: Date.now() + 500 })
       await flushPromises()
       await wrapper.vm.$nextTick()
-      expect(wrapper.find('.tuck-bar').exists()).toBe(true)
       // 常驻挂载+蒙纱设计：cluster 不销毁，缩进态带 veiled 类
       expect(wrapper.find('.cluster').classes()).toContain('cluster-veiled')
     })

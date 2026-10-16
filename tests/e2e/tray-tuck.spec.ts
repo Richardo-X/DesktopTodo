@@ -43,6 +43,23 @@ const setTucked = (v: boolean): Promise<void> =>
     v
   )
 
+/** 步1（2026-10-17）：缩进信号改走集群状态——缩进态=主窗透明待机（opacity 0）+白条独立窗亮起；
+ * 展开态=主窗回亮+白条隐。主窗几何不再变化（不再收胶囊），宽度不再是缩进信号 */
+const clusterState = (): Promise<{ mainOpacity: number; barVis: boolean }> =>
+  h.main.evaluate(() =>
+    (
+      window as unknown as { desktopTodoTest: { clusterState(): Promise<{ mainOpacity: number; barVis: boolean }> } }
+    ).desktopTodoTest.clusterState()
+  )
+const isTucked = async (): Promise<boolean> => {
+  const s = await clusterState()
+  return s.mainOpacity === 0 && s.barVis === true
+}
+const isExpanded = async (): Promise<boolean> => {
+  const s = await clusterState()
+  return s.mainOpacity === 1 && s.barVis === false
+}
+
 test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活；弹出后侧窗按开关恢复', async () => {
   const mainBounds = async (): Promise<W> => {
     const b = await winByPanel('main')
@@ -56,8 +73,8 @@ test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活�
   // ① 缩进：待办窗收胶囊、侧窗隐藏
   await setTucked(true)
   await expect
-    .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 })
-    .toBeLessThanOrEqual(1) // OS DPI 取整容差
+    .poll(isTucked, { timeout: 5_000 })
+    .toBe(true)
   await expect.poll(async () => (await winByPanel('quick'))?.vis, { timeout: 5_000 }).toBe(false)
   await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(false)
 
@@ -91,8 +108,8 @@ test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活�
       .desktopTodoTest!.setFakeCursor({ x: 30, y: 700 })
   )
   await expect
-    .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 6_500 })
-    .toBeLessThanOrEqual(1)
+    .poll(isTucked, { timeout: 6_500 })
+    .toBe(true)
   await h.main.evaluate(() =>
     (window as unknown as { desktopTodoTest?: { setFakeCursor(p: { x: number; y: number } | null): Promise<void> } })
       .desktopTodoTest!.setFakeCursor(null)
@@ -119,14 +136,14 @@ test('悬空会话清除：缩进+隐藏中会话挂起 → 再次显示不被�
   // ① 缩进（白条）
   await setTucked(true)
   await expect
-    .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 })
-    .toBeLessThanOrEqual(1)
+    .poll(isTucked, { timeout: 5_000 })
+    .toBe(true)
 
   // ② 显示（tucked 分支：弹出+3s 会话启动）→ ③ 会话期内再隐藏（会话挂起）
   await h.main.evaluate(() =>
     (window as unknown as { desktopTodo: { setVisibility(v: boolean): Promise<void> } }).desktopTodo.setVisibility(true)
   )
-  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
+  await expect.poll(isExpanded, { timeout: 5_000 }).toBe(true)
   await h.main.evaluate(() =>
     (window as unknown as { desktopTodo: { setVisibility(v: boolean): Promise<void> } }).desktopTodo.setVisibility(false)
   )
@@ -195,44 +212,33 @@ test('每次显示都重置 3 秒弹出：吸附位缩进→隐藏→显示（�
   // ② 缩进（白条）
   await setTucked(true)
   await expect
-    .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 })
-    .toBeLessThanOrEqual(1)
+    .poll(isTucked, { timeout: 5_000 })
+    .toBe(true)
 
   // ③ 隐藏 → ④ 显示#1（弹出+会话）→ 会话期内隐藏（用户路径：弹出不足 3s 又隐藏）
   await setVis(false)
   await setVis(true)
-  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
+  await expect.poll(isExpanded, { timeout: 5_000 }).toBe(true)
   await setVis(false)
   await h.main.waitForTimeout(4000) // 会话早已过期/被清（隐藏即清除）
 
   // ⑤ 显示#2：此时刻应用处于顶部吸附位+已展开态——应重新获得 3 秒弹出保持
   await setVis(true)
   await h.main.waitForTimeout(800)
-  const holdA = await mainBounds()
-  expect(holdA.w).toBeGreaterThan(200)
+  expect(await isExpanded()).toBe(true) // 展开保持（主窗回亮+白条隐）
 
   // ⑥ 会话中段（~2s）仍应保持展开
   await h.main.waitForTimeout(1200)
-  const holdB = await mainBounds()
-  expect(holdB.w).toBeGreaterThan(200)
+  expect(await isExpanded()).toBe(true) // 会话中段仍保持展开
 
   // ⑦ 3 秒到 → 光标不在组件上（fake 光标注入到屏幕左下）→ 自动缩回白条
   await setFakeCursor({ x: 30, y: 700 })
   await expect
-    .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 6_500 })
-    .toBeLessThanOrEqual(1)
-  // ⑧ 一致性回归（C4.3）：缩回后白条必须显示——主进程胶囊几何与渲染层白条态不得分裂
-  // （分裂形态=窗口露出完整 UI 左上角="标题条"，用户真机 2026-10-08 截图实锤）
-  await expect
-    .poll(
-      async () =>
-        h.main.evaluate(() => {
-          const el = document.querySelector('.tuck-bar') as HTMLElement | null
-          return el ? getComputedStyle(el).display : 'none'
-        }),
-      { timeout: 5_000 }
-    )
-    .toBe('block')
+    .poll(isTucked, { timeout: 6_500 })
+    .toBe(true)
+  // ⑧ 一致性回归（C4.3 语义，步1 形态）：缩回后必须"主窗隐+白条亮"成对出现——主进程执行
+  // 与渲染层状态机不得分裂（历史分裂形态=窗口露出完整 UI 左上角="标题条"，真机截图实锤）
+  await expect.poll(isTucked, { timeout: 5_000 }).toBe(true)
   await setFakeCursor(null)
 })
 
@@ -309,12 +315,6 @@ test('二级窗开着：隐藏→显示 → 保持弹出不缩回、取消计时
 })
 
 test('C7 白条 mouseenter 驱动弹出：真实鼠标事件划过白条→弹出；带外→不弹', async () => {
-  const mainBounds = async (): Promise<W> => {
-    const b = await winByPanel('main')
-    expect(b).toBeTruthy()
-    return b as W
-  }
-
   // ① 真实吸附
   const wa = await h.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea)
   const y0 = await h.app.evaluate(({ BrowserWindow }) => {
@@ -350,12 +350,12 @@ test('C7 白条 mouseenter 驱动弹出：真实鼠标事件划过白条→弹�
         .desktopTodoTest!.setFakeCursor(pt),
     { x: capIn.x + 600, y: capIn.y + 400 }
   )
-  await expect.poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 }).toBeLessThanOrEqual(1)
+  await expect.poll(isTucked, { timeout: 5_000 }).toBe(true)
   await h.main.waitForTimeout(300)
 
   // ③ 真实渲染层鼠标事件 hover 白条元素 → mouseenter → 弹出（C7 新机制）
-  await h.main.locator('.tuck-bar').hover()
-  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
+  await h.bar.locator('.tuck-bar').hover()
+  await expect.poll(isExpanded, { timeout: 5_000 }).toBe(true)
 
   // ④ 再缩进（确定性两段式，同 ② 的可靠模式；消除"fake 已在移出位依赖 lastInside 重置竞态"的 CI 波动）：
   // 先回组件（tick inside=true 稳定链路）→ 再移出 → inside=false → 渲染层 leaveAt → 缩进
@@ -369,16 +369,16 @@ test('C7 白条 mouseenter 驱动弹出：真实鼠标事件划过白条→弹�
   await setFake(capIn)
   await h.main.waitForTimeout(500)
   await setFake({ x: capIn.x + 600, y: capIn.y + 400 })
-  await expect.poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 8_000 }).toBeLessThanOrEqual(1)
-  // 页面坐标：热区（页底 6px）以外的页面区——2026-10-16 后该区=挂锚点上方的屏外余量
-  // （原"白条下方死区"）；落在非白条区不得误弹
-  await h.main.mouse.move(capIn.x - (await mainBounds()).x, 25)
+  await expect.poll(isTucked, { timeout: 8_000 }).toBe(true)
+  // 白条窗页坐标：元素=页底 6px 热区，y=5 落在元素上方余量带（挂锚点上方的屏外区）——
+  // 落在非白条区不得误弹
+  await h.bar.mouse.move(80, 5)
   await h.main.waitForTimeout(800)
-  expect((await mainBounds()).w).toBeLessThanOrEqual(162)
+  expect(await isTucked()).toBe(true) // 白条外页面区划过不弹
 
   // ⑤ 划回白条 → 弹出（mouseenter 再次驱动）
-  await h.main.locator('.tuck-bar').hover()
-  await expect.poll(async () => (await mainBounds()).w, { timeout: 5_000 }).toBeGreaterThan(200)
+  await h.bar.locator('.tuck-bar').hover()
+  await expect.poll(isExpanded, { timeout: 5_000 }).toBe(true)
 
   // ⑥ 清 fake cursor 恢复真实光标
   await h.main.evaluate(() =>
@@ -409,12 +409,6 @@ test('展开态托盘最小化→显示：三窗原位恢复（placeAll 修跨 D
 })
 
 test('用户验收#5：侧窗打开二级窗 → 主窗不缩进（childOpen 跨窗门）；关闭 → 恢复缩进', async () => {
-  const mainBounds = async (): Promise<W> => {
-    const b = await winByPanel('main')
-    expect(b).toBeTruthy()
-    return b as W
-  }
-
   // 吸附到顶（进入可缩进状态）
   await h.main.evaluate(() => {
     const w = null
@@ -434,15 +428,13 @@ test('用户验收#5：侧窗打开二级窗 → 主窗不缩进（childOpen 跨
   await h.main.waitForTimeout(600)
 
   // 鼠标离开一级窗（主进程光标轮询判定 inside=false 的等价场景：直接派 tick）
-  // 跨窗 childOpen 门生效 → 待办窗不收缩（宽度保持 >160）
-  const b1 = await mainBounds()
-  expect(b1.w).toBeGreaterThan(160)
+  // 跨窗 childOpen 门生效 → 不缩进（步1 形态：主窗保持回亮、白条不亮）
+  expect(await isExpanded()).toBe(true)
 
   // 关闭二级窗 → 恢复可缩进（childOpen 门解除；此后鼠标离开才缩进——此处仅验证门解除后弹出态保持）
   await tpl.close().catch(() => {})
   await h.main.waitForTimeout(400)
-  const b2 = await mainBounds()
-  expect(b2.w).toBeGreaterThan(160)
+  expect(await isExpanded()).toBe(true) // 门解除后仍为弹出态（鼠标未离开才缩进；此处仅验门解除）
 })
 
 test('用户验收#1：胶囊与待办窗上缘中心对齐（不算侧窗）', async () => {
@@ -452,20 +444,24 @@ test('用户验收#1：胶囊与待办窗上缘中心对齐（不算侧窗）', 
     return b as W
   }
   const before = await mainBounds()
-  // 胶囊中心 = 待办窗中心（锚点 + 470*scale/2）
+  // 白条中心 = 待办窗上缘中心（锚点 + 470*scale/2）——步1：白条=独立窗，口径保持现状
   const scale = before.w / 470
   const expectedCenter = before.x + Math.round(470 * scale) / 2
 
   await setTucked(true)
-  await expect
-    .poll(async () => Math.abs((await mainBounds()).w - 160), { timeout: 5_000 })
-    .toBeLessThanOrEqual(1)
-  const tucked = await mainBounds()
-  const actualCenter = tucked.x + tucked.w / 2
+  await expect.poll(isTucked, { timeout: 5_000 }).toBe(true)
+  const bar = await h.app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find(
+      (x) => !x.isDestroyed() && x.webContents.getURL().includes('win=bar')
+    )!
+    const b = w.getContentBounds()
+    return { x: b.x, width: b.width }
+  })
+  const actualCenter = bar.x + bar.width / 2
   expect(Math.abs(actualCenter - expectedCenter)).toBeLessThanOrEqual(3) // 取整容差
 
   await setTucked(false)
-  await expect
-    .poll(async () => Math.abs((await mainBounds()).w - before.w), { timeout: 5_000 })
-    .toBeLessThanOrEqual(3)
+  await expect.poll(isExpanded, { timeout: 5_000 }).toBe(true)
+  const restored = await mainBounds()
+  expect(Math.abs(restored.w - before.w)).toBeLessThanOrEqual(3)
 })

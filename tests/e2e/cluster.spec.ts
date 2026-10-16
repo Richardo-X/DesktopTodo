@@ -42,13 +42,14 @@ async function clusterBounds(): Promise<{ quick: B | null; main: B | null; done:
   })
 }
 
-test('三窗：恰好三个组件窗口（无多余窗口），三窗页面均加载', async () => {
+test('四窗：三组件窗+白条独立窗（无多余窗口），页面均加载', async () => {
   const count = await h.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)
-  expect(count).toBe(3)
+  expect(count).toBe(4) // 三窗+白条窗（2026-10-17 §11.K 步1：白条=独立第 4 窗）
   for (const panel of ['quick', 'main', 'done'] as const) {
     const page = h.app.windows().find((w) => w.url().includes(`panel=${panel}`))
     expect(page, `panel=${panel}`).toBeTruthy()
   }
+  expect(h.app.windows().some((w) => w.url().includes('win=bar'))).toBeTruthy()
 })
 
 test('三窗：逐窗 bounds 符合纯函数（锚点=待办左上角、缝隙恰好 2px、主/已完成等高）', async () => {

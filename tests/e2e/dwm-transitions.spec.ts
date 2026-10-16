@@ -20,12 +20,13 @@ test('三窗+气泡+二级窗均已禁用 DWM 过渡动画', async () => {
 
   // 三窗
   const three = await h.main.evaluate(() =>
-    (window as unknown as { desktopTodoTest?: { dwmTransitions(): Promise<{ quick: { dis: boolean; handle: string }; main: { dis: boolean; handle: string }; done: { dis: boolean; handle: string } }> } })
+    (window as unknown as { desktopTodoTest?: { dwmTransitions(): Promise<Record<string, { dis: boolean; handle: string } | null>> } })
       .desktopTodoTest!.dwmTransitions()
   )
-  expect(three.quick.dis).toBe(true)
-  expect(three.main.dis).toBe(true)
-  expect(three.done.dis).toBe(true)
+  expect(three.quick?.dis).toBe(true)
+  expect(three.main?.dis).toBe(true)
+  expect(three.done?.dis).toBe(true)
+  expect(three.bar?.dis).toBe(true) // 步1：白条独立窗同禁用系统过渡动画
 
   // 二级窗（气泡窗与三窗走同一 win32 设置函数，创建路径统一，不在此重复构造）
   await h.main.click('[data-testid="tb-settings"]')

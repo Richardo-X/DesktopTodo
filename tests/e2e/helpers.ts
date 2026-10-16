@@ -12,6 +12,8 @@ export interface AppHandle {
   quick: Page
   /** 已完成窗页面（panel=done） */
   done: Page
+  /** 缩进白条独立窗页面（win=bar；2026-10-17 §11.K 步1） */
+  bar: Page
   userData: string
   close(): Promise<void>
 }
@@ -78,9 +80,20 @@ export async function launchApp(opts: LaunchOptions = {}): Promise<AppHandle> {
 
   const quick = pages.find((w) => w.url().includes('panel=quick'))!
   const done = pages.find((w) => w.url().includes('panel=done'))!
+  // 步1：白条独立窗（win=bar）页面就绪——四窗架构（白条窗常驻透明，展开态 opacity 0）
+  let bar = app.windows().find((w) => w.url().includes('win=bar'))
+  {
+    const barDeadline = Date.now() + 30_000
+    while (!bar && Date.now() < barDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      bar = app.windows().find((w) => w.url().includes('win=bar'))
+    }
+  }
+  if (!bar) throw new Error('bar window page missing')
   await Promise.all([
     quick.waitForLoadState('domcontentloaded'),
-    done.waitForLoadState('domcontentloaded')
+    done.waitForLoadState('domcontentloaded'),
+    bar.waitForLoadState('domcontentloaded')
   ])
 
   let closed = false
@@ -89,6 +102,7 @@ export async function launchApp(opts: LaunchOptions = {}): Promise<AppHandle> {
     main,
     quick,
     done,
+    bar,
     userData,
     async close() {
       if (closed) return

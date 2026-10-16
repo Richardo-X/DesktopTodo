@@ -32,6 +32,9 @@ export interface TestApi extends DesktopTodoApi {
   batchStateCalls: Array<'todos' | 'templates' | 'history' | null>
   batchStateListeners: Array<(target: 'todos' | 'templates' | 'history' | null) => void>
   childCountListeners: Array<(n: number) => void>
+  /** 步1：白条命中调用记录与监听器（onBarHit 只在主窗注册） */
+  barHitCalls: number[]
+  barHitListeners: Array<() => void>
 }
 
 /**
@@ -68,6 +71,8 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
   const batchStateListeners: Array<(target: 'todos' | 'templates' | 'history' | null) => void> = []
   const resizeFreezeListeners: ((frozen: boolean) => void)[] = []
 const childCountListeners: Array<(n: number) => void> = []
+  const barHitCalls: number[] = []
+  const barHitListeners: Array<() => void> = []
 
   const booted: Promise<unknown> = ctx.boot()
 
@@ -97,6 +102,8 @@ const childCountListeners: Array<(n: number) => void> = []
     batchStateCalls,
     batchStateListeners,
     childCountListeners,
+    barHitCalls,
+    barHitListeners,
     get minimizeCalls() {
       return minimizeCalls
     },
@@ -216,6 +223,14 @@ const childCountListeners: Array<(n: number) => void> = []
     },
     onChildCount: (cb) => {
       childCountListeners.push(cb)
+      return () => undefined
+    },
+    // 步1：白条独立窗命中（白条窗调用 barHit；主窗 onBarHit 接收）
+    barHit: () => {
+      barHitCalls.push(Date.now())
+    },
+    onBarHit: (cb) => {
+      barHitListeners.push(cb)
       return () => undefined
     }
   }

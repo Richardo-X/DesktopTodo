@@ -83,7 +83,7 @@ test('8.2-2：置顶时打开的子窗口同步置顶', async () => {
       .map((w) => w.isAlwaysOnTop())
       .sort()
   )
-  expect(flags).toEqual([true, true, true, true]) // 三窗 + 设置子窗
+  expect(flags).toEqual([true, true, true, true, true]) // 三窗 + 白条窗（随簇置顶）+ 设置子窗
   await h.close()
 })
 
@@ -104,12 +104,12 @@ test('置顶语义：未置顶=普通窗口层级（可激活）；置顶=最上
     })
 
   // 默认（uiState.topMost=false）：三窗挂件态——非置顶+不可激活（点击不浮上来）
-  expect(await readState()).toEqual({ atop: [false, false, false], focusable: [true, true, true] })
+  expect(await readState()).toEqual({ atop: [false, false, false, false], focusable: [true, true, true, true] })
 
   // 开置顶 → 三窗同层最上且可激活
   await h.main.click('[data-testid="tb-topmost"]')
   await h.main.waitForTimeout(400)
-  expect(await readState()).toEqual({ atop: [true, true, true], focusable: [true, true, true] })
+  expect(await readState()).toEqual({ atop: [true, true, true, true], focusable: [true, true, true, true] })
 
   // 缩进 → 弹出：置顶态保持（弹出路径不强制置顶、不改激活性）
   await h.main.evaluate(() =>
@@ -120,12 +120,12 @@ test('置顶语义：未置顶=普通窗口层级（可激活）；置顶=最上
     (window as unknown as { desktopTodo: { setTucked(v: boolean): Promise<void> } }).desktopTodo.setTucked(false)
   )
   await h.main.waitForTimeout(600)
-  expect(await readState()).toEqual({ atop: [true, true, true], focusable: [true, true, true] })
+  expect(await readState()).toEqual({ atop: [true, true, true, true], focusable: [true, true, true, true] })
 
   // 关置顶 → 恢复挂件态
   await h.main.click('[data-testid="tb-topmost"]')
   await h.main.waitForTimeout(400)
-  expect(await readState()).toEqual({ atop: [false, false, false], focusable: [true, true, true] })
+  expect(await readState()).toEqual({ atop: [false, false, false, false], focusable: [true, true, true, true] })
   await h.close()
 })
 
@@ -158,14 +158,14 @@ test('8.2-2：托盘隐藏再恢复后置顶保持', async () => {
         .filter((w) => !w.isDestroyed())
         .map((w) => w.isVisible() && w.getOpacity() > 0)
     )).sort()
-  await expect.poll(visibles, { timeout: 10_000 }).toEqual([false, false, false])
+  await expect.poll(visibles, { timeout: 10_000 }).toEqual([false, false, false, false]) // 三窗+白条窗（基态透明=视觉不可见）
 
   // 单实例二次唤起（等价托盘"显示"路径）
   const second = spawn(ELECTRON_EXE, [APP_MAIN], {
     env: { ...process.env, DTODO_USER_DATA: h.userData, DTODO_TEST: '1' },
     stdio: 'ignore'
   })
-  await expect.poll(visibles, { timeout: 20_000 }).toEqual([true, true, true])
+  await expect.poll(visibles, { timeout: 20_000 }).toEqual([false, true, true, true]) // 恢复后白条仍为展开态透明待机
   second.kill()
   await h.main.waitForTimeout(400)
 

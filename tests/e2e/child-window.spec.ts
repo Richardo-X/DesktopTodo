@@ -134,19 +134,19 @@ test('托盘隐藏同步隐藏全部子窗口，单实例唤起同步恢复', as
         .map((w) => w.isVisible() && w.getOpacity() > 0)
     )).sort()
 
-  // 初始：三窗 + 设置窗均可见
-  await expect.poll(visiblesSorted, { timeout: 10_000 }).toEqual([true, true, true, true])
+  // 初始：三窗 + 设置窗可见；白条窗=展开态透明待机（opacity 0 → 视觉不可见）
+  await expect.poll(visiblesSorted, { timeout: 10_000 }).toEqual([false, true, true, true, true])
 
-  // ×（tb-minimize）→ 组件整体隐藏（三窗+子窗口）
+  // ×（tb-minimize）→ 组件整体隐藏（三窗+白条窗+子窗口）
   await main.click('[data-testid="tb-minimize"]')
-  await expect.poll(visiblesSorted, { timeout: 10_000 }).toEqual([false, false, false, false])
+  await expect.poll(visiblesSorted, { timeout: 10_000 }).toEqual([false, false, false, false, false])
 
   // 恢复：单实例二次唤起（等价托盘"显示"路径）→ 全部同步恢复
   const second = spawn(ELECTRON_EXE, [APP_MAIN], {
     env: { ...process.env, DTODO_USER_DATA: h.userData, DTODO_TEST: '1' },
     stdio: 'ignore'
   })
-  await expect.poll(visiblesSorted, { timeout: 20_000 }).toEqual([true, true, true, true])
+  await expect.poll(visiblesSorted, { timeout: 20_000 }).toEqual([false, true, true, true, true]) // 三窗+设置窗恢复；白条窗保持透明待机
   second.kill()
   await h.close()
 })

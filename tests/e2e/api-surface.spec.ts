@@ -39,7 +39,10 @@ test('preload 桥暴露 DesktopTodoApi 完整方法面', async () => {
     'clusterDragEnd',
     'setBatchState',
     'onBatchState',
-    'onChildCount'
+    'onChildCount',
+    // 步1：白条独立窗命中上报/接收（白条窗→主进程→主窗）
+    'barHit',
+    'onBarHit'
   ]
   const present = await h.main.evaluate((list: string[]) => {
     const api = (window as unknown as { desktopTodo?: Record<string, unknown> }).desktopTodo
