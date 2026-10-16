@@ -388,12 +388,14 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-/* ===== 缩进胶囊（160×12 热区含 6px 可见条；悬停弹出由主进程光标轮询判定） ===== */
+/* ===== 缩进胶囊（160×6 热区=缩进态屏内可见区，内含 3px 可见条；悬停弹出=mouseenter） ===== */
 .tuck-bar {
   /* 绝对定位脱文档流：胶囊态 zoom 容器恒 640px 高占位（常驻挂载+zoom 恒等式），
-     文档流白条会被挤到 y≈643——窗口只剩 38px 高，白条在可视区外（真机"白条消失"真因） */
+     文档流白条会被挤到 y≈643——窗口只剩 38px 高，白条在可视区外（真机"白条消失"真因）。
+     2026-10-16：钉视口底缘（不钉顶）——缩进态 OS 窗被系统最小窗高撑高，多出的部分
+     由主进程挂到屏幕上方（屏外不可命中），屏内可见区=窗口底部热区本身 */
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
   margin: 0 auto;
@@ -404,8 +406,8 @@ onUnmounted(() => {
 .tuck-bar::after {
   content: '';
   display: block;
-  height: 6px;
-  margin-top: 3px;
+  height: 3px; /* 厚度=热区一半（2026-10-16 用户裁定减半，原 6px） */
+  margin-top: 1.5px; /* 热区内垂直居中（与减半前 12px 热区/3px 边距等比） */
   border-radius: 99px;
   background: var(--tuck-bar-bg, rgba(255, 255, 255, 0.55));
   transition: background 0.15s;

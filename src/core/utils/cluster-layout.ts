@@ -125,7 +125,8 @@ export function clampChildGroupScale(v: number, baseWidth: number, baseHeight: n
 }
 
 /** 缩进胶囊窗口 bounds（三轮8.2-1）：宽=胶囊、水平居中于原簇、y 不变（贴顶）。
- * 主进程 syncMainBounds 与恢复逻辑单一来源；弹出时调用方用原 pos 重算全宽 bounds */
+ * 2026-10-16：height=热区（6px，减半）；主进程摆放后按系统最小窗高实测校正——
+ * 超出热区的部分挂到屏幕上方（屏外不可命中），屏内可见区=热区本身 */
 export function tuckBarBounds(pos: { x: number; y: number }, clusterWidth: number): Bounds & { x: number; y: number } {
   return {
     x: pos.x + Math.round((clusterWidth - TUCK_BAR_WIDTH) / 2),

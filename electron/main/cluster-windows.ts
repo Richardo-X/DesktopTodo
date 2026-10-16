@@ -30,7 +30,8 @@ import type { WorkArea } from '../../src/core/utils/cluster-layout'
  *   逻辑尺寸（跨 DPI 双屏防 Windows 建议矩形复利放大，用户实测）+ 三窗同帧定位
  * - z-order 绑定：任一窗 focus → 三窗 moveTop 同升
  * - 可见性：quickVisible/doneVisible → 侧窗 show/hide（隐藏不占位，锚点不动）
- * - 缩进形态 B：tucked 时侧窗隐藏 + 待办窗收缩为胶囊（渲染层切 tuck-bar，窗口 bounds=胶囊）
+ * - 缩进形态 B：tucked 时侧窗隐藏 + 待办窗收缩为胶囊（渲染层切 tuck-bar，屏内可见区=胶囊热区，
+ *   系统最小窗高撑出的余高挂屏幕上方——2026-10-16）
  * - 锚点=待办窗左上角（缩放/开关面板唯一不动点，pos 持久化语义=锚点）
  */
 export type ClusterPanel = 'quick' | 'main' | 'done'
@@ -388,9 +389,24 @@ export function applyClusterBounds(placeAll = false): void {
   if (!cluster) return
   if (lastAppliedAnchor && lastAppliedAnchor.x === cluster.anchor.x && lastAppliedAnchor.y === cluster.anchor.y) return
   if (cluster.tucked) {
-    // 用户验收定稿：胶囊与待办窗口上边缘中心对齐（不算侧窗）——锚点=待办左上角
-    const cap = tuckBarBounds({ x: cluster.anchor.x, y: cluster.anchor.y }, Math.round(470 * cluster.scale))
-    if (safe(cluster.windows.main)) cluster.windows.main.setBounds(cap)
+    // 用户验收定稿：胶囊与待办窗口上边缘中心对齐（不算侧窗）——锚点=待办左上角。
+    // 2026-10-16（用户裁定）：热区减半（12→6）；缩进期间白条以外的屏内区域不得吞鼠标——
+    // OS 窗先按胶囊请求，再按客户端实测校正：系统最小窗高（实测 ~37-40，随 DPI）与
+    // 首摆尺寸展开（+4~5px）多出的部分整体挂到屏幕上方（屏外不可命中），屏内可见区=热区本身。
+    // 校正（≤3 次）至客户端底边=锚点+热区高，对钳制/展开/取整三种偏差自愈
+    const main = cluster.windows.main
+    if (safe(main)) {
+      const cap = tuckBarBounds({ x: cluster.anchor.x, y: cluster.anchor.y }, Math.round(470 * cluster.scale))
+      const targetBottom = cap.y + cap.height
+      main.setBounds(cap)
+      for (let i = 0; i < 3; i++) {
+        const cb = main.getContentBounds()
+        const delta = targetBottom - (cb.y + cb.height)
+        if (Math.abs(delta) < 1) break
+        const b = main.getBounds()
+        main.setBounds({ x: b.x, y: b.y + delta, width: cap.width, height: cap.height })
+      }
+    }
     lastAppliedAnchor = { x: cluster.anchor.x, y: cluster.anchor.y }
     return
   }
@@ -680,7 +696,7 @@ export function startTuckCursorPoll(): void {
     if (cluster.tucked) {
       // 缩进态弹出改由渲染层白条 mouseenter 驱动（C7 用户方案 2026-10-10）：mouseenter=
       // 系统真实命中分发——鼠标物理碰到白条才触发；被遮挡时主窗收不到鼠标事件=天然不弹；
-      // 判定范围=白条元素边界（12px×160px 精确）。tick 缩进态不再做任何自算判定
+      // 判定范围=白条元素边界（热区 6px×160px 精确，2026-10-16 随白条减半）。tick 缩进态不做任何自算判定
       // （历史几何/原生查询自算在遮挡与贴屏顶场景均不可靠，C6 系列实验结论）
       inside = false
     } else {
