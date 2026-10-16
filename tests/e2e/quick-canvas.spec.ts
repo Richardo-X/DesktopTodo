@@ -225,3 +225,58 @@ test('快捷窗蒙层罩卡面而非整块画布（用户 2026-10-14 截图报�
   await settings.close().catch(() => {})
   await h.close()
 })
+
+/** 缩进→弹出后卡面命中恢复（用户 2026-10-17 报告：展开快捷添加窗时缩进再弹出，快捷窗不可交互，
+ * 需隐藏再打开面板才恢复）。
+ * 根因：主进程在缩进/显隐时会自行重置快捷窗穿透基态（hideSideWindow=全穿透、showSidePanel=forward
+ * 基态），但渲染层 hit-test 记忆（cardHitInside）不随之失效——光标快速离开窗口（未产生"离开卡面"
+ * 最后一帧 move）时记忆停在"命中"，缩进弹出后所有卡面内 move 都因"记忆=命中"被短路 → 卡面持续
+ * 穿透不可交互。缺陷随 v1.1.2 画布命中（787bb5c）引入（v1.1.2~v1.1.5 均复现）。
+ * 修复：主进程每次重置基态下发 quickHitReset → 渲染层清空记忆，下一次 move 重新断言。 */
+test('缩进→弹出后卡面命中恢复（命中记忆失效重置）', async () => {
+  const h = await launchApp()
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+  await h.quick.waitForSelector('[data-testid="quick-panel"]')
+  await h.main.waitForTimeout(300)
+
+  const st = (): Promise<CanvasState & { quickMouseIgnore: boolean | null }> =>
+    h.main.evaluate(() =>
+      (
+        window as unknown as {
+          desktopTodoTest: { clusterState(): Promise<CanvasState & { quickMouseIgnore: boolean | null }> }
+        }
+      ).desktopTodoTest.clusterState()
+    )
+  const ignoreState = async (): Promise<boolean | null> => (await st()).quickMouseIgnore
+  const setTucked = (v: boolean): Promise<void> =>
+    h.main.evaluate(
+      (val) =>
+        (window as unknown as { desktopTodo: { setTucked(v: boolean): Promise<void> } }).desktopTodo.setTucked(val),
+      v
+    )
+  const quickVis = (): Promise<boolean> =>
+    h.app.evaluate(({ BrowserWindow }) => {
+      const w = BrowserWindow.getAllWindows().find(
+        (x) => !x.isDestroyed() && x.webContents.getURL().includes('panel=quick')
+      )
+      return !!w && w.isVisible() && w.getOpacity() > 0
+    })
+
+  const vp = await h.quick.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }))
+
+  // ① 光标进卡面 → 命中（此刻渲染层记忆=命中，缺陷前置条件）
+  await h.quick.mouse.move(vp.w - 20, 20)
+  await expect.poll(ignoreState, { timeout: 3_000 }).toBe(false)
+
+  // ② 缩进（快捷窗透明待机=基态重置）→ 弹出；期间光标不动（不产生"离开卡面"move）
+  await setTucked(true)
+  await expect.poll(quickVis, { timeout: 5_000 }).toBe(false)
+  await setTucked(false)
+  await expect.poll(quickVis, { timeout: 5_000 }).toBe(true)
+  await expect.poll(ignoreState, { timeout: 3_000 }).toBe(true) // 弹出后基态=forward 全穿透
+
+  // ③ 弹出后光标再进卡面 → 命中必须恢复（修复前：记忆短路 → 持续 true）
+  await h.quick.mouse.move(vp.w - 40, 40)
+  await expect.poll(ignoreState, { timeout: 4_000 }).toBe(false)
+  await h.close()
+})

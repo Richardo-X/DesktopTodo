@@ -35,6 +35,8 @@ export interface TestApi extends DesktopTodoApi {
   /** 步1：白条命中调用记录与监听器（onBarHit 只在主窗注册） */
   barHitCalls: number[]
   barHitListeners: Array<() => void>
+  /** 快捷窗命中记忆失效监听器（onQuickHitReset 只在快捷窗注册） */
+  quickHitResetListeners: Array<() => void>
 }
 
 /**
@@ -73,6 +75,7 @@ export function createTestApi(seed?: Partial<AppData>): TestApi {
 const childCountListeners: Array<(n: number) => void> = []
   const barHitCalls: number[] = []
   const barHitListeners: Array<() => void> = []
+  const quickHitResetListeners: Array<() => void> = []
 
   const booted: Promise<unknown> = ctx.boot()
 
@@ -104,6 +107,7 @@ const childCountListeners: Array<(n: number) => void> = []
     childCountListeners,
     barHitCalls,
     barHitListeners,
+    quickHitResetListeners,
     get minimizeCalls() {
       return minimizeCalls
     },
@@ -231,6 +235,10 @@ const childCountListeners: Array<(n: number) => void> = []
     },
     onBarHit: (cb) => {
       barHitListeners.push(cb)
+      return () => undefined
+    },
+    onQuickHitReset: (cb) => {
+      quickHitResetListeners.push(cb)
       return () => undefined
     }
   }
