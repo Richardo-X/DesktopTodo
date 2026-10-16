@@ -87,6 +87,22 @@ export function setModalChildOpen(open: boolean): void {
   modalChildOpen = open
   if (open) autoExpandUntil = 0 // 取消计时：二级窗开着期间不自动缩回
 }
+
+/** 缩进锁定镜像（2026-10-17 P1）：渲染层状态机的 locked 门在缩进兜底处同样必须生效。
+ * 由 uiState 提交路径同步（commit 时读 uiState.tuckLock；启动时随引导传入） */
+let tuckLocked = false
+export function setTuckLocked(on: boolean): void {
+  tuckLocked = on
+  if (on) autoExpandUntil = 0 // 锁定时清除挂起会话：锁定=贴边保持弹出，无"停留后缩回"语义
+}
+
+/** 批量中镜像（2026-10-17 P1）：批量中渲染层吞掉缩进 tick，兜底不得单方面缩进。
+ * 由 uiBatchState 广播点同步（该状态不经 uiState 持久化） */
+let batchActive = false
+export function setBatchActive(on: boolean): void {
+  batchActive = on
+}
+
 /** E2E fake 光标（CI 虚拟鼠标不移动系统光标，GetCursorScreenPoint 不可判定） */
 let fakeCursorPoint: { x: number; y: number } | null = null
 function cursorPoint(): { x: number; y: number } {
@@ -708,7 +724,8 @@ export function showCluster(): void {
     // （几何即时生效），再注入 cursorInside(true) 同步渲染层状态机；会话期内
     // 光标轮询强制 inside=true，到期按真实光标位置收尾：在组件上=保持展开
     // （之后光标离开经状态机自动缩回）；不在=状态机自动缩回白条
-    if (!modalChildOpen) autoExpandUntil = Date.now() + AUTO_EXPAND_MS
+    // P2（2026-10-17）：锁定时不武装会话——锁定=贴边保持弹出，无"停留后缩回"语义
+    if (!modalChildOpen && !tuckLocked) autoExpandUntil = Date.now() + AUTO_EXPAND_MS
     setClusterTucked(false)
     const pendMain = pendingBounds.get(cluster.windows.main.id)
     if (pendMain) {
@@ -723,8 +740,10 @@ export function showCluster(): void {
     if (safe(main)) (cluster.topMost ? main.show() : main.showInactive())
     // 用户 2026-10-07 裁定：顶部吸附位的展开态显示，**每次都**重新获得 3 秒弹出保持
     // （强制 inside=true 压住"光标离开→吸附缩进"的立即缩回——修复二次显示闪退），
-    // 到期按真实光标位置收尾：光标不在组件上 → 缩回白条
-    if (cluster.snapped && !modalChildOpen) {
+    // 到期按真实光标位置收尾：光标不在组件上 → 缩回白条。
+    // P2（2026-10-17 用户报告修复）：缩进锁定开启时不武装会话——锁定=贴边保持弹出，
+    // "停留 3 秒后缩回"不适用（此前锁定时仍武装，到期由 900ms 兜底强制缩进=逻辑错误）
+    if (cluster.snapped && !modalChildOpen && !tuckLocked) {
       autoExpandUntil = Date.now() + AUTO_EXPAND_MS
       sendToMain(IPC.cursorInside, true)
     }
@@ -817,10 +836,14 @@ export function startTuckCursorPoll(): void {
       if (!over) {
         sendToMain(IPC.cursorInside, false)
         lastInside = false
-        // 负载兜底：渲染层 400ms 缩进链在高负载下可能延迟——900ms 未完成且无二级窗
-        // （=渲染层门必然放行，直调不产生分裂）时主进程强制收尾，几何不卡在全宽
+        // 负载兜底：渲染层 400ms 缩进链在高负载下可能延迟——900ms 仍未收尾时主进程强制收尾。
+        // P1（2026-10-17 用户报告修复）：门槛必须与渲染层全员对齐——原注释"无二级窗=渲染层门
+        // 必然放行"不成立：缩进锁定/批量中/拖动中/未吸附都会让渲染层拒缩，单方面直调=主进程
+        // 已缩进而渲染层仍认为展开（状态分裂：白条悬停不弹、语义错乱）。任一门槛成立即放弃兜底，
+        // 缩进决策回归渲染层状态机（其门真实放行的正常情形，兜底照旧收尾）
         setTimeout(() => {
           if (!cluster || cluster.tucked || modalChildOpen) return
+          if (tuckLocked || batchActive || isClusterDragging() || !cluster.snapped) return
           const mw = cluster.windows.main
           if (safe(mw) && mw.isVisible() && mw.getBounds().width > 200) {
             setClusterTucked(true)

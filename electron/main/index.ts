@@ -40,6 +40,8 @@ import {
   repositionClusterToDisplays,
   registerClusterIpc,
   relayBarHit,
+  setTuckLocked,
+  setBatchActive,
   startTuckCursorPoll
 } from './cluster-windows'
 import { anchorForWindowX, visibleClusterBounds, clampAnchorForEdges } from '../../src/core/utils/cluster-layout'
@@ -111,6 +113,8 @@ async function bootstrap(): Promise<void> {
   const anchor =
     data.uiState.pos !== null ? clampAnchorToWorkArea(data.uiState.pos, scale, q, d, wa) : initialAnchor(wa, scale, q, d)
   createClusterWindows({ anchor, scale, quickVisible: q, doneVisible: d, topMost: data.uiState.topMost })
+  // P1：缩进锁定镜像入主进程（缩进兜底与渲染层门对齐；启动即同步存档值）
+  setTuckLocked(data.uiState.tuckLock)
   visible = true
 
   createTray()
@@ -412,6 +416,8 @@ function registerIpc(): void {
 
   // 批次 B-5：批量模式跨窗同步——发起窗上报 → 广播全部组件窗口（瞬态状态，不持久化）
   ipcMain.handle(IPC.uiBatchState, (_e, target: 'todos' | 'templates' | 'history' | null) => {
+    // P1：批量中镜像入主进程（批量中渲染层吞缩进 tick，缩进兜底不得单方面缩进）
+    setBatchActive(target !== null)
     for (const w of getAllClusterWindows()) {
       if (!w.isDestroyed()) w.webContents.send(IPC.uiBatchState, target)
     }
@@ -423,6 +429,8 @@ function registerIpc(): void {
     // 缩放拖动热路径免落盘（I/O 尖峰=三窗 setBounds 不规则到达=缝隙抖动）；拖动结束由 onGripUp 正式提交
     if (isClusterDragging() || Date.now() < childScaleTransientUntil) await ctx.commitTransient(data, anchor)
     else await ctx.commit(data, anchor)
+    // P1：缩进锁定镜像同步（锁定门在缩进兜底处生效；turn-on 时同时清除挂起会话）
+    setTuckLocked(data.uiState.tuckLock)
     // 广播先行（批次 B 验收#2）：侧窗卡片缩放重绘与 OS 窗口尺寸变化同帧到位——
     // 若先 setBounds 后广播，侧窗卡片会滞后窗口边缘 1~2 帧（缩放时表现为缝隙挤压抖动）
     const latest = ctx.current()
