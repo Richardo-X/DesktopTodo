@@ -96,6 +96,23 @@ export function setTuckLocked(on: boolean): void {
   if (on) autoExpandUntil = 0 // 锁定时清除挂起会话：锁定=贴边保持弹出，无"停留后缩回"语义
 }
 
+/** 用户存储的缩放档镜像（2026-10-17 用户报告修复：分辨率/横竖屏/跨屏后整簇未按新工作区重钳，
+ * 竖屏拉大的档位原样带到横屏=超半屏高、快捷窗卡面溢出画布被裁）。由 index.ts 在启动与每次
+ * commit 同步（uiState.clusterScale 为唯一存储权威）；生效值仍按当前工作区实时钳制。 */
+let storedClusterScale = 1
+export function setStoredClusterScale(v: number): void {
+  if (Number.isFinite(v) && v > 0) storedClusterScale = v
+}
+
+/** 按工作区重钳有效缩放（工作区变化时调用；返回是否发生变化） */
+function reclampScaleForWorkArea(wa: WorkArea): boolean {
+  if (!cluster) return false
+  const eff = effectiveClusterScale(storedClusterScale, wa, cluster.quickVisible, cluster.doneVisible)
+  if (Math.abs(eff - cluster.scale) < 0.0001) return false
+  cluster.scale = eff
+  return true
+}
+
 /** E2E fake 光标（CI 虚拟鼠标不移动系统光标，GetCursorScreenPoint 不可判定） */
 let fakeCursorPoint: { x: number; y: number } | null = null
 function cursorPoint(): { x: number; y: number } {
@@ -690,6 +707,9 @@ function applyAnchor(anchor: { x: number; y: number }): void {
     : screen.getPrimaryDisplay().workArea
   // 跨屏拖动=工作区变化 → 画布 maxScale 重算（key 比对，同屏拖动为廉价空转）
   refreshQuickCanvasScale(wa, cluster.quickVisible, cluster.doneVisible)
+  // 2026-10-17（用户报告）：工作区变化（跨屏拖动/换分辨率/横竖屏）→ 按新工作区重钳整簇缩放。
+  // 只钳生效值、不动存储档（回到大屏自动恢复用户档位）
+  reclampScaleForWorkArea(wa)
   // #31/#32：拖动钳制——左右不阻挡、主窗≥90px；按主窗所在屏工作区
   cluster.anchor = clampAnchorForEdges(anchor, Math.round(470 * cluster.scale), wa)
   lastAppliedAnchor = null
@@ -801,7 +821,13 @@ export function repositionClusterToDisplays(displays: { workArea: WinBounds }[])
     }
     return best ?? { x: b.x, y: b.y }
   })()
-  if (next.x === b.x && next.y === b.y) return
+  // 位置不变也要按新工作区检查缩放（换分辨率/横竖屏时主窗位置常不变，但可用档位变了）；
+  // applyAnchor 内部按目标点所在屏重钳并重摆全部窗口
+  if (next.x === b.x && next.y === b.y) {
+    const wa = screen.getDisplayMatching({ x: next.x, y: next.y, width: 1, height: 1 }).workArea
+    const eff = effectiveClusterScale(storedClusterScale, wa, cluster.quickVisible, cluster.doneVisible)
+    if (Math.abs(eff - cluster.scale) < 0.0001) return
+  }
   applyAnchor(next)
 }
 

@@ -51,8 +51,24 @@ const baseWidth = computed(() => (props.panel === 'main' ? BASE_PANEL.main : BAS
  */
 const zoomValue = ref<number>(window.innerHeight / BASE_PANEL.height)
 
+/** 画布自适配（2026-10-17 用户报告修复）：卡面缩放不得超出画布。画布尺寸=当前工作区上限档；
+ * 存储档位若大于当前画布（换屏/分辨率/横竖屏后主进程已按新工作区重钳窗口档位，但渲染层
+ * 存储值仍是用户档），卡面按 min(存储档, 画布宽/基准宽, 画布高/基准高) 呈现——永不溢出被裁。
+ * 画布尺寸变化（窗口 resize 与 OS 同帧）即重算。 */
+const canvasFitScale = ref<number>(
+  Math.min(window.innerWidth / BASE_PANEL.quick, window.innerHeight / BASE_PANEL.height)
+)
+
+function syncCanvasFit(): void {
+  const k = Math.min(window.innerWidth / BASE_PANEL.quick, window.innerHeight / BASE_PANEL.height)
+  if (Number.isFinite(k) && k > 0.001) canvasFitScale.value = k
+}
+
 function syncZoomFromViewport(): void {
-  if (isQuick.value) return // 画布窗视口恒定，反推已死（见上）
+  if (isQuick.value) {
+    syncCanvasFit() // 画布窗：视口=画布，重算卡面可容纳上限（卡面跟随画布，不溢出）
+    return
+  }
   const s = window.innerHeight / BASE_PANEL.height
   if (Number.isFinite(s) && s > 0.1 && s <= 3) zoomValue.value = s
 }
@@ -60,6 +76,8 @@ function syncZoomFromViewport(): void {
 /** 快捷窗卡面缩放值：URL 播种初值（主进程创建时经 query 传入，store 异步加载前防首帧跳变），
  * 之后随广播 uiState.clusterScale 更新（唯一权威） */
 const isQuick = computed(() => props.panel === 'quick')
+/** 卡面实际呈现档 = min(存储档, 画布可容纳档)——工作区收窄/换屏时也不溢出画布被裁 */
+const quickCardScale = computed(() => Math.min(quickScale.value, canvasFitScale.value))
 const urlScale = Number(new URLSearchParams(window.location.search).get('scale'))
 const quickScale = ref<number>(
   Number.isFinite(urlScale) && urlScale > 0.1 && urlScale <= 3 ? urlScale : store.uiState.clusterScale
@@ -155,7 +173,7 @@ const holderStyle = computed(() => {
     return {
       width: `${baseWidth.value}px`,
       height: `${BASE_PANEL.height}px`,
-      transform: `scale(${quickScale.value})`,
+      transform: `scale(${quickCardScale.value})`,
       transformOrigin: 'top right'
     }
   }

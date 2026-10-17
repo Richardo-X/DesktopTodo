@@ -41,6 +41,7 @@ import {
   registerClusterIpc,
   relayBarHit,
   setTuckLocked,
+  setStoredClusterScale,
   startTuckCursorPoll
 } from './cluster-windows'
 import { anchorForWindowX, visibleClusterBounds, clampAnchorForEdges } from '../../src/core/utils/cluster-layout'
@@ -114,6 +115,8 @@ async function bootstrap(): Promise<void> {
   createClusterWindows({ anchor, scale, quickVisible: q, doneVisible: d, topMost: data.uiState.topMost })
   // P2：缩进锁定镜像入主进程（锁定时 3 秒会话不武装；启动即同步存档值）
   setTuckLocked(data.uiState.tuckLock)
+  // 2026-10-17：存储缩放档镜像（工作区变化时按新工作区重钳生效值；启动即同步存档值）
+  setStoredClusterScale(data.uiState.clusterScale)
   visible = true
 
   createTray()
@@ -428,6 +431,8 @@ function registerIpc(): void {
     else await ctx.commit(data, anchor)
     // P2：缩进锁定镜像同步（锁定时不武装 3 秒会话；turn-on 时同时清除挂起会话）
     setTuckLocked(data.uiState.tuckLock)
+    // 存储缩放档镜像同步（缩放提交后更新；生效值仍按工作区实时钳制）
+    setStoredClusterScale(data.uiState.clusterScale)
     // 广播先行（批次 B 验收#2）：侧窗卡片缩放重绘与 OS 窗口尺寸变化同帧到位——
     // 若先 setBounds 后广播，侧窗卡片会滞后窗口边缘 1~2 帧（缩放时表现为缝隙挤压抖动）
     const latest = ctx.current()
