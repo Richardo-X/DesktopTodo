@@ -408,3 +408,31 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
     expect(bgDay.includes('38, 42, 52'), `stage day bg=${bgDay}`).toBe(false)
   })
 })
+
+/** 2026-10-17 用户报告：分辨率/横竖屏/跨屏后整簇档位未按新工作区重钳（主进程侧已修）+
+ * 快捷窗卡面不得溢出画布（渲染层自适配）——存储档大于画布可容纳档时按画布档呈现。 */
+describe('快捷窗卡面自适配画布（2026-10-17）', () => {
+  it('存储档 > 画布可容纳档 → 卡面按画布档呈现（min：存储档/画布宽/画布高）', async () => {
+    const seed = defaultAppData()
+    const { wrapper } = await mountWithStore(
+      PanelWindow as never,
+      { uiState: { ...seed.uiState, clusterScale: 1.6 } },
+      { panel: 'quick' }
+    )
+    // happy-dom 视口 1024×768 → 画布可容纳档 = min(1024/310, 768/640) = 1.2
+    const style = wrapper.find('[data-testid="cluster-holder"]').attributes('style') ?? ''
+    expect(style).toContain('scale(1.2)')
+    expect(style).not.toContain('scale(1.6)')
+  })
+
+  it('存储档 ≤ 画布可容纳档 → 卡面按存储档呈现（不改既有手感）', async () => {
+    const seed = defaultAppData()
+    const { wrapper } = await mountWithStore(
+      PanelWindow as never,
+      { uiState: { ...seed.uiState, clusterScale: 0.8 } },
+      { panel: 'quick' }
+    )
+    const style = wrapper.find('[data-testid="cluster-holder"]').attributes('style') ?? ''
+    expect(style).toContain('scale(0.8)')
+  })
+})
