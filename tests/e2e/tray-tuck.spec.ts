@@ -43,21 +43,21 @@ const setTucked = (v: boolean): Promise<void> =>
     v
   )
 
-/** 步1（2026-10-17）：缩进信号改走集群状态——缩进态=主窗透明待机（opacity 0）+白条独立窗亮起；
- * 展开态=主窗回亮+白条隐。主窗几何不再变化（不再收胶囊），宽度不再是缩进信号 */
-const clusterState = (): Promise<{ mainOpacity: number; barVis: boolean }> =>
+/** 步2（2026-10-17）：缩进信号=主进程 tucked（整组三窗移到屏幕顶边之外，集合不变）+白条亮起；
+ * 主窗 opacity/几何不再变化（透明待机→物理离屏），宽度/透明度均不再是缩进信号 */
+const clusterState = (): Promise<{ tucked: boolean; barVis: boolean }> =>
   h.main.evaluate(() =>
     (
-      window as unknown as { desktopTodoTest: { clusterState(): Promise<{ mainOpacity: number; barVis: boolean }> } }
+      window as unknown as { desktopTodoTest: { clusterState(): Promise<{ tucked: boolean; barVis: boolean }> } }
     ).desktopTodoTest.clusterState()
   )
 const isTucked = async (): Promise<boolean> => {
   const s = await clusterState()
-  return s.mainOpacity === 0 && s.barVis === true
+  return s.tucked === true && s.barVis === true
 }
 const isExpanded = async (): Promise<boolean> => {
   const s = await clusterState()
-  return s.mainOpacity === 1 && s.barVis === false
+  return s.tucked === false && s.barVis === false
 }
 
 test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活；弹出后侧窗按开关恢复', async () => {
@@ -90,13 +90,19 @@ test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活�
     .poll(async () => (await mainBounds()).y, { timeout: 5_000 })
     .toBeLessThanOrEqual(wa.y + 1)
 
-  // ① 缩进：待办窗收胶囊、侧窗隐藏
+  /** 步2：缩进态=整组移到工作区顶之上（三窗均完全离屏；不隐藏=集合不变） */
+  const offscreen = async (panel: string): Promise<boolean> => {
+    const b = await winByPanel(panel)
+    return !!b && b.y + b.h <= wa.y - 4
+  }
+
+  // ① 缩进：整组三窗移出屏幕顶边之外、白条亮起（侧窗不隐藏——集合不变）
   await setTucked(true)
   await expect
     .poll(isTucked, { timeout: 5_000 })
     .toBe(true)
-  await expect.poll(async () => (await winByPanel('quick'))?.vis, { timeout: 5_000 }).toBe(false)
-  await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(false)
+  await expect.poll(() => offscreen('quick'), { timeout: 5_000 }).toBe(true)
+  await expect.poll(() => offscreen('done'), { timeout: 5_000 }).toBe(true)
 
   // ② 托盘最小化（×按钮同路径）：全部隐藏
   await h.main.click('[data-testid="tb-minimize"]')
@@ -134,8 +140,8 @@ test('缩进态托盘最小化→显示：只显胶囊短条，侧窗不复活�
     (window as unknown as { desktopTodoTest?: { setFakeCursor(p: { x: number; y: number } | null): Promise<void> } })
       .desktopTodoTest!.setFakeCursor(null)
   )
-  await expect.poll(async () => (await winByPanel('quick'))?.vis, { timeout: 5_000 }).toBe(false)
-  await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(false)
+  await expect.poll(() => offscreen('quick'), { timeout: 5_000 }).toBe(true)
+  await expect.poll(() => offscreen('done'), { timeout: 5_000 }).toBe(true)
 
   // ⑤ 弹出回归（setTucked(false) 等价触碰短条后光标进入）：待办窗还原、侧窗按开关恢复
   await setTucked(false)

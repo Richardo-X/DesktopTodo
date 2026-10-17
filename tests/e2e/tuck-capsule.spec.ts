@@ -2,16 +2,18 @@ import { test, expect } from '@playwright/test'
 import { launchApp, type AppHandle } from './helpers'
 import { TUCK_BAR_HEIGHT, TUCK_BAR_WIDTH } from '../../src/core/constants'
 
-/** 缩进（2026-10-17 §11.K 步1：白条独立窗）：
- * 缩进=主窗透明待机（不 hide、几何不动，opacity 0+穿鼠标）+ 侧窗透明待机 + 白条独立窗亮起；
+/** 缩进（2026-10-17 §11.K 步2：整组三窗瞬间移出屏幕顶边之外，WPF R1 语义）：
+ * 缩进=三窗几何不变、整体移到全显示器顶边之上（不 Hide、不改透明度=集合不变）+ 白条独立窗亮起；
  * 白条水平=主窗上缘中心（现状口径）、热区贴锚点（系统最小窗高余高挂锚点上方=屏外不可命中）；
- * 弹出=白条收+主窗回亮+侧窗恢复；缩进不污染位置记忆（锚点）。 */
-test('缩进=主窗透明待机+白条独立窗亮起（可见区=贴顶热区）、弹出还原、位置不漂移', async () => {
+ * 弹出=白条收+整组同一次落位回位；缩进不污染位置记忆（锚点）。 */
+test('缩进=整组三窗移出屏幕顶边外（集合不变/几何不变）+白条亮起、弹出还原、位置不漂移', async () => {
   const h: AppHandle = await launchApp()
   await h.main.waitForSelector('[data-testid="home-panel"]')
 
+  const wa = await h.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea)
+
   interface S {
-    mainOpacity: number
+    tucked: boolean
     barVis: boolean
     barBounds: { x: number; y: number; width: number; height: number } | null
   }
@@ -52,6 +54,8 @@ test('缩进=主窗透明待机+白条独立窗亮起（可见区=贴顶热区�
     })
 
   const before = await mainBounds()
+  const quickBefore = await winByPanel('quick')
+  const doneBefore = await winByPanel('done')
   expect(before.w).toBeGreaterThan(160)
 
   const setTucked = (v: boolean): void => {
@@ -63,15 +67,15 @@ test('缩进=主窗透明待机+白条独立窗亮起（可见区=贴顶热区�
   }
 
   setTucked(true)
-  // 缩进信号：主窗透明待机 + 白条窗亮起
-  await expect.poll(async () => (await state()).mainOpacity, { timeout: 5_000 }).toBe(0)
+  // 缩进信号：集群 tucked + 白条窗亮起
+  await expect.poll(async () => (await state()).tucked, { timeout: 5_000 }).toBe(true)
   await expect.poll(async () => (await state()).barVis, { timeout: 5_000 }).toBe(true)
-  // 主窗几何不动（步1：不再收胶囊、不再改 bounds——缩进=纯显隐）
+  // ① 整组离屏：三窗几何（宽/高/x）不变、整体移到工作区顶之上（底边 ≤ 顶-8 + 容差）
   const after = await mainBounds()
   expect(after.w).toBe(before.w)
   expect(after.h).toBe(before.h)
   expect(after.x).toBe(before.x)
-  expect(after.y).toBe(before.y)
+  expect(after.y + after.h).toBeLessThanOrEqual(wa.y - 4)
   // 白条窗：客户端底边=锚点+热区高（可见区=贴顶热区）；系统最小窗高余高挂锚点上方（屏外不可命中）
   const cb = await barContent()
   expect(cb).not.toBeNull()
@@ -80,18 +84,28 @@ test('缩进=主窗透明待机+白条独立窗亮起（可见区=贴顶热区�
   // 水平=主窗上缘中心（现状口径，不算侧窗）
   const expX = before.x + Math.round((before.w - TUCK_BAR_WIDTH) / 2)
   expect(Math.abs(cb!.x - expX)).toBeLessThanOrEqual(3) // OS 边框/取整容差
-  // 侧窗整窗隐藏（透明待机视觉判据）
-  expect((await winByPanel('quick'))?.vis).toBe(false)
-  expect((await winByPanel('done'))?.vis).toBe(false)
+  // ② 集合不变：侧窗不隐藏/不透明化，跟着整组离屏待机（几何亦不变）
+  const quickAtTuck = await winByPanel('quick')
+  const doneAtTuck = await winByPanel('done')
+  expect(quickAtTuck?.vis).toBe(true)
+  expect(doneAtTuck?.vis).toBe(true)
+  expect(quickAtTuck!.y + quickAtTuck!.h).toBeLessThanOrEqual(wa.y - 4)
+  expect(doneAtTuck!.y + doneAtTuck!.h).toBeLessThanOrEqual(wa.y - 4)
 
   setTucked(false)
-  await expect.poll(async () => (await state()).mainOpacity, { timeout: 5_000 }).toBe(1)
+  await expect.poll(async () => (await state()).tucked, { timeout: 5_000 }).toBe(false)
   await expect.poll(async () => (await state()).barVis, { timeout: 5_000 }).toBe(false)
   const restored = await mainBounds()
   expect(restored.x).toBe(before.x) // 位置不被缩进污染
   expect(restored.y).toBe(before.y)
-  await expect.poll(async () => (await winByPanel('quick'))?.vis, { timeout: 5_000 }).toBe(true)
-  await expect.poll(async () => (await winByPanel('done'))?.vis, { timeout: 5_000 }).toBe(true)
+  expect(restored.w).toBe(before.w)
+  expect(restored.h).toBe(before.h)
+  const quickBack = await winByPanel('quick')
+  const doneBack = await winByPanel('done')
+  expect(quickBack!.y).toBe(quickBefore!.y) // 弹出=同一次落位回到缩进前位置
+  expect(doneBack!.y).toBe(doneBefore!.y)
+  expect(quickBack!.vis).toBe(true)
+  expect(doneBack!.vis).toBe(true)
   await h.close()
 })
 
@@ -102,7 +116,7 @@ test('白条独立窗：贴顶热区、元素钉页底、hover 弹出（渲染�
   await h.main.waitForSelector('[data-testid="home-panel"]')
 
   interface S {
-    mainOpacity: number
+    tucked: boolean
     barVis: boolean
   }
   const state = (): Promise<S> =>
@@ -146,6 +160,7 @@ test('白条独立窗：贴顶热区、元素钉页底、hover 弹出（渲染�
   await h.main.waitForTimeout(400) // 轮询 inside=true 稳定
   await setFake({ x: 60, y: 1400 }) // 移出组件 → inside=false → 400ms 缩进
 
+  await expect.poll(async () => (await state()).tucked, { timeout: 8_000 }).toBe(true)
   await expect.poll(async () => (await state()).barVis, { timeout: 8_000 }).toBe(true)
 
   const bar = await h.bar.evaluate(() => {
@@ -169,9 +184,9 @@ test('白条独立窗：贴顶热区、元素钉页底、hover 弹出（渲染�
   expect(Math.abs(bar!.y + bar!.h - bar!.innerH)).toBeLessThanOrEqual(1) // 元素钉客户端底缘
   expect(Math.abs(bar!.screenY + bar!.y - wa.y)).toBeLessThanOrEqual(2) // 屏幕坐标=工作区顶（贴顶）
 
-  // hover 白条元素 → mouseenter → 主进程中继 → 状态机弹出
+  // hover 白条元素 → mouseenter → 主进程中继 → 状态机弹出（整组同一次落位回位）
   await h.bar.locator('.tuck-bar').hover()
-  await expect.poll(async () => (await state()).mainOpacity, { timeout: 5_000 }).toBe(1)
+  await expect.poll(async () => (await state()).tucked, { timeout: 5_000 }).toBe(false)
   await expect.poll(async () => (await state()).barVis, { timeout: 5_000 }).toBe(false)
 
   await setFake(null)

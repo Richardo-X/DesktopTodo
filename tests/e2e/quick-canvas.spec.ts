@@ -239,11 +239,11 @@ test('缩进→弹出后卡面命中恢复（命中记忆失效重置）', async
   await h.quick.waitForSelector('[data-testid="quick-panel"]')
   await h.main.waitForTimeout(300)
 
-  const st = (): Promise<CanvasState & { quickMouseIgnore: boolean | null }> =>
+  const st = (): Promise<CanvasState & { quickMouseIgnore: boolean | null; tucked: boolean }> =>
     h.main.evaluate(() =>
       (
         window as unknown as {
-          desktopTodoTest: { clusterState(): Promise<CanvasState & { quickMouseIgnore: boolean | null }> }
+          desktopTodoTest: { clusterState(): Promise<CanvasState & { quickMouseIgnore: boolean | null; tucked: boolean }> }
         }
       ).desktopTodoTest.clusterState()
     )
@@ -254,13 +254,6 @@ test('缩进→弹出后卡面命中恢复（命中记忆失效重置）', async
         (window as unknown as { desktopTodo: { setTucked(v: boolean): Promise<void> } }).desktopTodo.setTucked(val),
       v
     )
-  const quickVis = (): Promise<boolean> =>
-    h.app.evaluate(({ BrowserWindow }) => {
-      const w = BrowserWindow.getAllWindows().find(
-        (x) => !x.isDestroyed() && x.webContents.getURL().includes('panel=quick')
-      )
-      return !!w && w.isVisible() && w.getOpacity() > 0
-    })
 
   const vp = await h.quick.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }))
 
@@ -268,11 +261,11 @@ test('缩进→弹出后卡面命中恢复（命中记忆失效重置）', async
   await h.quick.mouse.move(vp.w - 20, 20)
   await expect.poll(ignoreState, { timeout: 3_000 }).toBe(false)
 
-  // ② 缩进（快捷窗透明待机=基态重置）→ 弹出；期间光标不动（不产生"离开卡面"move）
+  // ② 缩进（步2：整组离屏，快捷窗不被隐藏/透明化）→ 弹出；期间光标不动（不产生"离开卡面"move）
   await setTucked(true)
-  await expect.poll(quickVis, { timeout: 5_000 }).toBe(false)
+  await expect.poll(async () => (await st()).tucked, { timeout: 5_000 }).toBe(true)
   await setTucked(false)
-  await expect.poll(quickVis, { timeout: 5_000 }).toBe(true)
+  await expect.poll(async () => (await st()).tucked, { timeout: 5_000 }).toBe(false)
   await expect.poll(ignoreState, { timeout: 3_000 }).toBe(true) // 弹出后基态=forward 全穿透
 
   // ③ 弹出后光标再进卡面 → 命中必须恢复（修复前：记忆短路 → 持续 true）
