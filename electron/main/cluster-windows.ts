@@ -305,6 +305,31 @@ function applyBarBounds(): void {
   }
 }
 
+/** 缩进态整组离屏摆放（2026-10-17 §11.K 步2，WPF R1 语义）：
+ * 三窗几何不变、只把 y 移到全显示器顶边之上（各窗底边=顶边-8，整组相对排布保留）；
+ * **不 Hide、不改透明度**——缩进不改变窗口集合（侧窗开关只由用户开关决定）。
+ * 另：白条=独立窗（步1），摆放照旧。 */
+function placeTuckedOffscreen(): void {
+  if (!cluster) return
+  // 基准=锚点所在屏（整簇自己那块屏）的顶边，**不能用"全显示器最顶边"**：全屏组最顶边可能靠近
+  // 另一块不同 DPI 的显示器 → Windows 把窗口切到那块屏的 DPI 上下文 → DWM 按 DPI 比值改写窗口
+  // 尺寸（424×576→303×413，回来又 1.4× 复利成 593×807——E2E 实测）。停在自家屏上方=最近屏仍是
+  // 自家屏，DPI 不变、尺寸零改写。
+  const d = screen.getDisplayNearestPoint({ x: cluster.anchor.x, y: cluster.anchor.y })
+  const top = d.bounds.y - 8
+  const b = threeWindowBoundsForAnchor(cluster.anchor, cluster.scale, cluster.quickVisible, cluster.doneVisible)
+  const entries: Array<[BrowserWindow, WinBounds]> = [
+    [cluster.windows.done, b.done ?? b.main],
+    [cluster.windows.main, b.main],
+    [cluster.windows.quick, quickCanvasBounds()]
+  ]
+  for (const [w, rect] of entries) {
+    if (!safe(w)) continue
+    w.setBounds({ x: rect.x, y: top - rect.height, width: rect.width, height: rect.height })
+  }
+  applyBarBounds()
+}
+
 /** 缩进态：白条亮起并可命中（真实命中=元素 mouseenter；被遮挡天然不弹） */
 function showBarWindow(): void {
   if (!cluster || !cluster.visible) return
@@ -323,19 +348,6 @@ function hideBarWindow(): void {
   if (!safe(bar)) return
   bar.setIgnoreMouseEvents(true)
   bar.setOpacity(0)
-}
-
-/** 主窗缩进态=透明待机（与侧窗同款，2026-10-17 步1）：不 hide（防表面重建闪动）、穿鼠标、几何不动 */
-function veilMainWindow(veiled: boolean): void {
-  const main = cluster?.windows.main
-  if (!safe(main)) return
-  if (veiled) {
-    main.setIgnoreMouseEvents(true)
-    main.setOpacity(0)
-  } else {
-    main.setOpacity(1)
-    main.setIgnoreMouseEvents(false)
-  }
 }
 
 /** 创建三窗+白条窗（三窗+白条常驻；侧窗按可见性 show/hide、白条按缩进态亮/隐） */
@@ -527,9 +539,10 @@ export function applyClusterBounds(placeAll = false): void {
   if (!cluster) return
   if (lastAppliedAnchor && lastAppliedAnchor.x === cluster.anchor.x && lastAppliedAnchor.y === cluster.anchor.y) return
   if (cluster.tucked) {
-    // 缩进态（2026-10-17 §11.K 步1：白条=独立窗，主窗改为透明待机不再收胶囊、几何不动）。
-    // 白条水平=主窗上缘中心（现状口径，用户裁定）；摆放含系统最小窗高钳制的余高挂屏上校正
-    applyBarBounds()
+    // 缩进态（2026-10-17 §11.K 步2）：整组三窗几何不变、整体移出全显示器顶边之外
+    // （不 Hide/不改透明度=集合不变）；白条水平=主窗上缘中心（现状口径）+ 余高挂屏上校正。
+    // 托盘隐藏期间不摆位：Windows 上对隐藏窗 setBounds 会将其显示（实测）
+    if (cluster.visible) placeTuckedOffscreen()
     lastAppliedAnchor = { x: cluster.anchor.x, y: cluster.anchor.y }
     return
   }
@@ -618,18 +631,14 @@ export function setClusterTucked(v: boolean): void {
   if (v) autoExpandUntil = 0 // 重新缩进同样清除挂起会话（防跨状态闪退）
   const { quick, done, main } = cluster.windows
   if (v) {
-    // 缩进：先藏侧窗，主窗透明待机，白条亮起
-    if (safe(quick)) hideSideWindow(quick, 'quick')
-    if (safe(done)) hideSideWindow(done, 'done')
-    veilMainWindow(true)
+    // 缩进（步2）：整组三窗瞬间移出屏幕顶边之外 + 白条亮起；不隐藏、不改集合（WPF R1 语义）
     lastAppliedAnchor = null
     applyClusterBounds()
     showBarWindow()
     return
   }
-  // 弹出：白条先收，主窗回亮，侧窗最后落位显示（带完整内容）
+  // 弹出：白条先收，侧窗先按开关恢复基态（命中基态重置+白条/侧窗顺序不变），整组同一次落位回位
   hideBarWindow()
-  veilMainWindow(false)
   if (safe(quick) && cluster.quickVisible && cluster.visible) showSidePanel('quick')
   if (safe(done) && cluster.doneVisible && cluster.visible) showSidePanel('done')
   lastAppliedAnchor = null
