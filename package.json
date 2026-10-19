@@ -68,12 +68,6 @@
           "arch": [
             "x64"
           ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
         }
       ]
     },
@@ -84,9 +78,6 @@
       "uninstallDisplayName": "桌面待办",
       "createDesktopShortcut": true,
       "artifactName": "桌面待办-安装包-${version}.${ext}"
-    },
-    "portable": {
-      "artifactName": "桌面待办-便携版-${version}.${ext}"
     }
   }
 }
