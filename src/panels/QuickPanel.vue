@@ -65,6 +65,25 @@ function applyFlip(el: HTMLElement | null, before: Map<Element, number>): void {
 
 const error = ref('')
 
+// 模板→已满待办：快捷窗内顶部浮现提示（1.8s 自动消失；每次点击重置）
+const hintVisible = ref(false)
+let hintTimer: ReturnType<typeof setTimeout> | null = null
+function showFullHint(): void {
+  hintVisible.value = true
+  if (hintTimer !== null) clearTimeout(hintTimer)
+  hintTimer = setTimeout(() => {
+    hintVisible.value = false
+    hintTimer = null
+  }, 1800)
+}
+function hideFullHint(): void {
+  if (hintTimer !== null) {
+    clearTimeout(hintTimer)
+    hintTimer = null
+  }
+  hintVisible.value = false
+}
+
 // 8.2-4：模板行悬停气泡（PRD §五截断气泡，全局单例）
 function onContentEnter(e: MouseEvent): void {
   const content = e.currentTarget as HTMLElement
@@ -74,10 +93,21 @@ function onContentEnter(e: MouseEvent): void {
 
 async function quickAdd(id: string): Promise<void> {
   const r = await store.quickAdd(id)
-  error.value = r.ok ? '' : r.reason === 'limit-reached' ? '待办数量已达上限' : '添加失败'
+  if (r.ok) {
+    error.value = ''
+    hideFullHint()
+    return
+  }
+  if (r.reason === 'limit-reached') {
+    error.value = ''
+    showFullHint()
+    return
+  }
+  error.value = '添加失败'
 }
 
 function enterBatch(): void {
+  hideFullHint()
   ui.enterBatch('templates')
 }
 
@@ -89,6 +119,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('pointermove', drag.handleMove)
   window.removeEventListener('pointerup', drag.handleUp)
+  if (hintTimer !== null) clearTimeout(hintTimer)
 })
 </script>
 
@@ -102,6 +133,16 @@ onUnmounted(() => {
     </header>
 
     <div class="win-body">
+      <div class="quick-hint-lane" aria-hidden="true"></div>
+      <div
+        class="quick-hint-wrap"
+        :class="{ show: hintVisible }"
+        data-testid="quick-hint"
+        :aria-hidden="!hintVisible"
+      >
+        <span class="quick-hint">先完成手头上的事吧</span>
+      </div>
+
       <div class="panel-head">
         <span class="panel-title" data-testid="quick-title">{{ title }}</span>
         <!-- 四轮3：自身批量进行中头部两按钮冻结（批量条「取消」可退出） -->
@@ -131,7 +172,7 @@ onUnmounted(() => {
 
       <p v-if="error" class="error" data-testid="quick-error">{{ error }}</p>
 
-      <div v-if="store.templates.length > 0" ref="listEl" class="scroll">
+      <div v-if="store.templates.length > 0" ref="listEl" class="scroll" @scroll="hideFullHint">
         <div
           v-for="(t, i) in store.templates"
           :key="t.id"
@@ -182,6 +223,50 @@ onUnmounted(() => {
   height: 100%;
 }
 
+/* v3.5-L2.6 落地：模板满额提示在快捷窗顶部空白区、水平居中（win-body 顶距 8 规则保持不变） */
+.quick-hint-lane {
+  height: 28px;
+  flex: none;
+}
+
+.quick-hint-wrap {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.16s var(--ease-out),
+    transform 0.16s var(--ease-out);
+  z-index: 2;
+}
+
+.quick-hint-wrap.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.quick-hint {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(22, 22, 22, 0.94);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(10, 20, 40, 0.28);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-hint-wrap {
+    transition: none;
+  }
+}
+
 /* ===== 标题栏（36px 拖动 + × 关闭面板） ===== */
 .titlebar {
   height: 36px;
@@ -229,6 +314,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   padding: 8px 14px 24px; /* L2：顶部 2→8（4px 栅格，三窗同口径）；底部 24px：避让右下缩放角 */
+  position: relative;
 }
 
 .panel-head {

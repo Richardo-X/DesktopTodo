@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useUiStore } from '../stores/ui'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -16,9 +16,42 @@ const maxItems = computed(() => store.settings.maxItems)
 const todoCount = computed(() => store.todos.length)
 const canDecrease = computed(() => maxItems.value - 1 >= Math.max(1, todoCount.value))
 const canIncrease = computed(() => maxItems.value + 1 <= 10)
-const atFloor = computed(() => !canDecrease.value)
+
+// 版本号：底部弱化展示，来源 app.getVersion（preload/IPC）
+const version = ref('')
+
+// 下限边界提示：设置窗内顶部浮现，1.8s 自动消失；每次点击重置
+const hintVisible = ref(false)
+let hintTimer: ReturnType<typeof setTimeout> | null = null
+function showLimitHint(): void {
+  hintVisible.value = true
+  if (hintTimer !== null) clearTimeout(hintTimer)
+  hintTimer = setTimeout(() => {
+    hintVisible.value = false
+    hintTimer = null
+  }, 1800)
+}
+
+onMounted(() => {
+  void getApi()
+    .getVersion()
+    .then((v) => {
+      version.value = v
+    })
+    .catch(() => {
+      /* 版本读取失败时不展示版本行，不影响设置功能 */
+    })
+})
+
+onUnmounted(() => {
+  if (hintTimer !== null) clearTimeout(hintTimer)
+})
 
 async function stepMax(delta: number): Promise<void> {
+  if (delta < 0 && !canDecrease.value) {
+    showLimitHint()
+    return
+  }
   const next = clampMaxItems(maxItems.value + delta, todoCount.value)
   if (next === maxItems.value) return
   await store.updateSettings({ maxItems: next })
@@ -73,19 +106,27 @@ async function onBack(): Promise<void> {
       <span class="spacer" />
     </header>
 
-    <div class="body">
+    <div
+      class="settings-hint-wrap"
+      :class="{ show: hintVisible }"
+      data-testid="set-max-hint"
+      :aria-hidden="!hintVisible"
+    >
+      <span class="settings-hint">不可低于当前待办数量</span>
+    </div>
+
+    <div class="body settings-body">
       <div class="form-row">
         <span class="form-label">
           <b>待办数量上限</b>
           <span>1~10 条；不可低于当前待办数量</span>
         </span>
         <div class="stepper" data-testid="set-max">
-          <button class="step" data-testid="set-max-minus" :disabled="!canDecrease" @click="stepMax(-1)">−</button>
+          <button class="step" :class="{ 'is-disabled': !canDecrease }" data-testid="set-max-minus" @click="stepMax(-1)">−</button>
           <span class="val" data-testid="set-max-value">{{ maxItems }}</span>
           <button class="step" data-testid="set-max-plus" :disabled="!canIncrease" @click="stepMax(1)">＋</button>
         </div>
       </div>
-      <p v-if="atFloor" class="note" data-testid="set-max-note">不可低于当前待办数量</p>
 
       <div class="divider" />
 
@@ -128,6 +169,7 @@ async function onBack(): Promise<void> {
       <p v-if="autoStartError" class="error" data-testid="set-autostart-error">{{ autoStartError }}</p>
 
       <p class="meta-line">所有设置即时生效并保留。</p>
+      <p v-if="version" class="version-line" data-testid="set-version">当前版本：{{ version }}</p>
     </div>
 
     <ConfirmDialog />
@@ -198,7 +240,8 @@ async function onBack(): Promise<void> {
   font-family: inherit;
 }
 
-.step:disabled {
+.step:disabled,
+.step.is-disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -272,9 +315,58 @@ async function onBack(): Promise<void> {
   background: var(--accent-fg);
 }
 
-.note {
-  margin: 0; /* L2：-2px 补偿取消（form-row 底距已统一 8px） */
-  font-size: 11px; /* L2 字阶 caption 11（原 11.5） */
+/* v3.5-L2.4 落地：设置页顶部提示区与底部版本行（按批准原型） */
+.child-window .settings-body {
+  padding-top: 34px;
+  padding-bottom: 0;
+}
+
+.settings-hint-wrap {
+  position: absolute;
+  top: 38px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.16s var(--ease-out),
+    transform 0.16s var(--ease-out);
+  z-index: 1;
+}
+
+.settings-hint-wrap.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.settings-hint {
+  display: inline-block;
+  padding: 6px 12px;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  background: var(--field);
   color: var(--danger);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(10, 20, 40, 0.18);
+}
+
+.version-line {
+  margin: auto 0 0;
+  padding: 0;
+  text-align: center;
+  font-size: 10px;
+  color: var(--faint);
+  letter-spacing: 0.3px;
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-hint-wrap {
+    transition: none;
+  }
 }
 </style>
