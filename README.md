@@ -20,7 +20,7 @@ Windows 桌面待办事项悬浮小组件：像贴在屏幕角落的一组智能
 | 桌面框架 | Electron 44（无边框透明窗口/托盘/点击穿透） |
 | 语言 | TypeScript（strict） |
 | 前端 | Vue 3 + Pinia |
-| 构建 | electron-vite + electron-builder（NSIS + 便携版） |
+| 构建 | electron-vite + electron-builder（NSIS 安装包；2026-10-19 起停发便携版） |
 | 测试 | Vitest + @vue/test-utils（单元/组件）· Playwright _electron（E2E） |
 
 ## 架构
@@ -46,7 +46,7 @@ npm run dev          # 开发模式（热更新）
 npm run verify       # 类型检查 + 全量单元/组件测试
 npm run test:cov     # 覆盖率报告（core 层行覆盖 ≥90% 门槛）
 npm run test:e2e     # E2E（Playwright 驱动真实 Electron）
-npm run dist         # 打包 NSIS 安装包 + 便携版
+npm run dist         # 打包 NSIS 安装包（2026-10-19 起不再产出便携版）
 ```
 
 ## 版本管理约定
