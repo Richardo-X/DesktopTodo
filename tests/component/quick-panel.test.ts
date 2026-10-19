@@ -42,7 +42,7 @@ describe('T29 快捷添加面板', () => {
     expect(store.templates).toHaveLength(2) // 模板保留
   })
 
-  it('待办满上限时一键添加被拦截并提示', async () => {
+  it('待办满上限时一键添加被拦截；快捷窗顶部浮现提示（不再显示行内错误）', async () => {
     const { wrapper } = await mountWithStore(QuickPanel, {
       templates: [tpl('a', '喝水')],
       settings: { maxItems: 1, hour12: false, autoStart: false, doneSort: 'asc' },
@@ -50,7 +50,36 @@ describe('T29 快捷添加面板', () => {
     })
     await wrapper.find('[data-testid="tpl-add"]').trigger('click')
     await flushPromises()
-    expect(wrapper.find('[data-testid="quick-error"]').text()).toContain('上限')
+    expect(wrapper.find('[data-testid="quick-error"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="quick-hint"]').text()).toBe('先完成手头上的事吧')
+    expect(wrapper.find('[data-testid="quick-hint"]').classes()).toContain('show')
+  })
+
+  it('模板满额提示 1.8s 自动消失；每次点击重置计时', async () => {
+    const { wrapper } = await mountWithStore(QuickPanel, {
+      templates: [tpl('a', '喝水')],
+      settings: { maxItems: 1, hour12: false, autoStart: false, doneSort: 'asc' },
+      todos: [createTodoItem({ content: '占满', now: new Date(), id: 't0' })]
+    })
+    vi.useFakeTimers()
+    try {
+      const add = wrapper.find('[data-testid="tpl-add"]')
+      const hint = () => wrapper.find('[data-testid="quick-hint"]')
+      await add.trigger('click')
+      await flushPromises()
+      expect(hint().classes()).toContain('show')
+
+      await vi.advanceTimersByTimeAsync(1000)
+      await add.trigger('click')
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(hint().classes()).toContain('show')
+
+      await vi.advanceTimersByTimeAsync(900)
+      expect(hint().classes()).not.toContain('show')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('双击模板 → 打开编辑窗口；「＋」→ 打开新建模板窗口', async () => {

@@ -125,6 +125,7 @@ const childCountListeners: Array<(n: number) => void> = []
     emitStateUpdated(data) {
       listeners.forEach((l) => l(data))
     },
+    getVersion: async () => 'test-version',
     getState: async () => {
       await booted
       return ctx.current()

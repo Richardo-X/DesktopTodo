@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import SettingsWindow from '../../src/windows/SettingsWindow.vue'
 import { mountWithStore } from '../helpers/mount'
@@ -42,15 +42,47 @@ describe('T34 设置窗口', () => {
     expect((wrapper.find('[data-testid="set-max-plus"]').element as HTMLButtonElement).disabled).toBe(false)
   })
 
-  it('上限=当前待办数量时减号置灰并显示说明', async () => {
+  it('上限=当前待办数量时减号呈置灰外观但可点击；点击浮现边界提示（行内说明移除）', async () => {
     const { wrapper } = await mountWithStore(SettingsWindow, seedTodos(6))
-    await wrapper.find('[data-testid="set-max-minus"]').trigger('click')
-    await wrapper.find('[data-testid="set-max-minus"]').trigger('click')
-    await wrapper.find('[data-testid="set-max-minus"]').trigger('click')
-    await flushPromises()
+    const minus = wrapper.find('[data-testid="set-max-minus"]')
+    expect(minus.classes()).toContain('is-disabled')
+    expect((minus.element as HTMLButtonElement).disabled).toBe(false)
+
+    await minus.trigger('click')
+    await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="set-max-value"]').text()).toBe('6')
-    expect((wrapper.find('[data-testid="set-max-minus"]').element as HTMLButtonElement).disabled).toBe(true)
-    expect(wrapper.find('[data-testid="set-max-note"]').text()).toBe('不可低于当前待办数量')
+    expect(wrapper.find('[data-testid="set-max-hint"]').text()).toBe('不可低于当前待办数量')
+    expect(wrapper.find('[data-testid="set-max-hint"]').classes()).toContain('show')
+    expect(wrapper.find('[data-testid="set-max-note"]').exists()).toBe(false)
+  })
+
+  it('边界提示 1.8s 自动消失；每次点击重置计时', async () => {
+    const { wrapper } = await mountWithStore(SettingsWindow, seedTodos(6))
+    vi.useFakeTimers()
+    try {
+      const minus = wrapper.find('[data-testid="set-max-minus"]')
+      const hint = () => wrapper.find('[data-testid="set-max-hint"]')
+      await minus.trigger('click')
+      await wrapper.vm.$nextTick()
+      expect(hint().classes()).toContain('show')
+
+      await vi.advanceTimersByTimeAsync(1000)
+      await minus.trigger('click')
+      await wrapper.vm.$nextTick()
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(hint().classes()).toContain('show') // 第二次点击后仍在 1.8s 窗口内
+
+      await vi.advanceTimersByTimeAsync(900)
+      expect(hint().classes()).not.toContain('show')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('底部显示当前版本（getVersion；弱化居中）', async () => {
+    const { wrapper } = await mountWithStore(SettingsWindow)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="set-version"]').text()).toBe('当前版本：test-version')
   })
 
   it('时间制式切换', async () => {

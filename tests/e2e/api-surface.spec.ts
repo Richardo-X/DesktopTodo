@@ -13,6 +13,7 @@ test('preload 桥暴露 DesktopTodoApi 完整方法面', async () => {
   void keys
   const expected = [
     'getState',
+    'getVersion',
     'onStateUpdated',
     'commit',
     'flush',

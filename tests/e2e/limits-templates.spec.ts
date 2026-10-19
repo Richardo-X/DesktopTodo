@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, type AppHandle } from './helpers'
-import { createTemplateItem, type AppData } from '../../src/core/models'
+import { createTemplateItem, createTodoItem, defaultAppData, type AppData } from '../../src/core/models'
 
 /** T48 上限与模板（验收 15/31/32/33） */
 
@@ -26,7 +26,33 @@ test('验收15：待办满上限时新建被拦截并提示', async () => {
   await settings.waitForSelector('[data-testid="set-max-minus"]')
   for (let i = 0; i < 8; i++) await settings.click('[data-testid="set-max-minus"]')
   await expect(settings.locator('[data-testid="set-max-value"]')).toHaveText('2')
-  await expect(settings.locator('[data-testid="set-max-note"]')).toHaveText('不可低于当前待办数量')
+  // 到下限后点击：不再显示行内红字，改为设置窗内顶部浮现提示
+  await settings.click('[data-testid="set-max-minus"]')
+  const hint = settings.locator('[data-testid="set-max-hint"]')
+  await expect(hint).toHaveText('不可低于当前待办数量')
+  await expect(hint).toHaveClass(/show/)
+  await expect(settings.locator('[data-testid="set-max-note"]')).toHaveCount(0)
+  await expect(settings.locator('[data-testid="set-version"]')).toHaveText(/^当前版本：\d+\.\d+\.\d+$/)
+  const geom = await settings.evaluate(() => {
+    const h = document.querySelector('[data-testid="set-max-hint"]') as HTMLElement
+    const form = document.querySelector('.form-row') as HTMLElement
+    const version = document.querySelector('[data-testid="set-version"]') as HTMLElement
+    const hr = h.getBoundingClientRect()
+    const fr = form.getBoundingClientRect()
+    const vr = version.getBoundingClientRect()
+    return {
+      top: hr.top,
+      bottom: hr.bottom,
+      formTop: fr.top,
+      center: hr.left + hr.width / 2,
+      winWidth: window.innerWidth,
+      versionGap: window.innerHeight - vr.bottom
+    }
+  })
+  expect(geom.top).toBeLessThan(geom.formTop)
+  expect(geom.bottom).toBeLessThanOrEqual(geom.formTop)
+  expect(Math.abs(geom.center - geom.winWidth / 2)).toBeLessThan(3)
+  expect(geom.versionGap).toBeLessThanOrEqual(3)
   await settings.close().catch(() => {})
 
   // 新建被拦截
@@ -82,5 +108,31 @@ test('验收32/33：模板满 10 拒绝新建；一键添加保留模板', async
   await expect(main.locator('[data-testid="row-content"]')).toContainText('模板2')
   await expect(h.quick.locator('[data-testid="tpl-row"]')).toHaveCount(10)
   await expect(h.quick.locator('[data-testid="quick-title"]')).toHaveText('模板 · 10/10')
+  await h.close()
+})
+
+
+test('模板→已满待办：快捷窗内顶部居中浮现提示，1.8s 自动消失', async () => {
+  const h: AppHandle = await launchApp({
+    seed: {
+      todos: [createTodoItem({ content: '占满', now: new Date(), id: 't0' })],
+      templates: [createTemplateItem({ content: '喝水', now: new Date(2026, 8, 20, 9), id: 'tp0' })],
+      settings: { ...defaultAppData().settings, maxItems: 1 }
+    } as Partial<AppData>
+  })
+  await h.quick.waitForSelector('[data-testid="quick-panel"]')
+  await h.quick.locator('[data-testid="tpl-add"]').click()
+  const hint = h.quick.locator('[data-testid="quick-hint"]')
+  await expect(hint).toHaveText('先完成手头上的事吧')
+  await expect(hint).toHaveClass(/show/)
+  const geom = await hint.evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    return { top: r.top, center: r.left + r.width / 2, winWidth: window.innerWidth, winHeight: window.innerHeight }
+  })
+  expect(geom.top).toBeLessThan(80)
+  expect(Math.abs(geom.center - geom.winWidth / 2)).toBeLessThan(3)
+  expect(geom.top).toBeLessThan(geom.winHeight / 2)
+  await h.quick.waitForTimeout(2100)
+  await expect(hint).not.toHaveClass(/show/)
   await h.close()
 })
