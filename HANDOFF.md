@@ -1,6 +1,6 @@
 # HANDOFF · 开发交接文档
 
-> **2026-10-20 更新：v1.1.8 已安装**（缩进/弹出修复：主窗去遗留蒙纱、快捷窗非最大档缩进判定按可见卡面；仅 NSIS；数据保留）。当前版本号 1.1.8。详见 §11.X。
+> **2026-10-20 更新：v1.1.8 已发布并安装**（缩进/弹出修复：主窗去遗留蒙纱、快捷窗非最大档缩进判定按可见卡面；仅 NSIS；数据保留）。当前版本号 1.1.8。GitHub Release：https://github.com/Richardo-X/DesktopTodo/releases/tag/v1.1.8 ；详见 §11.X。
 
 > **2026-10-20 更新：v1.1.7 已安装**（设置页版本号、设置页边界提示、快捷窗模板满额提示；仅 NSIS；数据保留）。当前版本号 1.1.7。详见 §11.V。
 
@@ -1268,7 +1268,7 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 
 # 11.X 第三十轮（v1.1.8 确认修复、打包、覆盖安装）记录（2026-10-20）
 
-> 用户确认修复；升 1.1.8、仅 NSIS、覆盖安装，数据保留。tag/Release/推送版本提交未做。
+> 用户确认修复；升 1.1.8、仅 NSIS、覆盖安装，数据保留。已于 2026-10-20 发布：tag `v1.1.8` + GitHub Release（仅 Setup）。v1.1.7 未单独发布，并入本版。
 
 ## 版本与产物
 
@@ -1291,4 +1291,6 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 
 ## 备注
 
-- 版本/验收文档提交当前为**本地提交**；未推送、未打 tag、未创建 GitHub Release。源码修复提交已在远端 `c5fb714`。安装版已是 1.1.8。
+- 已推送 main 至 `c5ee520`；tag `v1.1.8`；Release：https://github.com/Richardo-X/DesktopTodo/releases/tag/v1.1.8
+- Release 资产：`DesktopTodo-Setup-1.1.8.exe`（113,878,540 B，SHA256 `c53f6f9f095bf983a24fe231a6efe716b7185960b4dab0b8c05a11812cf4d456`），仅安装版、无便携版；v1.1.7 未单独发布，并入 1.1.8。
+- 源码修复提交已在远端 `c5fb714`；安装版 1.1.8 已启动。
