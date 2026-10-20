@@ -292,9 +292,10 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       await wrapper.vm.$nextTick()
       expect(ui.tuck.tucked).toBe(true)
 
-      // 步1（2026-10-17）：白条已搬进独立窗（BarWindow.vue）——本窗缩进态=蒙纱 + 主进程整窗透明待机
-      expect(wrapper.find('.cluster-veiled').exists()).toBe(true)
+      // 步2（2026-10-17）：缩进=整组离屏；本窗不再切蒙纱（弹出时内容与侧窗同帧亮起）
+      expect(wrapper.find('.cluster-veiled').exists()).toBe(false)
       expect(wrapper.find('.tuck-bar').exists()).toBe(false)
+      expect(api.tuckedCalls).toContain(true)
 
       api.cursorInsideListeners[0](true)
       await wrapper.vm.$nextTick()
@@ -344,8 +345,8 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       expect(ui.tuck.tucked).toBe(true)
     })
 
-    it('三轮8.2-1（步1 形态）：蒙纱只在缩进态出现；弹出后面板恢复；白条不在本窗', async () => {
-      const { wrapper } = await mountMain()
+    it('步2：主窗不切蒙纱（整窗离屏）；弹出后面板恢复；白条不在本窗', async () => {
+      const { wrapper, api } = await mountMain()
       const ui = useUiStore()
       expect(wrapper.find('.cluster-veiled').exists()).toBe(false)
       expect(wrapper.find('.tuck-bar').exists()).toBe(false) // 白条=独立窗
@@ -355,8 +356,9 @@ describe('PanelWindow 待办主窗（批次 B-1 三窗架构）', () => {
       ui.dispatchTuck({ type: 'tick', now: Date.now() + 500 })
       await flushPromises()
       await wrapper.vm.$nextTick()
-      // 常驻挂载+蒙纱设计：cluster 不销毁，缩进态带 veiled 类
-      expect(wrapper.find('.cluster').classes()).toContain('cluster-veiled')
+      // 步2：整窗离屏，不再切蒙纱（避免弹出时主窗内容晚于侧窗）
+      expect(wrapper.find('.cluster').classes()).not.toContain('cluster-veiled')
+      expect(api.tuckedCalls).toContain(true)
     })
 
     it('四轮5：缩进锁定接线——锁定时贴边不缩回；解锁后光标在外立即恢复缩回', async () => {

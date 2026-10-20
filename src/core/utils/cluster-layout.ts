@@ -115,6 +115,23 @@ export function quickCanvasBoundsForAnchor(anchor: { x: number; y: number }, max
 }
 
 /**
+ * 快捷窗可见卡面矩形：卡面钉画布右上角（渲染层 transformOrigin: top right）。
+ * 卡面档=min(簇档, 画布 max)；画布左侧/下方的透明余量不属于组件——
+ * 缩进光标判定必须用它，不能再用画布窗口 bounds（用户 2026-10-20 报告）。
+ */
+export function quickCardBoundsForAnchor(
+  anchor: { x: number; y: number },
+  maxScale: number,
+  cardScale: number
+): WinBounds {
+  const canvas = quickCanvasBoundsForAnchor(anchor, maxScale)
+  const scale = Math.min(cardScale, maxScale)
+  const width = Math.round(BASE_PANEL.quick * scale)
+  const height = Math.round(BASE_PANEL.height * scale)
+  return { x: canvas.x + canvas.width - width, y: canvas.y, width, height }
+}
+
+/**
  * 二级窗口组缩放钳制（下限 0.7；上限 = min(1.6, (屏宽-24)/基准宽, (屏高-24)/基准高)）。
  * 【2026-10-15 迭代：移除原型 0.05 步进量化】——量化=拖拽中每 0.05 一跳（"突然变大/变小"手感），
  * 与主窗缩放量化回退（v1.0.1 实测一卡一卡更差）同理；缩放值连续平滑。

@@ -192,3 +192,92 @@ test('白条独立窗：贴顶热区、元素钉页底、hover 弹出（渲染�
   await setFake(null)
   await h.close()
 })
+
+/** 快捷窗非最大档（用户 2026-10-20 报告）：缩进光标判定必须跟随可见卡面，
+ * 不能继续用最大档画布窗口 bounds（画布透明余量不算在组件内）。 */
+test('快捷窗非最大档：缩进光标判定=可见卡面（画布余量不算组件内）', async () => {
+  const h: AppHandle = await launchApp()
+  await h.main.waitForSelector('[data-testid="home-panel"]')
+  await h.quick.waitForSelector('[data-testid="quick-panel"]')
+
+  interface S {
+    tucked: boolean
+    barVis: boolean
+  }
+  const state = (): Promise<S> =>
+    h.main.evaluate(() =>
+      (window as unknown as { desktopTodoTest: { clusterState(): Promise<S> } }).desktopTodoTest.clusterState()
+    )
+  const setFake = (pt: { x: number; y: number } | null): Promise<void> =>
+    h.main.evaluate(
+      (p) =>
+        (
+          window as unknown as { desktopTodoTest: { setFakeCursor(p: { x: number; y: number } | null): Promise<void> } }
+        ).desktopTodoTest.setFakeCursor(p),
+      pt
+    )
+  const mainContent = (): Promise<{ x: number; y: number; w: number; h: number } | null> =>
+    h.app.evaluate(({ BrowserWindow }) => {
+      const w = BrowserWindow.getAllWindows().find(
+        (x) => !x.isDestroyed() && x.webContents.getURL().includes('panel=main')
+      )
+      if (!w) return null
+      const b = w.getContentBounds()
+      return { x: b.x, y: b.y, w: b.width, h: b.height }
+    })
+
+  // 真实吸附到工作区顶（同既有缩进用例；先在默认档吸附，再缩到 0.7 制造画布余量）
+  const wa = await h.app.evaluate(({ screen }) => screen.getPrimaryDisplay().workArea)
+  const before = await mainContent()
+  await setFake({ x: (before?.x ?? 0) + 100, y: (before?.y ?? 0) + 200 })
+  await h.main.evaluate(
+    (dy) =>
+      (
+        window as unknown as { desktopTodoTest: { clusterDragDelta(dx: number, dy: number): Promise<void> } }
+      ).desktopTodoTest.clusterDragDelta(0, dy),
+    wa.y - (before?.y ?? 0)
+  )
+  await expect
+    .poll(async () => (await mainContent())?.y, { timeout: 5_000 })
+    .toBeLessThanOrEqual(wa.y + 1)
+  await h.main.waitForTimeout(500)
+
+  // 0.7 档：画布按工作区上限（测试环境约 0.84），卡面明显小于画布
+  const scaled = await h.main.evaluate(
+    (v) =>
+      (
+        window as unknown as { desktopTodoTest: { clusterScale(v: number): Promise<boolean> } }
+      ).desktopTodoTest.clusterScale(v),
+    0.7
+  )
+  expect(scaled).toBe(true)
+  await h.main.waitForTimeout(700)
+
+  const qb = await h.app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find((x) => !x.isDestroyed() && x.webContents.getURL().includes('panel=quick'))
+    if (!w) return null
+    const b = w.getContentBounds()
+    return { x: b.x, y: b.y, w: b.width, h: b.height }
+  })
+  const card = await h.quick.evaluate(() => {
+    const el = document.querySelector('[data-testid="cluster-holder"]') as HTMLElement
+    const r = el.getBoundingClientRect()
+    return { x: r.x, y: r.y, w: r.width, h: r.height }
+  })
+  expect(qb).not.toBeNull()
+  expect(card.x).toBeGreaterThan(20) // 画布左侧确有透明余量
+
+  // 光标先放在可见卡面内，稳定 inside=true
+  await setFake({ x: qb!.x + card.x + card.w / 2, y: qb!.y + card.y + 60 })
+  await h.main.waitForTimeout(600)
+
+  // 移到画布内、但卡面左侧的透明余量：应视为离开组件 → 400ms 后缩进
+  const onlyCanvas = { x: qb!.x + 10, y: qb!.y + card.y + 60 }
+  expect(onlyCanvas.x).toBeLessThan(qb!.x + card.x)
+  await setFake(onlyCanvas)
+  await expect.poll(async () => (await state()).tucked, { timeout: 6_000 }).toBe(true)
+  await expect.poll(async () => (await state()).barVis, { timeout: 6_000 }).toBe(true)
+
+  await setFake(null)
+  await h.close()
+})

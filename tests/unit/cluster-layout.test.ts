@@ -15,7 +15,8 @@ import {
   threeWindowBoundsForAnchor,
   clampAnchorForEdges,
   quickCanvasBoundsForAnchor,
-  quickCanvasMaxScale
+  quickCanvasMaxScale,
+  quickCardBoundsForAnchor
 } from '../../src/core/utils/cluster-layout'
 import { MIN_SCALE } from '../../src/core/constants'
 
@@ -343,5 +344,36 @@ describe('quickCanvasMaxScale 画布上限', () => {
     const all = quickCanvasMaxScale(WA, true, true)
     const doneHidden = quickCanvasMaxScale(WA, true, false)
     expect(doneHidden).toBeGreaterThanOrEqual(all)
+  })
+})
+
+
+describe('quickCardBoundsForAnchor 快捷窗可见卡面', () => {
+  it('卡面右上角钉画布右上；非最大档时左侧/下方留透明余量', () => {
+    const anchor = { x: 1000, y: 0 }
+    const maxScale = 0.8
+    const cardScale = 0.6
+    const canvas = quickCanvasBoundsForAnchor(anchor, maxScale)
+    const card = quickCardBoundsForAnchor(anchor, maxScale, cardScale)
+    expect(card.x + card.width).toBe(canvas.x + canvas.width)
+    expect(card.y).toBe(canvas.y)
+    expect(card.width).toBe(Math.round(BASE_PANEL.quick * cardScale))
+    expect(card.height).toBe(Math.round(BASE_PANEL.height * cardScale))
+    expect(card.x).toBeGreaterThan(canvas.x)
+    expect(card.y + card.height).toBeLessThan(canvas.y + canvas.height)
+  })
+
+  it('卡面档=画布 max → 与画布完全重合', () => {
+    const anchor = { x: 1000, y: 40 }
+    const maxScale = 0.8
+    const canvas = quickCanvasBoundsForAnchor(anchor, maxScale)
+    expect(quickCardBoundsForAnchor(anchor, maxScale, maxScale)).toEqual(canvas)
+  })
+
+  it('卡面档大于画布 max 时按画布 max 钳制（不溢出）', () => {
+    const anchor = { x: 1000, y: 0 }
+    const maxScale = 0.8
+    const canvas = quickCanvasBoundsForAnchor(anchor, maxScale)
+    expect(quickCardBoundsForAnchor(anchor, maxScale, 1.6)).toEqual(canvas)
   })
 })
