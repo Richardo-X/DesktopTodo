@@ -19,6 +19,7 @@ import {
   effectiveClusterScale,
   quickCanvasMaxScale,
   quickCanvasBoundsForAnchor,
+  quickCardBoundsForAnchor,
   type WinBounds
 } from '../../src/core/utils/cluster-layout'
 import type { WorkArea } from '../../src/core/utils/cluster-layout'
@@ -68,6 +69,11 @@ function refreshQuickCanvasScale(wa: WorkArea, quickVisible: boolean, doneVisibl
 /** 快捷窗画布矩形（所有摆放路径统一用这套矩形——WPF P9 铁律） */
 function quickCanvasBounds(): WinBounds {
   return quickCanvasBoundsForAnchor(cluster!.anchor, quickCanvasMax)
+}
+
+/** 快捷窗可见卡面 bounds（缩进光标判定用；画布透明余量不算组件内） */
+function quickCardBounds(): WinBounds {
+  return quickCardBoundsForAnchor(cluster!.anchor, quickCanvasMax, cluster!.scale)
 }
 let dragTimer: ReturnType<typeof setInterval> | null = null
 let dragStart: { cursor: { x: number; y: number }; anchor: { x: number; y: number } } | null = null
@@ -857,7 +863,10 @@ export function startTuckCursorPoll(): void {
       inside = false
     } else {
       for (const w of [cluster.windows.quick, cluster.windows.main, cluster.windows.done]) {
-        if (safe(w) && sideWindowVisible(w) && contains(w.getBounds(), pt)) {
+        if (!safe(w) || !sideWindowVisible(w)) continue
+        // 快捷窗=画布>卡面：判定用可见卡面，画布透明余量不算组件内（非最大档时同步）
+        const b = w === cluster.windows.quick ? quickCardBounds() : w.getBounds()
+        if (contains(b, pt)) {
           inside = true
           break
         }
@@ -870,9 +879,11 @@ export function startTuckCursorPoll(): void {
     if (autoExpandUntil > 0 && Date.now() >= autoExpandUntil) {
       autoExpandUntil = 0
       const pt = cursorPoint()
-      const over = [cluster.windows.quick, cluster.windows.main, cluster.windows.done].some(
-        (w) => safe(w) && sideWindowVisible(w) && contains(w.getBounds(), pt)
-      )
+      const over = [cluster.windows.quick, cluster.windows.main, cluster.windows.done].some((w) => {
+        if (!safe(w) || !sideWindowVisible(w)) return false
+        const b = w === cluster!.windows.quick ? quickCardBounds() : w.getBounds()
+        return contains(b, pt)
+      })
       if (!over) {
         sendToMain(IPC.cursorInside, false)
         lastInside = false

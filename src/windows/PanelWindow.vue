@@ -14,8 +14,9 @@ import { cancelBubble } from '../components/content-bubble'
  * 三窗分离架构（v1.1.0 批次 B-1）：每个 OS 窗口的渲染根。
  * 一个窗口 = stage（设计令牌+主题）+ zoom 容器（尺寸=基准÷缩放，zoom×尺寸=真窗口，决策#7）+
  * 对应面板。
- * 缩进（2026-10-17 §11.K 步1）：白条已搬进独立小窗（src/windows/BarWindow.vue）——
- * 本窗缩进态=主进程整体透明待机，渲染层切 .cluster-veiled；白条命中经主进程中继回来
+ * 缩进（2026-10-17 §11.K 步2）：白条已搬进独立小窗（src/windows/BarWindow.vue）——
+ * 缩进=主进程把整组三窗移出屏幕顶外；渲染层不再切蒙纱（蒙纱在弹出时晚于侧窗卸载，
+ * 主窗内容会慢半拍，2026-10-20 用户报告）。白条命中经主进程中继回来
  * （onBarHit → 状态机 mouse-enter，等效原白条元素 mouseenter）。
  * 标题栏手写拖动：document 捕获段监听 .titlebar 命中（排除按钮区）→ 主进程光标轮询整体拖动；
  * 三个面板组件的模板无需感知窗口化（仅移除 app-region CSS）。
@@ -33,8 +34,6 @@ function onBarHit(): void {
 }
 
 const tucked = computed(() => ui.tuck.tucked)
-/** DOM 形态跟随的 tucked：主进程窗口几何调整完成后才切换（先几何后 DOM，消弹出呼吸/闪烁） */
-const domTucked = ref(false)
 /** 批次 C-2（用户定稿 2026-10-03）：二级窗打开时三个一级窗口都显示蒙层（示意不可操作）。
  * 由前置信号驱动（打开入口广播，先于二级窗创建），与二级窗同步出现 */
 const veilVisible = ref(false)
@@ -215,11 +214,9 @@ function onWindowBlur(): void {
   cancelBubble()
 }
 
-watch(tucked, async (v) => {
-  // 时序定稿（2026-10-08 回退实验）：窗口几何先行、DOM 后切——DOM 先切的中间态
-  // （展开尺寸+白条视图）可交互滞留（真机：标题栏方块可拖动），实验判定失败
-  await getApi().setTucked(v).catch(() => {})
-  domTucked.value = v
+watch(tucked, (v) => {
+  // 步2：缩进=整窗离屏，渲染层不随缩进切蒙纱——避免弹出时主窗内容晚于侧窗亮起
+  void getApi().setTucked(v).catch(() => {})
 })
 
 onMounted(() => {
@@ -271,13 +268,11 @@ onUnmounted(() => {
     <!-- 批次 C-2：模态锁定蒙层（示意一级窗口不可操作，纯视觉）。
          快捷窗例外（画布方案）：画布>卡面，stage 级蒙层会罩住透明余量——蒙层挂卡面内 -->
     <div v-if="veilVisible && !isQuick" class="modal-veil" data-testid="modal-veil" />
-    <!-- 待办主窗：缩进态=主进程整体透明待机（白条已搬进独立窗，见 BarWindow.vue） -->
+    <!-- 待办主窗：缩进=整窗移出屏外；内容常驻、不切蒙纱（弹出与侧窗同帧亮起） -->
     <template v-if="props.panel === 'main'">
-      <!-- 用户验收：弹出/缩进同步无呼吸——面板常驻挂载（不销毁 DOM），缩进=透明度翻转
-           （display 切换会重排重建=慢半拍；opacity 翻转=合成器直完成） -->
+      <!-- 面板常驻挂载（不销毁 DOM）；缩进=整窗外移，弹出时三窗同一次落位、内容已就绪 -->
       <div
         class="cluster"
-        :class="{ 'cluster-veiled': domTucked }"
         :style="holderStyle"
         data-testid="cluster-holder"
       >
@@ -405,9 +400,5 @@ onUnmounted(() => {
   right: 0;
 }
 
-/* 缩进态：面板蒙纱隐藏（保挂载、零重排；窗口整体透明度由主进程置 0=真正的透明待机） */
-.cluster-veiled {
-  opacity: 0;
-  pointer-events: none;
-}
+
 </style>
