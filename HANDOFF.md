@@ -1,5 +1,7 @@
 # HANDOFF · 开发交接文档
 
+> **2026-10-22 实施：v1.1.9 已安装（待真机验收）**：设置页新增“数据存储位置”（getDataPath 绝对路径）；NSIS 手动卸载新增“是否同时删除本地数据”（默认保留，升级/静默不弹窗不删）。typecheck、401 单测、88 E2E 全绿；安装器已用隔离数据验证。详见 §11.Y。
+
 > **2026-10-20 更新：v1.1.8 已发布并安装**（缩进/弹出修复：主窗去遗留蒙纱、快捷窗非最大档缩进判定按可见卡面；仅 NSIS；数据保留）。当前版本号 1.1.8。GitHub Release：https://github.com/Richardo-X/DesktopTodo/releases/tag/v1.1.8 ；详见 §11.X。
 
 > **2026-10-20 更新：v1.1.7 已安装**（设置页版本号、设置页边界提示、快捷窗模板满额提示；仅 NSIS；数据保留）。当前版本号 1.1.7。详见 §11.V。
@@ -1294,3 +1296,51 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - 已推送 main 至 `c5ee520`；tag `v1.1.8`；Release：https://github.com/Richardo-X/DesktopTodo/releases/tag/v1.1.8
 - Release 资产：`DesktopTodo-Setup-1.1.8.exe`（113,878,540 B，SHA256 `c53f6f9f095bf983a24fe231a6efe716b7185960b4dab0b8c05a11812cf4d456`），仅安装版、无便携版；v1.1.7 未单独发布，并入 1.1.8。
 - 源码修复提交已在远端 `c5fb714`；安装版 1.1.8 已启动。
+
+
+---
+
+# 11.Y 第三十一轮（v1.1.9：设置页数据位置 + 卸载询问删除）记录（2026-10-22）
+
+> 用户批准“设置页显示数据文件位置 + 卸载时选择是否删除本地数据”的建议并实施。当前仅本地提交/安装；未推送、未打 tag、未创建 Release。
+
+## 交付
+
+### 1. 设置页数据存储位置
+
+- 新增 IPC `getDataPath`（`app:get-data-path`）：主进程返回 `join(app.getPath('userData'), 'data.json')`；preload/契约暴露 `getDataPath()`。
+- 设置页在“导入历史记录”下方新增“数据存储位置”区块：说明“待办、历史、模板与设置均保存在此文件”，显示完整绝对路径；路径只读、可选中复制，超长自动换行。
+- 布局：路径块 `padding: 7px 0`；460×540 设置窗内不出现内容溢出（child-window 1px 边框造成固定 2px scrollHeight 差，E2E 按 2px 容差断言）。
+- 组件/E2E：组件断言 `test-version` 与绝对路径；E2E 用隔离 userData 断言路径等于 `h.userData\data.json`、文件存在、路径可见、设置体不新增滚动。
+
+### 2. 手动卸载询问是否删除本地数据
+
+- 新增 `build/installer.nsh`，`build.nsis.include` 挂载 `customUnInstall`：
+  - 仅交互式手动卸载弹窗；`MessageBox` 问“是否同时删除本地数据？”，默认按钮=否（保留），删除范围=`%APPDATA%\${APP_PRODUCT_FILENAME}`（待办、历史、模板、设置全部本地数据）。
+  - 升级：`${isUpdated}` 为真（electron-builder 以 `/S /KEEP_APP_DATA --updated` 调旧卸载器）→ 不弹窗、不删除。
+  - 静默手动卸载：`${Silent}` 为真 → 不弹窗、默认保留。
+  - 显式 `--delete-app-data` → 跳过自定义弹窗，沿用 electron-builder 内置删除路径。
+  - 删除失败时 `MessageBox` 提示手动删除路径。
+- 保留安全默认：选择“否”只卸载程序，数据保留，重装可继续使用。
+
+## 安装器实测（隔离数据）
+
+用当前 1.1.8 测试安装包（含本脚本）覆盖安装，并把真实数据目录临时移出、仅放隔离 data.json：
+
+1. 覆盖安装：数据文件 SHA 未变（隔离数据保留）。
+2. `Uninstall … /S /KEEP_APP_DATA --updated`（模拟升级）：退出码 0，数据保留。
+3. 交互卸载 → 数据询问选“否”：程序卸载完成，数据保留。
+4. 重装后交互卸载 → 选“是”：`%APPDATA%\桌面待办` 整个测试目录被删除。
+5. 恢复真实数据目录；重新安装官方 1.1.8；再覆盖安装 v1.1.9。
+
+## 版本与数据
+
+- v1.1.9 安装包：`dist-v1.1.9\桌面待办-安装包-1.1.9.exe`，仅 NSIS，无便携版；FileVersion/DisplayVersion **1.1.9**。
+- 安装前备份：`C:\Users\qq463\Documents\桌面待办-数据备份\data-20261022-001733-v1.1.8.json`（15,698 B，SHA256 `A1C671D6B354715C07026B962BBE01CD797BF6DB81545E4F0F5F99245272E425`）。
+- 1.1.9 覆盖安装后 data.json 仍为 15,698 B / 同 SHA；3 待办 / 7 归档日 / 1 模板；安装版已启动。
+
+## 验证
+
+- typecheck 通过；vitest **401/401**；E2E **88/88**；build 与 NSIS 打包通过。
+- 卸载器四路径：覆盖安装保留、`--updated` 静默保留、交互选否保留、交互选是删除，均已实测。
+- 当前状态：用户尚未真机确认设置页路径区块观感；未推送/tag/Release。
