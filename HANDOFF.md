@@ -1311,6 +1311,7 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - 新增 IPC `getDataPath`（`app:get-data-path`）：主进程返回 `join(app.getPath('userData'), 'data.json')`；preload/契约暴露 `getDataPath()`。
 - 设置页在“导入历史记录”下方新增“数据存储位置”区块：说明“待办、历史、模板与设置均保存在此文件”，显示完整绝对路径；路径只读、可选中复制，超长自动换行。
 - 布局：路径块 `padding: 7px 0`；460×540 设置窗内不出现内容溢出（child-window 1px 边框造成固定 2px scrollHeight 差，E2E 按 2px 容差断言）。
+- 2026-10-22 用户反馈“设置页面内容整体上移，上方太空”：设置体顶距 34→12px；边界提示从 body 顶部（top 38px）移到标题栏中部（top 4px），仍居中、不遮挡内容；版本行保持贴底。
 - 组件/E2E：组件断言 `test-version` 与绝对路径；E2E 用隔离 userData 断言路径等于 `h.userData\data.json`、文件存在、路径可见、设置体不新增滚动。
 
 ### 2. 手动卸载询问是否删除本地数据
