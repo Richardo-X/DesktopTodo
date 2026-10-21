@@ -337,15 +337,15 @@ async function onBack(): Promise<void> {
   background: var(--accent-fg);
 }
 
-/* v3.5-L2.4 落地：设置页顶部提示区与底部版本行（按批准原型） */
+/* 设置页内容按常规 12px 顶距；边界提示移到标题栏中部，避免占用内容上方空间 */
 .child-window .settings-body {
-  padding-top: 34px;
+  padding-top: 12px;
   padding-bottom: 0;
 }
 
 .settings-hint-wrap {
   position: absolute;
-  top: 38px;
+  top: 4px;
   left: 0;
   right: 0;
   text-align: center;
