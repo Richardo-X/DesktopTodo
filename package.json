@@ -77,6 +77,7 @@
       "allowToChangeInstallationDirectory": true,
       "uninstallDisplayName": "桌面待办",
       "createDesktopShortcut": true,
+      "include": "build/installer.nsh",
       "artifactName": "桌面待办-安装包-${version}.${ext}"
     }
   }
