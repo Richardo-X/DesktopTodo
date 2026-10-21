@@ -341,6 +341,7 @@ async function onBack(): Promise<void> {
 .child-window .settings-body {
   padding-top: 12px;
   padding-bottom: 0;
+  overflow: hidden; /* 设置页内容固定，不显示滚动条 */
 }
 
 .settings-hint-wrap {

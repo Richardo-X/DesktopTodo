@@ -43,10 +43,16 @@ test('验收15：待办满上限时新建被拦截并提示', async () => {
   expect(existsSync(dataFile)).toBe(true)
   const bodyMetrics = await settings.evaluate(() => {
     const body = document.querySelector('.settings-body') as HTMLElement
-    return { scrollHeight: body.scrollHeight, clientHeight: body.clientHeight }
+    return {
+      scrollHeight: body.scrollHeight,
+      clientHeight: body.clientHeight,
+      overflowY: getComputedStyle(body).overflowY
+    }
   })
   // .child-window 上下各 1px 边框计入 scrollHeight，故允许 2px 固定差
   expect(bodyMetrics.scrollHeight).toBeLessThanOrEqual(bodyMetrics.clientHeight + 2)
+  // 设置页固定内容，不应出现滚动条
+  expect(bodyMetrics.overflowY).toBe('hidden')
   const geom = await settings.evaluate(() => {
     const h = document.querySelector('[data-testid="set-max-hint"]') as HTMLElement
     const form = document.querySelector('.form-row') as HTMLElement
