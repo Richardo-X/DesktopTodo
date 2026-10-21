@@ -126,6 +126,7 @@ const childCountListeners: Array<(n: number) => void> = []
       listeners.forEach((l) => l(data))
     },
     getVersion: async () => 'test-version',
+    getDataPath: async () => 'C:\\Users\\test\\AppData\\Roaming\\桌面待办\\data.json',
     getState: async () => {
       await booted
       return ctx.current()

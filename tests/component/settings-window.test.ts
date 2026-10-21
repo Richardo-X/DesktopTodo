@@ -85,6 +85,17 @@ describe('T34 设置窗口', () => {
     expect(wrapper.find('[data-testid="set-version"]').text()).toBe('当前版本：test-version')
   })
 
+  it('显示用户数据文件绝对路径（getDataPath；只读）', async () => {
+    const { wrapper } = await mountWithStore(SettingsWindow)
+    await flushPromises()
+    const block = wrapper.find('[data-testid="set-data-path"]')
+    expect(block.exists()).toBe(true)
+    expect(block.text()).toContain('数据存储位置')
+    expect(wrapper.find('[data-testid="set-data-path-value"]').text()).toBe(
+      'C:\\Users\\test\\AppData\\Roaming\\桌面待办\\data.json'
+    )
+  })
+
   it('时间制式切换', async () => {
     const { wrapper, store } = await mountWithStore(SettingsWindow)
     await wrapper.find('[data-testid="set-hour12-btn"]').trigger('click')

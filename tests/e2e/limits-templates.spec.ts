@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { launchApp, type AppHandle } from './helpers'
 import { createTemplateItem, createTodoItem, defaultAppData, type AppData } from '../../src/core/models'
 
@@ -33,6 +35,18 @@ test('验收15：待办满上限时新建被拦截并提示', async () => {
   await expect(hint).toHaveClass(/show/)
   await expect(settings.locator('[data-testid="set-max-note"]')).toHaveCount(0)
   await expect(settings.locator('[data-testid="set-version"]')).toHaveText(/^当前版本：\d+\.\d+\.\d+$/)
+  // 用户数据文件路径：必须等于本次测试的隔离 userData，且文件真实存在
+  const dataFile = join(h.userData, 'data.json')
+  const pathValue = settings.locator('[data-testid="set-data-path-value"]')
+  await expect(pathValue).toHaveText(dataFile)
+  await expect(pathValue).toBeVisible()
+  expect(existsSync(dataFile)).toBe(true)
+  const bodyMetrics = await settings.evaluate(() => {
+    const body = document.querySelector('.settings-body') as HTMLElement
+    return { scrollHeight: body.scrollHeight, clientHeight: body.clientHeight }
+  })
+  // .child-window 上下各 1px 边框计入 scrollHeight，故允许 2px 固定差
+  expect(bodyMetrics.scrollHeight).toBeLessThanOrEqual(bodyMetrics.clientHeight + 2)
   const geom = await settings.evaluate(() => {
     const h = document.querySelector('[data-testid="set-max-hint"]') as HTMLElement
     const form = document.querySelector('.form-row') as HTMLElement
