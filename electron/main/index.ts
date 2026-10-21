@@ -424,6 +424,7 @@ function registerIpc(): void {
   })
   ipcMain.handle(IPC.getState, () => ctx.current())
   ipcMain.handle(IPC.getVersion, () => app.getVersion())
+  ipcMain.handle(IPC.getDataPath, () => join(app.getPath('userData'), 'data.json'))
 
   ipcMain.handle(IPC.commit, async (_e, data: Awaited<ReturnType<AppContext['boot']>>) => {
     const anchor = getClusterAnchor()

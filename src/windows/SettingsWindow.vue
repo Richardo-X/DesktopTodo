@@ -19,6 +19,8 @@ const canIncrease = computed(() => maxItems.value + 1 <= 10)
 
 // 版本号：底部弱化展示，来源 app.getVersion（preload/IPC）
 const version = ref('')
+// 数据文件绝对路径：只读展示，来源 app.getPath('userData')（preload/IPC）
+const dataPath = ref('')
 
 // 下限边界提示：设置窗内顶部浮现，1.8s 自动消失；每次点击重置
 const hintVisible = ref(false)
@@ -40,6 +42,14 @@ onMounted(() => {
     })
     .catch(() => {
       /* 版本读取失败时不展示版本行，不影响设置功能 */
+    })
+  void getApi()
+    .getDataPath()
+    .then((p) => {
+      dataPath.value = p
+    })
+    .catch(() => {
+      /* 路径读取失败时不展示数据位置，不影响设置功能 */
     })
 })
 
@@ -154,6 +164,18 @@ async function onBack(): Promise<void> {
         </div>
         <p v-if="importError" class="error" data-testid="set-import-error">{{ importError }}</p>
       </div>
+
+      <template v-if="dataPath">
+        <div class="divider" />
+
+        <div class="form-col data-path" data-testid="set-data-path">
+          <span class="form-label">
+            <b>数据存储位置</b>
+            <span>待办、历史、模板与设置均保存在此文件</span>
+          </span>
+          <p class="path-value" data-testid="set-data-path-value">{{ dataPath }}</p>
+        </div>
+      </template>
 
       <div class="divider" />
 
@@ -352,6 +374,20 @@ async function onBack(): Promise<void> {
   line-height: 1.4;
   white-space: nowrap;
   box-shadow: 0 6px 18px rgba(10, 20, 40, 0.18);
+}
+
+.data-path {
+  padding: 7px 0; /* 路径块比常规行少 2px，避免 460×540 内出现滚动条 */
+}
+
+.path-value {
+  margin: 0;
+  color: var(--muted);
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  word-break: break-all;
+  user-select: text;
 }
 
 .version-line {

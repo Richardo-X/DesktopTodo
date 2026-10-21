@@ -5,6 +5,7 @@ import { IPC, type ChildKind } from '../../src/ipc/contract'
 const api = {
   getState: () => ipcRenderer.invoke(IPC.getState),
   getVersion: () => ipcRenderer.invoke(IPC.getVersion),
+  getDataPath: () => ipcRenderer.invoke(IPC.getDataPath),
   onStateUpdated: (cb: (data: AppData) => void) => {
     const listener = (_e: unknown, data: AppData): void => cb(data)
     ipcRenderer.on(IPC.stateUpdated, listener)

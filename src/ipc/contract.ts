@@ -8,6 +8,7 @@ import type { AppData } from '../core/models/types'
 export const IPC = {
   getState: 'app:get-state',
   getVersion: 'app:get-version',
+  getDataPath: 'app:get-data-path',
   stateUpdated: 'app:state-updated',
   commit: 'data:commit',
   flush: 'data:flush',
@@ -65,6 +66,8 @@ export interface DesktopTodoApi {
   getState(): Promise<AppData>
   /** 应用版本号（设置页底部展示；来源 app.getVersion） */
   getVersion(): Promise<string>
+  /** 用户数据文件绝对路径（设置页展示；来源 app.getPath('userData')） */
+  getDataPath(): Promise<string>
   /** 主进程推送（启动结算/跨天结算后） */
   onStateUpdated(cb: (data: AppData) => void): () => void
   /** 渲染层变更后提交完整数据；pos 由主进程自行采集合并 */
