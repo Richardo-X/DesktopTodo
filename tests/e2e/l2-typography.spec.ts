@@ -10,7 +10,7 @@ import { createTodoItem } from '../../src/core/models'
  * 防止后续回归再引入离群字号/三套行高。 */
 
 /** 6 档字阶白名单 */
-const TIERS = ['38px', '15px', '13.5px', '12px', '11px', '10px']
+const TIERS = ['38px', '15px', '14.5px', '13.5px', '12px', '11px', '10px']
 
 /** 收集页面内「有直接文本节点」元素的 computed font-size（去重；仅 body 内＝实际渲染内容） */
 const collectFontSizes = (): string[] => {
@@ -114,9 +114,9 @@ test('L2-②：字阶抽样锚点（display/heading/body/label/caption/micro 各
   expect(await fs(h.quick, '.panel-title')).toBe('15px')
   expect(await fs(h.done, '.panel-title')).toBe('15px')
   // body 13.5：四类行内容（主窗/模板/已完成在此验证，历史窗在下一条用例）
-  expect(await fs(h.main, '[data-testid="row-content"]')).toBe('13.5px')
-  expect(await fs(h.quick, '[data-testid="tpl-content"]')).toBe('13.5px')
-  expect(await fs(h.done, '.todo-row .content')).toBe('13.5px')
+  expect(await fs(h.main, '[data-testid="row-content"]')).toBe('14.5px')
+  expect(await fs(h.quick, '[data-testid="tpl-content"]')).toBe('14.5px')
+  expect(await fs(h.done, '.todo-row .content')).toBe('14.5px')
   // label 12：主窗批量删除（30→26 小按钮为 caption 11；此处取标题栏与确认框口径）
   expect(await fs(h.main, '.tb-left')).toBe('12px')
   // caption 11 / micro 10：计数芯片与逾期徽标
@@ -164,12 +164,13 @@ test('L2-③：行样式归一与列表节奏（padding 11×12 / gap 8 / win-bod
       const el = document.querySelector(s) as HTMLElement | null
       if (!el) return null
       const cs = getComputedStyle(el)
-      return { padding: `${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft}`, gap: cs.rowGap }
+      return { padding: `${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft}`, gap: cs.rowGap, height: cs.height }
     }, sel)
 
   const ROW = '11px 12px 11px 12px'
   // 四类行：同一高度口径
   expect((await probe(h.main, '[data-testid="todo-row"]'))!.padding, '主窗待办行').toBe(ROW)
+  expect((await probe(h.main, '[data-testid="todo-row"]'))!.height, '主窗待办行高').toBe('44px')
   expect((await probe(h.quick, '[data-testid="tpl-row"]'))!.padding, '模板行').toBe(ROW)
   expect((await probe(h.done, '[data-testid="done-row"]'))!.padding, '已完成行').toBe(ROW)
 
@@ -194,8 +195,8 @@ test('L2-③：行样式归一与列表节奏（padding 11×12 / gap 8 / win-bod
     const cs = getComputedStyle(el)
     return { fs: cs.fontSize, lh: cs.lineHeight }
   })
-  expect(histContent.fs).toBe('13.5px')
-  expect(histContent.lh).toBe('20.25px') // 13.5 × 1.5
+  expect(histContent.fs).toBe('14.5px')
+  expect(histContent.lh).toBe('20px') // 行盒固定=内容区高度，不溢出
 
   await h.close()
 })
