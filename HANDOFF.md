@@ -1354,7 +1354,7 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 
 # 11.Z 第三十二轮（任务行 14.5/44px + 气泡缩放修复）记录（2026-10-23）
 
-> 用户确认当前改动并推送。版本仍为 v1.1.9（未打 tag/未发 Release）。
+> 用户确认当前改动并推送。已于 2026-10-23 发布：tag `v1.1.9` + GitHub Release（仅 Setup）。
 
 ## 任务行尺寸
 
@@ -1378,3 +1378,5 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - typecheck 通过；401/401 单测；字号/上限/主流程相关 15 条 E2E + 气泡 2 条 E2E 通过；构建/NSIS 打包通过。
 - 气泡：`29d1162` 测试、`9546156` 修复；任务行：实现/测试/文档分笔。
 - 安装版 v1.1.9 已覆盖安装；数据 3 待办 / 7 归档日 / 1 模板。
+- Release：https://github.com/Richardo-X/DesktopTodo/releases/tag/v1.1.9
+- 资产：`DesktopTodo-Setup-1.1.9.exe`（113,878,877 B，SHA256 `5a332d52dda8e03b0c84f4fd9395a93d2b311fe3fb565f7cd8807c3eaac100d9`），仅安装版、无便携版。
