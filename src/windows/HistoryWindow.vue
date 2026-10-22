@@ -225,6 +225,7 @@ async function doExport(): Promise<void> {
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 44px; /* 单行列表项尺寸锁定 */
   padding: 11px 12px; /* L2 行归一：8×10→11×12（与主窗待办行同高） */
   border-radius: 8px;
   background: var(--card);
@@ -251,8 +252,8 @@ async function doExport(): Promise<void> {
 .content {
   flex: 1;
   min-width: 0;
-  font-size: 13.5px; /* L2 字阶 body 13.5（原 13；四类行内容同档） */
-  line-height: 1.5; /* L2：正文行高统一 1.5 */
+  font-size: 14.5px; /* 任务文字 14.5；行盒固定，不溢出 */
+  line-height: 20px;
   text-align: left;
 }
 
