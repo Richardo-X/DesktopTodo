@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import './styles/global.css'
 import PanelWindow from './windows/PanelWindow.vue'
 import ChildHost from './windows/ChildHost.vue'
+import BubbleWindow from './windows/BubbleWindow.vue'
 import BarWindow from './windows/BarWindow.vue'
 import type { ChildKind } from './ipc/contract'
 
@@ -19,6 +20,8 @@ const RootApp = defineComponent({
   setup() {
     if (win === 'cluster') return () => h(PanelWindow, { panel: clusterPanel })
     if (win === 'bar') return () => h(BarWindow)
+    // 气泡是内容自适应窗：不能走 ChildHost 的二级窗 zoom（320×160 基准会把气泡内容缩到 0.7）
+    if (win === 'bubble') return () => h(BubbleWindow)
     return () => (kind ? h(ChildHost, { kind, id }) : h('div'))
   }
 })
