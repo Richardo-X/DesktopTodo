@@ -78,6 +78,26 @@ test('8.2-4：气泡独立窗——待办行左弹、快捷行碰左缘翻右弹
   expect(bb1.height).toBeGreaterThanOrEqual(30)
   expect(bb1.height).toBeLessThan(160)
 
+  // 气泡内容必须铺满气泡窗：不能被子窗 zoom 再缩放（窗口正常但内容缩成 0.7 的回归）
+  const bubbleContent = await page1.evaluate(() => {
+    const r = (document.querySelector('[data-testid="content-bubble"]') as HTMLElement).getBoundingClientRect()
+    return { width: r.width, height: r.height }
+  })
+  expect(bubbleContent.width).toBeGreaterThanOrEqual(bb1.width - 4)
+  expect(bubbleContent.height).toBeGreaterThanOrEqual(bb1.height - 4)
+
+  // 气泡可见内容中心必须对准行中心（窗口正常但内容缩水会把中心带偏）
+  const centerCheck = await h.app.evaluate(({ BrowserWindow }) => {
+    const main = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('panel=main'))
+    const mainY = main!.getBounds().y
+    return { mainY }
+  })
+  const rowCenterY = await h.main.evaluate(
+    () => (document.querySelector('[data-testid="todo-row"]') as HTMLElement).getBoundingClientRect().top +
+      (document.querySelector('[data-testid="todo-row"]') as HTMLElement).getBoundingClientRect().height / 2
+  )
+  expect(Math.abs(bb1.y + bubbleContent.height / 2 - (centerCheck.mainY + rowCenterY))).toBeLessThanOrEqual(3)
+
   // 移开 → 气泡窗隐藏
   await h.main.locator('[data-testid="clock-time"]').hover()
   await expect
