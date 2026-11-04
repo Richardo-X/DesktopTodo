@@ -389,6 +389,63 @@ test('历史事项详情：删除在关闭左侧并删除历史记录', async ()
   await h.close()
 })
 
+/** 历史详情单例：不能开第二个；详情开着时历史窗不能被关闭；详情关后历史窗恢复可关 */
+test('历史详情单例 + 详情期间历史窗不可关闭', async () => {
+  const dateKey = dateKeyOffset(-1)
+  const mk = (id: string, content: string) => ({
+    ...createTodoItem({ content, now: new Date(), id }),
+    completedAt: new Date().toISOString()
+  })
+  const h = await launchApp({
+    seed: { archive: { [dateKey]: [mk('h1', '历史一'), mk('h2', '历史二')] } }
+  })
+  const hp = h.app.waitForEvent('window')
+  await h.done.click('[data-testid="done-history"]')
+  const hist = await hp
+  await hist.waitForSelector('[data-testid="hist-date-input"]')
+  await hist.fill('[data-testid="hist-date-input"]', dateKey)
+  await hist.waitForSelector('[data-testid="hist-row"]')
+
+  const dp = h.app.waitForEvent('window')
+  await hist.locator('[data-testid="hist-row"]').first().dblclick()
+  const detail = await dp
+  await detail.waitForSelector('[data-testid="detail-content"]')
+  await expect(detail.locator('[data-testid="detail-content"]')).toHaveText('历史一')
+
+  const detailCount = () =>
+    h.app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed() && w.webContents.getURL().includes('win=detail')).length
+    )
+  expect(await detailCount()).toBe(1)
+  // 从历史窗再请求开第二条详情 → 单例拦截，仍只有一个详情且内容不变
+  await hist.evaluate(() =>
+    (window as unknown as { desktopTodo: { openChild: (p: { kind: string; id: string }) => Promise<void> } }).desktopTodo.openChild({
+      kind: 'detail',
+      id: 'h2'
+    })
+  )
+  await h.main.waitForTimeout(300)
+  expect(await detailCount()).toBe(1)
+  await expect(detail.locator('[data-testid="detail-content"]')).toHaveText('历史一')
+
+  // 历史窗 closeSelf 被拦截：窗口仍在、详情仍在
+  await hist.evaluate(() =>
+    (window as unknown as { desktopTodo: { closeSelf: () => Promise<void> } }).desktopTodo.closeSelf()
+  )
+  await h.main.waitForTimeout(300)
+  expect(hist.isClosed()).toBe(false)
+  expect(await detailCount()).toBe(1)
+
+  // 关详情 → 历史窗恢复可关（详情关闭会让 Page 目标先销毁，click 的收尾报错可忽略）
+  await detail.click('[data-testid="detail-close"]').catch(() => {})
+  await expect.poll(() => detailCount()).toBe(0)
+  await expect(hist.isClosed()).toBe(false)
+  await h.main.waitForTimeout(300)
+  await hist.click('[data-testid="hist-close"]')
+  await expect.poll(() => hist.isClosed()).toBe(true)
+  await h.close()
+})
+
 /** 四类列表行统一禁文字选择（用户 2026-10-15：已完成行长按误选、双击开详情被选；
  * DonePanel 原为四类行唯一漏网处） */
 test('四类列表行 user-select: none 一致（已完成行长按/双击不再选字）', async () => {
