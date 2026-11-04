@@ -296,8 +296,8 @@ test('二级窗 420 宽系：内容适配高度、输入框 4:3、按钮邻计�
   await h.close()
 })
 
-/** 详情窗（双击已完成事项）：高度减半 415×245（用户 2026-10-15）+ 关闭钮与灰框右缘垂直对齐 */
-test('详情窗 415×245：关闭钮右缘 ≡ 属性灰框右缘（无滚动条挤压）', async () => {
+/** 详情窗（双击已完成事项）：属性在前/内容背景、关闭右缘对齐、删除后行消失 */
+test('详情窗 415×245：属性在前 + 内容背景 + 关闭对齐 + 删除已完成', async () => {
   const h = await launchApp({
     seed: {
       completed: [
@@ -326,20 +326,66 @@ test('详情窗 415×245：关闭钮右缘 ≡ 属性灰框右缘（无滚动条
   expect(Math.abs(b!.width - 415)).toBeLessThanOrEqual(6)
   expect(Math.abs(b!.height - 245)).toBeLessThanOrEqual(6)
 
-  // 右缘对齐：灰框（.props）右缘 ≡ 关闭钮右缘（±1px）；body 无原生滚动条挤压
+  // 属性在前、内容在后；属性无背景、内容有背景；内容右缘 ≡ 关闭钮右缘；body 无滚动条挤压
   const m = await page.evaluate(() => {
     const props = document.querySelector('.props') as HTMLElement
+    const content = document.querySelector('.content') as HTMLElement
     const btn = document.querySelector('.footer .b') as HTMLElement
     const body = document.querySelector('.body') as HTMLElement
     return {
-      propsRight: props.getBoundingClientRect().right,
+      propsTop: props.getBoundingClientRect().top,
+      contentTop: content.getBoundingClientRect().top,
+      contentRight: content.getBoundingClientRect().right,
       btnRight: btn.getBoundingClientRect().right,
+      propsBg: getComputedStyle(props).backgroundColor,
+      contentBg: getComputedStyle(content).backgroundColor,
       gutter: body.offsetWidth - body.clientWidth
     }
   })
-  expect(Math.abs(m.propsRight - m.btnRight), `灰框右缘=${m.propsRight} 按钮右缘=${m.btnRight}`).toBeLessThanOrEqual(1)
+  expect(m.propsTop).toBeLessThan(m.contentTop)
+  expect(m.propsBg === 'rgba(0, 0, 0, 0)' || m.propsBg === 'transparent').toBe(true)
+  expect(m.contentBg).not.toBe('rgba(0, 0, 0, 0)')
+  expect(Math.abs(m.contentRight - m.btnRight), `内容右缘=${m.contentRight} 按钮右缘=${m.btnRight}`).toBeLessThanOrEqual(1)
   expect(m.gutter, `body 滚动条挤压=${m.gutter}px`).toBe(0)
 
+  // 已完成详情删除：确认后详情关闭、已完成行消失
+  await page.click('[data-testid="detail-delete"]')
+  await page.click('[data-testid="confirm-ok"]')
+  await expect(h.done.locator('[data-testid="done-row"]')).toHaveCount(0)
+
+  await h.close()
+})
+
+/** 历史事项详情：属性在前/内容背景（与已完成同版式）+ 删除在关闭左侧 + 删除归档记录 */
+test('历史事项详情：删除在关闭左侧并删除历史记录', async () => {
+  const dateKey = dateKeyOffset(-1)
+  const item = {
+    ...createTodoItem({ content: '历史详情删除项', now: new Date(), id: 'h1' }),
+    completedAt: new Date().toISOString()
+  }
+  const h = await launchApp({ seed: { archive: { [dateKey]: [item] } } })
+  const hp = h.app.waitForEvent('window')
+  await h.done.click('[data-testid="done-history"]')
+  const hist = await hp
+  await hist.waitForSelector('[data-testid="hist-date-input"]')
+  await hist.fill('[data-testid="hist-date-input"]', dateKey)
+  await hist.waitForSelector('[data-testid="hist-row"]')
+
+  const dp = h.app.waitForEvent('window')
+  await hist.locator('[data-testid="hist-row"]').dblclick()
+  const detail = await dp
+  await detail.waitForSelector('[data-testid="detail-content"]')
+  const footer = await detail.evaluate(() => {
+    const del = document.querySelector('[data-testid="detail-delete"]')!.getBoundingClientRect()
+    const close = document.querySelector('[data-testid="detail-close"]')!.getBoundingClientRect()
+    return { delRight: del.right, closeLeft: close.left, gap: close.left - del.right }
+  })
+  expect(footer.delRight).toBeLessThanOrEqual(footer.closeLeft)
+  expect(footer.gap).toBeGreaterThanOrEqual(6)
+
+  await detail.click('[data-testid="detail-delete"]')
+  await detail.click('[data-testid="confirm-ok"]')
+  await expect(hist.locator('[data-testid="hist-row"]')).toHaveCount(0)
   await h.close()
 })
 

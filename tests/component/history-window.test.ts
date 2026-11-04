@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import HistoryWindow from '../../src/windows/HistoryWindow.vue'
+import DetailWindow from '../../src/windows/DetailWindow.vue'
 import { mountWithStore } from '../helpers/mount'
 import { createTodoItem } from '../../src/core/models'
 
@@ -151,5 +152,22 @@ describe('T33 历史记录窗口', () => {
     await wrapper.find('[data-testid="hist-export"]').trigger('click')
     await flushPromises()
     expect(wrapper.find('[data-testid="hist-export-error"]').text()).toContain('起始日期不能晚于结束日期')
+  })
+})
+
+/** 历史事项详情：删除按钮在关闭左侧；确认后删除对应归档日并关闭 */
+describe('T33b 历史事项详情', () => {
+  it('删除按钮在关闭左侧，确认后删除归档记录并关闭', async () => {
+    const item = done('hd', '历史删除项', D10, 8)
+    const detail = await mountWithStore(DetailWindow, { archive: { [D10]: [item] } }, { itemId: 'hd' })
+    const footerButtons = detail.wrapper.findAll('footer button')
+    expect(footerButtons.map((b) => b.attributes('data-testid'))).toEqual(['detail-delete', 'detail-close'])
+
+    await detail.wrapper.find('[data-testid="detail-delete"]').trigger('click')
+    expect(detail.wrapper.find('[data-testid="confirm-dialog"]').exists()).toBe(true)
+    await detail.wrapper.find('[data-testid="confirm-ok"]').trigger('click')
+    await flushPromises()
+    expect(detail.store.archive[D10]).toHaveLength(0)
+    expect(detail.api.closeSelfCalls).toBe(1)
   })
 })

@@ -116,9 +116,9 @@ describe('T31 已完成面板', () => {
   })
 })
 
-/** T32 详情窗口（纯查看四项 + 关闭，速查 #13） */
+/** T32 详情窗口（属性在前、内容在后；已完成删除 + 关闭） */
 describe('T32 详情窗口', () => {
-  it('显示内容、创建时间、完成时间、逾期标签（已逾期）+ 仅「关闭」按钮', async () => {
+  it('属性在前、内容在后；显示时间/逾期；有删除和关闭按钮', async () => {
     // 相对日期（防月内日期炸弹：硬编码当月 10 日在 9 日后变为未来日期，逾期判定翻转）
     const item = { ...createTodoItem({ content: '跨天完成', now: new Date(T.getFullYear(), T.getMonth(), T.getDate() - 2, 9), id: 'x' }), completedAt: new Date(T.getFullYear(), T.getMonth(), T.getDate() - 1, 8).toISOString() }
     const { wrapper, api } = await mountWithStore(DonePanel, { completed: [item] }, { itemId: 'x' })
@@ -128,13 +128,31 @@ describe('T32 详情窗口', () => {
     expect(detail.wrapper.find('[data-testid="detail-created"]').text()).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
     expect(detail.wrapper.find('[data-testid="detail-completed"]').text()).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
     expect(detail.wrapper.find('[data-testid="detail-overdue"]').text()).toBe('已逾期')
+    expect(detail.wrapper.find('[data-testid="detail-delete"]').text()).toBe('删除')
     expect(detail.wrapper.find('[data-testid="detail-close"]').exists()).toBe(true)
-    expect(detail.wrapper.findAll('button')).toHaveLength(1) // 只有「关闭」
+    expect(detail.wrapper.findAll('button')).toHaveLength(2)
+    expect(
+      detail.wrapper
+        .findAll('[data-testid="detail-props"], [data-testid="detail-content"]')
+        .map((el) => el.attributes('data-testid'))
+    ).toEqual(['detail-props', 'detail-content'])
 
     await detail.wrapper.find('[data-testid="detail-close"]').trigger('click')
     expect(detail.api.closeSelfCalls).toBe(1)
     void api
     void wrapper
+  })
+
+  it('已完成详情删除：确认后从 completed 移除并关闭', async () => {
+    const item = doneToday('del', '待删除完成项', 9)
+    const detail = await mountWithStore(DetailWindow, { completed: [item] }, { itemId: 'del' })
+    await detail.wrapper.find('[data-testid="detail-delete"]').trigger('click')
+    expect(detail.wrapper.find('[data-testid="confirm-dialog"]').exists()).toBe(true)
+    expect(detail.wrapper.find('[data-testid="confirm-message"]').text()).toContain('删除后无法恢复')
+    await detail.wrapper.find('[data-testid="confirm-ok"]').trigger('click')
+    await flushPromises()
+    expect(detail.store.completed).toHaveLength(0)
+    expect(detail.api.closeSelfCalls).toBe(1)
   })
 
   it('未逾期完成 → "未逾期"', async () => {
