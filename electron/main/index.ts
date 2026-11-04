@@ -223,6 +223,9 @@ function quitNow(): void {
 let childScaleTransientUntil = 0
 
 const childWindows = new Set<BrowserWindow>()
+/** 详情窗全局单例：同一时间只允许一个已完成/历史详情；记录其父历史窗以做模态禁用 */
+let detailWindow: BrowserWindow | null = null
+let detailParent: BrowserWindow | null = null
 
 /** 二级窗"意图关闭"标记：×/← 按钮（closeSelf IPC）关闭前置位——
  * close 事件据此区分"用户主动关二级窗"与"Alt+F4/系统关闭（=退出整个应用）" */
@@ -253,7 +256,8 @@ function refreshModalWakePoll(): void {
       })
       if (!shouldWakeModalFocus({ pressed, prevPressed: !pressed, cursorInside, childOpen: true })) return
       for (const c of childWindows) {
-        if (!c.isDestroyed() && c.isVisible()) {
+        // 跳过被详情禁用/盖住的历史窗，聚焦当前可交互子窗
+        if (!c.isDestroyed() && c.isVisible() && c.isEnabled()) {
           c.focus()
           break
         }
@@ -288,7 +292,13 @@ function lockNonChildWindows(lock: boolean): void {
 }
 
 /** 打开子窗口：屏内居中级联、位置不记忆、高度≤半屏（速查 #7）；尺寸按组缩放（决策#5/#24） */
-function openChildWindow(kind: ChildKind, id?: string): void {
+function openChildWindow(kind: ChildKind, id?: string, parent?: BrowserWindow): void {
+  // 详情单例：已有详情就聚焦它，不再开第二个（历史窗此时已被禁用，双保险）
+  if (kind === 'detail' && detailWindow !== null && !detailWindow.isDestroyed()) {
+    detailWindow.show()
+    detailWindow.focus()
+    return
+  }
   // 子窗跟随组件所在屏居中（跨屏后不再固定弹到主屏）
   const main = getMainWindow()
   const wa = main ? screen.getDisplayMatching(main.getBounds()).workArea : screen.getPrimaryDisplay().workArea
@@ -317,6 +327,12 @@ function openChildWindow(kind: ChildKind, id?: string): void {
     }
   })
   childWindows.add(child)
+  if (kind === 'detail') {
+    detailWindow = child
+    detailParent = parent !== undefined && childWindows.has(parent) ? parent : null
+    // 历史详情打开期间禁用历史列表窗：不能双击开第二个详情、也不能关掉列表窗
+    if (detailParent !== null) detailParent.setEnabled(false)
+  }
   disableDwmTransitions(child.getNativeWindowHandle()) // 关系统过渡动画（全局一致）
   lockNonChildWindows(true)
   setModalChildOpen(true) // 二级窗开着：缩进禁止+保持弹出+取消 3 秒弹出会话（用户 2026-10-08 裁定）
@@ -337,12 +353,17 @@ function openChildWindow(kind: ChildKind, id?: string): void {
     const clamped = clampPosToWorkArea({ x: b.x, y: b.y }, { width: b.width, height: b.height }, childWa)
     if (clamped.x !== b.x || clamped.y !== b.y) child.setPosition(clamped.x, clamped.y)
   })
-  child.on('close', () => {
+  child.on('close', (e) => {
+    // 详情未关时禁止关闭其父历史窗（系统关闭路径兜底；renderer closeSelf 亦被 IPC 拦截）
+    if (child === detailParent && detailWindow !== null && !detailWindow.isDestroyed() && !appQuitRequested) {
+      e.preventDefault()
+      detailWindow.show()
+      detailWindow.focus()
+      return
+    }
     // Alt+F4/系统关闭（无意图标记）= 强制退出整个应用（用户 2026-10-05 裁定）；
     // ×/← 按钮（closeSelf）带意图标记 = 仅关自己
     if (!intentionalChildCloses.has(child)) requestAppQuit()
-    // 提前解锁：close 与 closed 之间窗口仍 disabled 会吞掉主窗口的输入
-    lockNonChildWindows(false)
   })
   // 置顶态 Win+M 免疫兜底：系统最小化二级窗 → 立即恢复（未置顶不设限=普通窗口行为）
   child.on('minimize', () => {
@@ -350,9 +371,16 @@ function openChildWindow(kind: ChildKind, id?: string): void {
   })
   child.on('closed', () => {
     broadcastVeilOff()
+    if (child === detailWindow) {
+      detailWindow = null
+      if (detailParent !== null && !detailParent.isDestroyed()) detailParent.setEnabled(true)
+      detailParent = null
+    }
     childWindows.delete(child)
-    if (childWindows.size === 0) lockNonChildWindows(false)
-    setModalChildOpen(false)
+    if (childWindows.size === 0) {
+      lockNonChildWindows(false)
+      setModalChildOpen(false)
+    }
     refreshModalWakePoll()
     broadcastChildCount()
     getMainWindow()?.webContents.send(IPC.childClosed)
@@ -370,10 +398,18 @@ function openChildWindow(kind: ChildKind, id?: string): void {
 }
 
 function registerIpc(): void {
-  ipcMain.handle(IPC.openChild, (_e, p: { kind: ChildKind; id?: string }) => openChildWindow(p.kind, p.id))
+  ipcMain.handle(IPC.openChild, (e, p: { kind: ChildKind; id?: string }) => {
+    openChildWindow(p.kind, p.id, BrowserWindow.fromWebContents(e.sender) ?? undefined)
+  })
   ipcMain.handle(IPC.closeSelf, (e) => {
     const w = BrowserWindow.fromWebContents(e.sender)
     if (!w) return
+    // 详情开着时，父历史窗的关闭请求一律转为聚焦详情
+    if (w === detailParent && detailWindow !== null && !detailWindow.isDestroyed()) {
+      detailWindow.show()
+      detailWindow.focus()
+      return
+    }
     intentionalChildCloses.add(w) // ×/← 按钮=意图关闭：仅关自己
     w.close()
   })
