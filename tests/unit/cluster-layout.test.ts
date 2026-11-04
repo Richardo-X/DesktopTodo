@@ -14,6 +14,7 @@ import {
   anchorForWindowX,
   threeWindowBoundsForAnchor,
   clampAnchorForEdges,
+  clampAnchorForDisplays,
   quickCanvasBoundsForAnchor,
   quickCanvasMaxScale,
   quickCardBoundsForAnchor
@@ -291,6 +292,57 @@ describe('clampAnchorForEdges 拖动边界钳制（批次 B-3，#31/#32/#33）',
     const clamped = clampAnchorForEdges({ x: -3000, y: -100 }, mainW, off)
     expect(clamped.x).toBe(off.x + 90 - mainW)
     expect(clamped.y).toBe(off.y)
+  })
+})
+
+/**
+ * 跨屏拖动（方案 2）：用多显示器并集钳制，只要主窗在任意一屏 ≥90px 可见就允许；
+ * 不能再用“主窗当前所在屏”单屏钳制，否则主窗被锁在旧屏、永远拖不出去。
+ */
+describe('clampAnchorForDisplays 多屏并集钳制', () => {
+  const mainW = 470
+  const left = { x: 0, y: 0, width: 1920, height: 1080 }
+  const right = { x: 1920, y: 0, width: 1920, height: 1080 }
+  const upperRight = { x: 1920, y: -1080, width: 1920, height: 1080 }
+
+  it('单屏输入与 clampAnchorForEdges 完全等价（幂等/越界都一致）', () => {
+    for (const a of [{ x: 800, y: 200 }, { x: -1000, y: 200 }, { x: 2500, y: -20 }]) {
+      expect(clampAnchorForDisplays(a, mainW, [left])).toEqual(clampAnchorForEdges(a, mainW, left))
+    }
+  })
+
+  it('向右跨屏：越过主屏 maxX 后仍允许（旧实现会钳回 1830）', () => {
+    expect(clampAnchorForDisplays({ x: 1900, y: 500 }, mainW, [left, right])).toEqual({ x: 1900, y: 500 })
+    expect(clampAnchorForDisplays({ x: 2500, y: 500 }, mainW, [left, right])).toEqual({ x: 2500, y: 500 })
+  })
+
+  it('向上跨屏：副屏 y 为负时不再被主屏顶边锁死', () => {
+    expect(clampAnchorForDisplays({ x: 2000, y: -100 }, mainW, [left, upperRight])).toEqual({
+      x: 2000,
+      y: -100
+    })
+    // 主屏/副屏的 y 合法区间之间只有 50px 设计留白；落在留白内吸附到最近屏
+    expect(clampAnchorForDisplays({ x: 2000, y: -40 }, mainW, [left, right, upperRight])).toEqual({
+      x: 2000,
+      y: -50
+    })
+    expect(clampAnchorForDisplays({ x: 2000, y: -10 }, mainW, [left, right, upperRight])).toEqual({
+      x: 2000,
+      y: 0
+    })
+  })
+
+  it('屏间空隙：吸附到最近合法点', () => {
+    const farRight = { x: 3000, y: 0, width: 1920, height: 1080 }
+    // 主屏 maxX=1830，远屏 minX=3000+90-470=2620；2400 更靠近远屏
+    expect(clampAnchorForDisplays({ x: 2400, y: 500 }, mainW, [left, farRight])).toEqual({
+      x: 2620,
+      y: 500
+    })
+  })
+
+  it('空列表原样返回', () => {
+    expect(clampAnchorForDisplays({ x: 123, y: 456 }, mainW, [])).toEqual({ x: 123, y: 456 })
   })
 })
 
