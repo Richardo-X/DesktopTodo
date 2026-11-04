@@ -160,6 +160,13 @@ export const useAppStore = defineStore('app', () => {
     return { ok: true }
   }
 
+  async function deleteCompleted(id: string): Promise<OpResult> {
+    const item = data.value.completed.find((t) => t.id === id)
+    if (!item) return { ok: false, reason: 'not-found' }
+    await apply((d) => ({ ...d, completed: d.completed.filter((t) => t.id !== id) }))
+    return { ok: true }
+  }
+
   async function deleteTemplate(id: string): Promise<OpResult> {
     const item = data.value.templates.find((t) => t.id === id)
     if (!item) return { ok: false, reason: 'not-found' }
@@ -268,6 +275,7 @@ export const useAppStore = defineStore('app', () => {
     updateTemplate,
     quickAdd,
     deleteTodo,
+    deleteCompleted,
     deleteTemplate,
     deleteHistory,
     batchDeleteTodos,
