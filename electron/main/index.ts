@@ -44,18 +44,7 @@ import {
   setStoredClusterScale,
   startTuckCursorPoll
 } from './cluster-windows'
-import { anchorForWindowX, visibleClusterBounds, clampAnchorForEdges } from '../../src/core/utils/cluster-layout'
-
-/** 启动/恢复钳制（#31/#32/#33）：左右边缘不阻挡、主窗≥90px 可见、幂等（原样恢复） */
-function clampAnchorToWorkArea(
-  anchor: { x: number; y: number },
-  scale: number,
-  _quickVisible: boolean,
-  _doneVisible: boolean,
-  wa: { x: number; y: number; width: number; height: number }
-): { x: number; y: number } {
-  return clampAnchorForEdges(anchor, Math.round(470 * scale), wa)
-}
+import { anchorForWindowX, visibleClusterBounds, clampAnchorForDisplays } from '../../src/core/utils/cluster-layout'
 
 /** 首次启动锚点：沿用 initialPos 口径（窗口右缘距屏右 24、距顶 48） */
 function initialAnchor(
@@ -105,13 +94,19 @@ async function bootstrap(): Promise<void> {
   // 三轮：自启加固——开关为开时重写登录项（路径始终指向当前 exe）
   syncAutoStartOnBoot(data.settings.autoStart)
 
-  // 三窗分离（批次 B-1）：快捷添加/待办/已完成 = 三个常驻 BrowserWindow
-  const wa = screen.getPrimaryDisplay().workArea
+  // 三窗分离（批次 B-1）：快捷添加/待办/已完成 = 三个常驻 BrowserWindow。
+  // 恢复位置按锚点所在屏重钳（跨屏记忆）；多屏并集钳制避免副屏位置被主屏拉回。
+  const displays = screen.getAllDisplays().map((x) => x.workArea)
+  const primaryWa = screen.getPrimaryDisplay().workArea
   const q = data.uiState.quickVisible
   const d = data.uiState.doneVisible
-  const scale = effectiveClusterScale(data.uiState.clusterScale, wa, q, d)
+  const restoreWa =
+    data.uiState.pos !== null ? screen.getDisplayNearestPoint(data.uiState.pos).workArea : primaryWa
+  const scale = effectiveClusterScale(data.uiState.clusterScale, restoreWa, q, d)
   const anchor =
-    data.uiState.pos !== null ? clampAnchorToWorkArea(data.uiState.pos, scale, q, d, wa) : initialAnchor(wa, scale, q, d)
+    data.uiState.pos !== null
+      ? clampAnchorForDisplays(data.uiState.pos, Math.round(470 * scale), displays)
+      : initialAnchor(primaryWa, scale, q, d)
   createClusterWindows({ anchor, scale, quickVisible: q, doneVisible: d, topMost: data.uiState.topMost })
   // P2：缩进锁定镜像入主进程（锁定时 3 秒会话不武装；启动即同步存档值）
   setTuckLocked(data.uiState.tuckLock)
@@ -294,7 +289,9 @@ function lockNonChildWindows(lock: boolean): void {
 
 /** 打开子窗口：屏内居中级联、位置不记忆、高度≤半屏（速查 #7）；尺寸按组缩放（决策#5/#24） */
 function openChildWindow(kind: ChildKind, id?: string): void {
-  const wa = screen.getPrimaryDisplay().workArea
+  // 子窗跟随组件所在屏居中（跨屏后不再固定弹到主屏）
+  const main = getMainWindow()
+  const wa = main ? screen.getDisplayMatching(main.getBounds()).workArea : screen.getPrimaryDisplay().workArea
   const groupScale = ctx.current().uiState.childScales[GROUP_OF[kind]] ?? 1
   const topMost = ctx.current().uiState.topMost
   const placement = childWindowOptions(kind, wa, childWindows.size, groupScale)
@@ -336,7 +333,8 @@ function openChildWindow(kind: ChildKind, id?: string): void {
   })
   child.on('moved', () => {
     const b = child.getBounds()
-    const clamped = clampPosToWorkArea({ x: b.x, y: b.y }, { width: b.width, height: b.height }, wa)
+    const childWa = screen.getDisplayMatching(b).workArea
+    const clamped = clampPosToWorkArea({ x: b.x, y: b.y }, { width: b.width, height: b.height }, childWa)
     if (clamped.x !== b.x || clamped.y !== b.y) child.setPosition(clamped.x, clamped.y)
   })
   child.on('close', () => {
@@ -387,7 +385,8 @@ function registerIpc(): void {
     const w = BrowserWindow.fromWebContents(e.sender)
     if (!w || w.isDestroyed()) return
     childScaleTransientUntil = Date.now() + 150
-    const wa = screen.getPrimaryDisplay().workArea
+    // 尺寸上限按子窗所在屏（跨屏后不再用主屏钳制）
+    const wa = screen.getDisplayMatching(w.getBounds()).workArea
     const width = Math.min(Math.round(p.width), wa.width - 24)
     const height = Math.max(120, Math.min(Math.round(p.height), wa.height - 24))
     const wasResizable = w.isResizable()
@@ -625,11 +624,17 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0 && ctx) {
-    const wa = screen.getPrimaryDisplay().workArea
+    const displays = screen.getAllDisplays().map((x) => x.workArea)
+    const primaryWa = screen.getPrimaryDisplay().workArea
     const d = ctx.current()
-    const scale = effectiveClusterScale(d.uiState.clusterScale, wa, d.uiState.quickVisible, d.uiState.doneVisible)
+    const pos = d.uiState.pos
+    const restoreWa = pos !== null ? screen.getDisplayNearestPoint(pos).workArea : primaryWa
+    const scale = effectiveClusterScale(d.uiState.clusterScale, restoreWa, d.uiState.quickVisible, d.uiState.doneVisible)
     createClusterWindows({
-      anchor: d.uiState.pos ?? initialAnchor(wa, scale, d.uiState.quickVisible, d.uiState.doneVisible),
+      anchor:
+        pos !== null
+          ? clampAnchorForDisplays(pos, Math.round(470 * scale), displays)
+          : initialAnchor(primaryWa, scale, d.uiState.quickVisible, d.uiState.doneVisible),
       scale,
       quickVisible: d.uiState.quickVisible,
       doneVisible: d.uiState.doneVisible,

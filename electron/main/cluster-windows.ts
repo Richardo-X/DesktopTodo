@@ -14,7 +14,7 @@ import {
 import { SNAP_THRESHOLD, TUCK_BAR_WIDTH, TUCK_BAR_HEIGHT } from '../../src/core/constants'
 import {
   threeWindowBoundsForAnchor,
-  clampAnchorForEdges,
+  clampAnchorForDisplays,
   tuckBarBounds,
   effectiveClusterScale,
   quickCanvasMaxScale,
@@ -716,17 +716,18 @@ function applyAnchor(anchor: { x: number; y: number }): void {
   // 非有限锚点整体忽略：NaN 定位经 Electron 退化为 0 尺寸 SetWindowPos，
   // Windows 把窗口钳塌到最小尺寸 (0,0,4×38) 且后续 setBounds 一并失效（E2E 实测）
   if (!Number.isFinite(anchor.x) || !Number.isFinite(anchor.y)) return
-  const mainBounds = safe(cluster.windows.main) ? cluster.windows.main.getBounds() : null
-  const wa: WorkArea = mainBounds
-    ? screen.getDisplayMatching(mainBounds).workArea
-    : screen.getPrimaryDisplay().workArea
+  // 跨屏拖动：按**目标锚点所在屏**取工作区，不再用主窗旧 bounds——旧屏会把锚点钳在屏内，
+  // 主窗永远进不了另一块屏（向上跨屏尤其死锁：y 下界=旧屏顶边）
+  const wa: WorkArea = screen.getDisplayNearestPoint(anchor).workArea
   // 跨屏拖动=工作区变化 → 画布 maxScale 重算（key 比对，同屏拖动为廉价空转）
   refreshQuickCanvasScale(wa, cluster.quickVisible, cluster.doneVisible)
   // 2026-10-17（用户报告）：工作区变化（跨屏拖动/换分辨率/横竖屏）→ 按新工作区重钳整簇缩放。
   // 只钳生效值、不动存储档（回到大屏自动恢复用户档位）
   reclampScaleForWorkArea(wa)
-  // #31/#32：拖动钳制——左右不阻挡、主窗≥90px；按主窗所在屏工作区
-  cluster.anchor = clampAnchorForEdges(anchor, Math.round(470 * cluster.scale), wa)
+  // 多屏并集钳制：主窗在任意一屏≥90px 可见即允许；相邻屏合法区间重叠，跨屏连续；
+  // 只有屏间空隙才吸附到最近合法点（单屏等价原 clampAnchorForEdges）
+  const displays = screen.getAllDisplays().map((d) => d.workArea)
+  cluster.anchor = clampAnchorForDisplays(anchor, Math.round(470 * cluster.scale), displays)
   lastAppliedAnchor = null
   applyClusterBounds()
 }

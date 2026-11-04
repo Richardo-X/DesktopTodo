@@ -213,4 +213,44 @@ export function clampAnchorForEdges(
   }
 }
 
+/**
+ * 多显示器并集钳制（跨屏拖动）：只要锚点落在**任意一块屏**的合法区域
+ * （主窗在该屏 ≥90px 可见、y 在该屏工作区内且底部留 50px），就原样返回；
+ * 否则取所有屏合法区域中距离锚点最近的钳制点。
+ *
+ * 与单屏 clampAnchorForEdges 的差异：两屏相邻时合法区间会重叠，跨屏拖动不再被
+ * “主窗当前所在屏”锁死；只有屏间空隙才会吸附到最近合法点。
+ * 单屏输入与 clampAnchorForEdges 完全等价；空显示器列表原样返回。
+ */
+export function clampAnchorForDisplays(
+  anchor: { x: number; y: number },
+  mainWidth: number,
+  displays: WorkArea[]
+): { x: number; y: number } {
+  if (displays.length === 0) return anchor
+  for (const wa of displays) {
+    const minX = wa.x + 90 - mainWidth
+    const maxX = wa.x + wa.width - 90
+    if (
+      anchor.x >= minX &&
+      anchor.x <= maxX &&
+      anchor.y >= wa.y &&
+      anchor.y <= wa.y + wa.height - 50
+    ) {
+      return anchor
+    }
+  }
+  let best = clampAnchorForEdges(anchor, mainWidth, displays[0])
+  let bestDist = Math.hypot(best.x - anchor.x, best.y - anchor.y)
+  for (let i = 1; i < displays.length; i++) {
+    const candidate = clampAnchorForEdges(anchor, mainWidth, displays[i])
+    const dist = Math.hypot(candidate.x - anchor.x, candidate.y - anchor.y)
+    if (dist < bestDist) {
+      best = candidate
+      bestDist = dist
+    }
+  }
+  return best
+}
+
 export type { WorkArea }
