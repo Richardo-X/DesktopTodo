@@ -1431,6 +1431,7 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - 已完成详情：标题栏右端「删除」（WPF DetailDialog 同口径）；确认后从 `completed` 永久删除并关闭详情。
 - 历史详情：底部「删除」在「关闭」左侧，间距 8px；确认后删除对应 `archive[dateKey]` 条目并关闭。
 - 活跃待办详情不提供删除（仍走编辑窗删除）。
+- 详情全局单例：同一时间只允许一个已完成/历史详情；从历史打开详情时禁用历史列表窗，详情关闭后恢复；历史窗关闭请求在详情期间被 IPC/系统关闭双路径拦截。
 - store 新增 `deleteCompleted(id)`；历史复用已有 `deleteHistory(dateKey,id)`。
 - footer 去掉双按钮 `margin-left:auto`，改由 `justify-content:flex-end` 右对齐，保证历史删除紧贴关闭左侧。
 
@@ -1439,4 +1440,4 @@ tests/            unit / component / e2e / helpers(api.ts 内存 API·mount.ts)
 - typecheck 通过；vitest **408/408**（新增已完成删除、历史删除、顺序断言）。
 - E2E：已完成详情属性/内容顺序、属性无背景、内容有背景、关闭右缘对齐、删除后行消失；历史详情删除在关闭左侧（gap≥6）并删除历史行。
 - v1.1.10 已重打包安装；FileVersion 1.1.10；安装包 `dist-v1.1.10\桌面待办-安装包-1.1.10.exe`（113,879,647 B，SHA256 `55c8d1f0…0839a`）。
-- 当前本地提交：跨屏 3 笔 + 详情 2 笔 + 文档；未推送、未打 tag、未发 Release。
+- 当前本地提交：跨屏 3 笔 + 详情 4 笔 + 文档；未推送、未打 tag、未发 Release。
